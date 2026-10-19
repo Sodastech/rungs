@@ -60,3 +60,69 @@ export class ConditionError extends RungsError {
     this.received = details.received;
   }
 }
+
+export class InvalidCommandError extends RungsError {
+  readonly code = "COMMAND_INVALID";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidCommandError";
+  }
+}
+
+export class RequestNotFoundError extends RungsError {
+  readonly code = "REQUEST_NOT_FOUND";
+  readonly requestId: string;
+
+  constructor(requestId: string) {
+    super(`Request "${requestId}" does not exist`);
+    this.name = "RequestNotFoundError";
+    this.requestId = requestId;
+  }
+}
+
+export class NotAssignedError extends RungsError {
+  readonly code = "NOT_ASSIGNED";
+  readonly requestId: string;
+  readonly actorId: string;
+
+  constructor(details: { requestId: string; actorId: string }) {
+    super(`"${details.actorId}" has no pending task on request "${details.requestId}"`);
+    this.name = "NotAssignedError";
+    this.requestId = details.requestId;
+    this.actorId = details.actorId;
+  }
+}
+
+export class InvalidTransitionError extends RungsError {
+  readonly code = "INVALID_TRANSITION";
+  readonly requestId: string;
+  /** Current request status, or `"exists"` when submitting over an existing request. */
+  readonly status: string;
+  readonly command: string;
+
+  constructor(details: { requestId: string; status: string; command: string }) {
+    super(
+      `Cannot ${details.command} request "${details.requestId}" while its status is "${details.status}"`,
+    );
+    this.name = "InvalidTransitionError";
+    this.requestId = details.requestId;
+    this.status = details.status;
+    this.command = details.command;
+  }
+}
+
+export type ResolutionFailure = "no-approvers";
+
+export class ResolutionError extends RungsError {
+  readonly code = "RESOLUTION_FAILED";
+  readonly stepId: string;
+  readonly reason: ResolutionFailure;
+
+  constructor(details: { stepId: string; reason: ResolutionFailure }) {
+    super(`Step "${details.stepId}" has no approvers and the flow uses onEmptyStep "fail"`);
+    this.name = "ResolutionError";
+    this.stepId = details.stepId;
+    this.reason = details.reason;
+  }
+}

@@ -4,8 +4,8 @@ Draft for Phase 1. Shapes may change until `1.0`; every change is recorded here.
 
 ## Two layers
 
-1. **Pure engine** — `decide(state, command, context) => { state, events }`.
-   No I/O. Used internally and available for advanced users and tests.
+1. **Pure engine** — `decide(state, command, context) => Decision`.
+   No I/O. Used internally and available for advanced users and tests (see below).
 2. **Service** — `createRungs(options)` wires the engine to a store, resolvers, clock and event hooks.
    This is what most applications use.
 
@@ -79,6 +79,33 @@ await rungs.override({ requestId: req.id, adminId: "u_admin", decision: "approve
 await rungs.tick();   // process deadlines, reminders, timeouts; safe to run on a schedule
 ```
 
+## Pure engine (advanced)
+
+```ts
+import { decide } from "@rungs/core";
+
+const decision = decide(state /* RequestState | null */, command, {
+  now: "2026-01-05T09:00:00.000Z", // ISO 8601 UTC, injected
+  flow,                            // RegisteredFlow: defineFlow(...) plus its version
+  resolutions,                     // answers to earlier needs, keyed by need.key
+});
+
+if (decision.kind === "needs-resolution") {
+  // decision.needs: [{ key, stepId, spec }] — collect approvers, then call decide again
+  // with the same state and command plus resolutions: { [need.key]: { userIds } }.
+} else {
+  // decision.state, decision.audit, decision.events
+}
+```
+
+Commands: `{ type: "submit", requestId, requesterId, subject, payload, tenantId? }`,
+`{ type: "approve" | "reject", requestId, actorId, comment? }` (more in later milestones).
+`decide` throws a `RungsError` when a command is not allowed and never changes its input. Task IDs
+are derived from the request ID, so the engine needs no ID generator.
+
+On submit the engine evaluates every step condition once against the payload, so an invalid
+condition fails the requester's submit instead of blocking an approver later (EC-41).
+
 ## Queries
 
 ```ts
@@ -105,7 +132,8 @@ Emitted after a command commits (outbox-style; the store persists them in the sa
 ```
 request.submitted   request.approved   request.rejected   request.returned   request.withdrawn
 step.activated      step.skipped       step.completed
-task.assigned       task.decided       task.delegated     task.reminder      task.expired
+task.assigned       task.decided       task.superseded    task.delegated     task.reminder
+task.expired
 request.escalated
 ```
 
@@ -120,6 +148,7 @@ All extend `RungsError` and expose a stable `code`.
 | --- | --- | --- |
 | `FlowDefinitionError` | `FLOW_INVALID` | Invalid flow definition |
 | `FlowNotFoundError` | `FLOW_NOT_FOUND` | Unknown flow key |
+| `InvalidCommandError` | `COMMAND_INVALID` | Malformed command input (e.g. empty IDs, non-JSON payload, override without reason), or a submit refused by `onAllSkipped: "fail"` |
 | `RequestNotFoundError` | `REQUEST_NOT_FOUND` | Unknown request |
 | `NotAssignedError` | `NOT_ASSIGNED` | Actor has no pending task on this request |
 | `InvalidTransitionError` | `INVALID_TRANSITION` | e.g. approving a closed request |

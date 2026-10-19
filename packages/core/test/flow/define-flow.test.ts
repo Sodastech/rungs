@@ -33,10 +33,26 @@ describe("defineFlow", () => {
           id: "manager",
           approvers: { type: "users", ids: ["u_manager"] },
           mode: "any",
-          onTimeout: "remind",
         },
       ],
     });
+  });
+
+  it("defaults onTimeout to remind only for steps with a deadline", () => {
+    const flow = defineFlow(flowInput({ steps: [step({ deadline: "P1D" })] }));
+    expect(flow.steps[0]?.onTimeout).toBe("remind");
+  });
+
+  it("accepts its own output, so a stored definition can be defined again", () => {
+    const flow = defineFlow(
+      flowInput({
+        steps: [
+          step({ id: "a" }),
+          step({ id: "b", deadline: "P1D", when: { field: "x", op: "eq", value: 1 } }),
+        ],
+      }),
+    );
+    expect(defineFlow(flow)).toEqual(flow);
   });
 
   it("keeps explicit settings", () => {

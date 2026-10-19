@@ -1,10 +1,38 @@
 import { describe, expect, it } from "vitest";
 import { evaluateCondition } from "../../src/flow/condition.js";
-import { ConditionError, RungsError } from "../../src/index.js";
+import { ConditionError, InvalidCommandError, RungsError } from "../../src/index.js";
+import {
+  approve,
+  registeredFlow,
+  run,
+  runAll,
+  submitCommand,
+  T0,
+  T1,
+  thrown,
+} from "../helpers/engine.js";
 
-function conditionError(run: () => unknown): ConditionError {
+const conditional = (onAllSkipped?: "approve" | "fail") =>
+  registeredFlow({
+    key: "purchase",
+    ...(onAllSkipped ? { onAllSkipped } : {}),
+    steps: [
+      {
+        id: "manager",
+        approvers: { type: "users", ids: ["u_mgr"] },
+        when: { field: "amount", op: "gt", value: 100 },
+      },
+      {
+        id: "legal",
+        approvers: { type: "users", ids: ["u_legal"] },
+        when: { field: "contract", op: "eq", value: true },
+      },
+    ],
+  });
+
+function conditionError(fn: () => unknown): ConditionError {
   try {
-    run();
+    fn();
   } catch (error) {
     if (error instanceof ConditionError) return error;
     throw error;
@@ -85,5 +113,132 @@ describe("E. Lifecycle", () => {
     expect(() => evaluateCondition({ all: [isFalse, missing] }, payload)).toThrow(ConditionError);
     expect(() => evaluateCondition({ any: [isTrue, missing] }, payload)).toThrow(ConditionError);
     expect(() => evaluateCondition({ not: missing }, payload)).toThrow(ConditionError);
+  });
+
+  it("EC-36 conditions use the payload snapshot taken at submit, not later changes", () => {
+    const payload = { amount: 5000 };
+    const submitted = run(null, submitCommand({ payload }));
+    payload.amount = 10;
+    const { state } = run(submitted.state, approve("u_mgr"));
+    expect(state.payload).toEqual({ amount: 5000 });
+    expect(state.steps[1]).toMatchObject({ stepId: "finance", status: "active" });
+  });
+
+  it("EC-38 a step whose condition is false is skipped at activation with the reason recorded", () => {
+    const { state, audit, events } = runAll([
+      submitCommand({ payload: { amount: 500 } }),
+      approve("u_mgr"),
+    ]);
+    expect(state.steps.map((s) => [s.stepId, s.status])).toEqual([
+      ["manager", "approved"],
+      ["finance", "skipped"],
+      ["director", "active"],
+    ]);
+    expect(state.steps[1]).toEqual({
+      stepId: "finance",
+      index: 1,
+      status: "skipped",
+      skippedAt: T1,
+      skipReason: {
+        type: "condition-false",
+        condition: { field: "amount", op: "gt", value: 1000 },
+      },
+      approvers: [],
+      tasks: [],
+    });
+    const skipped = audit.find((e) => e.type === "step.skipped");
+    expect(skipped?.data).toEqual({
+      stepId: "finance",
+      stepIndex: 1,
+      reason: { type: "condition-false", condition: { field: "amount", op: "gt", value: 1000 } },
+    });
+    expect(events.map((e) => e.type)).toContain("step.skipped");
+  });
+
+  it("EC-38 a step whose condition is true runs normally", () => {
+    const { state } = runAll([submitCommand({ payload: { amount: 5000 } }), approve("u_mgr")]);
+    expect(state.steps[1]).toMatchObject({ stepId: "finance", status: "active" });
+  });
+
+  it("EC-39 when every step is skipped the request is approved and the audit explains each skip", () => {
+    const { state, audit } = run(
+      null,
+      submitCommand({ payload: { amount: 50, contract: false } }),
+      {
+        flow: conditional(),
+      },
+    );
+    expect(state).toMatchObject({ status: "approved", currentStepIndex: null, closedAt: T0 });
+    expect(audit.map((e) => e.type)).toEqual([
+      "request.submitted",
+      "step.skipped",
+      "step.skipped",
+      "request.approved",
+    ]);
+    expect(audit[1]?.data).toMatchObject({
+      stepId: "manager",
+      reason: { type: "condition-false", condition: { field: "amount", op: "gt", value: 100 } },
+    });
+    expect(audit[2]?.data).toMatchObject({
+      stepId: "legal",
+      reason: { type: "condition-false", condition: { field: "contract", op: "eq", value: true } },
+    });
+    expect(audit[3]?.data).toEqual({
+      reason: "all-steps-skipped",
+      skippedStepIds: ["manager", "legal"],
+    });
+  });
+
+  it("EC-39 with onAllSkipped fail the submit is refused and no request is created", () => {
+    const error = thrown(() =>
+      run(null, submitCommand({ payload: { amount: 50, contract: false } }), {
+        flow: conditional("fail"),
+      }),
+    );
+    expect(error).toBeInstanceOf(InvalidCommandError);
+    expect((error as Error).message).toMatch(/every step was skipped/);
+  });
+
+  it("EC-39 a request where only some steps are skipped is approved normally", () => {
+    const { state, audit } = runAll(
+      [submitCommand({ payload: { amount: 500, contract: false } }), approve("u_mgr")],
+      { flow: conditional() },
+    );
+    expect(state.status).toBe("approved");
+    expect(audit.at(-1)?.data).toEqual({ reason: "steps-approved" });
+  });
+
+  it("EC-41 submit evaluates every step condition up front and fails with ConditionError", () => {
+    // "finance" compares amount, but the payload has none. Without the up-front check the error
+    // would surface only when the manager approves, blocking the approver instead of the requester.
+    const error = thrown(() => run(null, submitCommand({ payload: { total: 5000 } })));
+    expect(error).toBeInstanceOf(ConditionError);
+    expect(error).toMatchObject({ field: "amount", received: "missing" });
+  });
+
+  it("EC-41 the up-front check also covers steps after a step that would be skipped", () => {
+    const flow = registeredFlow({
+      key: "check",
+      steps: [
+        {
+          id: "a",
+          approvers: { type: "users", ids: ["u_a"] },
+          when: { field: "kind", op: "eq", value: "big" },
+        },
+        {
+          id: "b",
+          approvers: { type: "users", ids: ["u_b"] },
+          when: { field: "amount", op: "gte", value: 1 },
+        },
+      ],
+    });
+    const error = thrown(() =>
+      run(null, submitCommand({ payload: { kind: "small", amount: "12" } }), { flow }),
+    );
+    expect(error).toMatchObject({
+      code: "CONDITION_INVALID",
+      expected: "number",
+      received: "string",
+    });
   });
 });

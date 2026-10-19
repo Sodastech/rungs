@@ -31,7 +31,7 @@ function normalizeStep(step: StepInput): StepDefinition {
     when: step.when,
     deadline: step.deadline,
     remindBefore: step.remindBefore,
-    onTimeout: step.onTimeout ?? "remind",
+    onTimeout: step.deadline === undefined ? undefined : (step.onTimeout ?? "remind"),
     escalateTo: step.escalateTo,
   });
 }

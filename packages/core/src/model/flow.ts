@@ -77,7 +77,8 @@ export interface StepDefinition {
   readonly when?: Condition;
   readonly deadline?: Duration;
   readonly remindBefore?: Duration;
-  readonly onTimeout: TimeoutAction;
+  /** Present exactly when `deadline` is set (default `"remind"`). */
+  readonly onTimeout?: TimeoutAction;
   readonly escalateTo?: ApproverSpec;
 }
 

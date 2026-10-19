@@ -26,7 +26,7 @@ Tier: **Core** = MIT `@rungs/core`; **Pro** = `@rungs/org`.
 
 | ID | Situation | Default behavior | Config | Tier |
 | --- | --- | --- | --- | --- |
-| EC-12 | Parallel step, mode `any` | First approval completes the step; other tasks become `superseded` | — | Core |
+| EC-12 | Parallel step, mode `any` | The first decision decides the step: an approval approves it, a rejection rejects it (and the request). Other pending tasks become `superseded` | — | Core |
 | EC-13 | Parallel step, mode `all`, one approver rejects | Step and request are rejected immediately | `rejectPolicy` | Core |
 | EC-14 | Quorum step where approval can no longer reach the quorum | Step rejects as soon as the quorum becomes impossible | — | Core |
 | EC-15 | Two approvers act at the same moment | One commit wins; the other gets `ConflictError` and re-reads state (it may now be superseded) | — | Core |
@@ -70,6 +70,7 @@ Tier: **Core** = MIT `@rungs/core`; **Pro** = `@rungs/org`.
 | EC-38 | Conditional step (`when`) | Evaluated at step activation against the payload snapshot; false → `step.skipped` with reason | — | Core |
 | EC-39 | Every step is skipped (all conditions false or all empty) | Request is approved automatically; audit explains each skip | `onAllSkipped: approve \| fail` | Core |
 | EC-40 | A comparison (`gt`, `gte`, `lt`, `lte`) in a condition meets a missing field or a value of the wrong type | Fail closed: `ConditionError` (`CONDITION_INVALID`) naming the field, expected and received type; no state change. `eq`/`neq`/`in`/`nin` on a missing field evaluate against `undefined`. All branches of `all`/`any` are evaluated so an error is never masked | — | Core |
+| EC-41 | A condition would fail with `ConditionError` on a step that activates later | Submit (and resubmit) evaluate every step condition up front, so the requester's command fails and no request is created; the approver of an earlier step is never blocked. Conditions are still evaluated at activation (EC-38) | — | Core |
 
 ## Adding a new case
 

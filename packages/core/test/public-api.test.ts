@@ -7,7 +7,13 @@ it("exports exactly the documented runtime API", () => {
   expect(Object.keys(core).sort()).toEqual([
     "ConditionError",
     "FlowDefinitionError",
+    "InvalidCommandError",
+    "InvalidTransitionError",
+    "NotAssignedError",
+    "RequestNotFoundError",
+    "ResolutionError",
     "RungsError",
+    "decide",
     "defineFlow",
   ]);
 });

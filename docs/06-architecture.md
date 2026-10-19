@@ -39,15 +39,17 @@ The engine is a pure reducer:
 
 ```ts
 decide(state: RequestState | null, command: Command, ctx: EngineContext): Decision
-// Decision = { state: RequestState; audit: AuditEvent[]; events: DomainEvent[]; needs?: ResolutionNeed[] }
+// Decision =
+//   | { kind: "needs-resolution"; needs: ResolutionNeed[] }
+//   | { kind: "decided"; state: RequestState; audit: AuditEvent[]; events: DomainEvent[] }
 ```
 
 Approver resolution is async (it calls host code), but the engine must stay pure. The service layer
 therefore runs a small loop:
 
 1. Load request state from the store (inside a transaction, locked for update).
-2. Call `decide`. If the decision says it needs approvers resolved for a step that is activating,
-   it returns `needs`.
+2. Call `decide`. If it needs approvers resolved for a step that is activating, it returns
+   `kind: "needs-resolution"` with `needs` and nothing has changed yet.
 3. The service resolves those approvers (roles, resolvers, delegation rules, active-user checks),
    then calls `decide` again with the resolved data in `ctx`.
 4. Persist state, audit events and domain events in the same transaction (outbox).
