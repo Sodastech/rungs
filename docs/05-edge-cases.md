@@ -27,8 +27,8 @@ Tier: **Core** = MIT `@rungs/core`; **Pro** = `@rungs/org`.
 | ID | Situation | Default behavior | Config | Tier |
 | --- | --- | --- | --- | --- |
 | EC-12 | Parallel step, mode `any` | The first decision decides the step: an approval approves it, a rejection rejects it (and the request). Other pending tasks become `superseded` | — | Core |
-| EC-13 | Parallel step, mode `all`, one approver rejects | Step and request are rejected immediately | `rejectPolicy` | Core |
-| EC-14 | Quorum step where approval can no longer reach the quorum | Step rejects as soon as the quorum becomes impossible | — | Core |
+| EC-13 | Parallel step, mode `all`, one approver rejects | Step and request are rejected immediately; other pending tasks become `superseded`. The step is approved only when every approver has approved | — | Core |
+| EC-14 | Quorum step where approval can no longer reach the quorum | Step (and request) rejects as soon as approvals plus pending tasks fall below the quorum; it approves as soon as the quorum is reached. Other pending tasks become `superseded`. A veto (one rejection rejects) is not supported yet | — | Core |
 | EC-15 | Two approvers act at the same moment | One commit wins; the other gets `ConflictError` and re-reads state (it may now be superseded) | — | Core |
 | EC-16 | The same command is sent twice (double click, retry) | With the same `idempotencyKey`, the second call returns the first result | `idempotencyKey` | Core |
 | EC-17 | A user who is not assigned tries to decide | `NotAssignedError`; nothing recorded except an optional security audit event | — | Core |

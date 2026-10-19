@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { InvalidTransitionError, NotAssignedError } from "../../src/index.js";
+import {
+  InvalidTransitionError,
+  NotAssignedError,
+  type RequestState,
+  type StepMode,
+} from "../../src/index.js";
 import {
   approve,
   registeredFlow,
@@ -17,6 +22,18 @@ const parallelAny = registeredFlow({
     { id: "final", approvers: { type: "users", ids: ["u_final"] } },
   ],
 });
+
+const parallel = (mode: StepMode, ids = ["u_a", "u_b", "u_c"]) =>
+  registeredFlow({
+    key: "review",
+    steps: [
+      { id: "reviewers", approvers: { type: "users", ids }, mode },
+      { id: "final", approvers: { type: "users", ids: ["u_final"] } },
+    ],
+  });
+
+const taskStatuses = (state: RequestState) =>
+  state.steps[0]?.tasks.map((t) => [t.assigneeId, t.status]);
 
 describe("B. Decisions", () => {
   it("EC-12 mode any: the first approval completes the step and supersedes the other tasks", () => {
@@ -86,5 +103,110 @@ describe("B. Decisions", () => {
         });
       }
     }
+  });
+
+  describe("mode all", () => {
+    const flow = parallel("all");
+
+    it("EC-13 the step stays active until every approver has approved", () => {
+      const partial = runAll([submitCommand(), approve("u_a"), approve("u_c")], { flow });
+      expect(partial.state.steps[0]?.status).toBe("active");
+      expect(partial.state.currentStepIndex).toBe(0);
+      expect(taskStatuses(partial.state)).toEqual([
+        ["u_a", "approved"],
+        ["u_b", "pending"],
+        ["u_c", "approved"],
+      ]);
+      expect(partial.audit.map((e) => e.type)).toEqual(["task.approved"]);
+
+      const done = runAll([submitCommand(), approve("u_a"), approve("u_c"), approve("u_b")], {
+        flow,
+      });
+      expect(done.state.steps[0]?.status).toBe("approved");
+      expect(done.state.steps[1]).toMatchObject({ stepId: "final", status: "active" });
+    });
+
+    it("EC-13 one rejection rejects the step and the request immediately", () => {
+      const { state, audit } = runAll([submitCommand(), approve("u_a"), reject("u_b")], { flow });
+      expect(state.status).toBe("rejected");
+      expect(state.steps[0]?.status).toBe("rejected");
+      expect(taskStatuses(state)).toEqual([
+        ["u_a", "approved"],
+        ["u_b", "rejected"],
+        ["u_c", "superseded"],
+      ]);
+      expect(audit.map((e) => e.type)).toEqual([
+        "task.rejected",
+        "task.superseded",
+        "step.completed",
+        "request.rejected",
+      ]);
+    });
+  });
+
+  describe("mode quorum", () => {
+    it("EC-14 the step is approved as soon as the quorum is reached; the rest are superseded", () => {
+      const flow = parallel({ quorum: 2 });
+      const { state } = runAll([submitCommand(), approve("u_c"), approve("u_a")], { flow });
+      expect(state.steps[0]?.status).toBe("approved");
+      expect(taskStatuses(state)).toEqual([
+        ["u_a", "approved"],
+        ["u_b", "superseded"],
+        ["u_c", "approved"],
+      ]);
+      expect(state.steps[1]?.stepId).toBe("final");
+    });
+
+    it("EC-14 a rejection that still leaves the quorum reachable keeps the step active", () => {
+      const flow = parallel({ quorum: 2 });
+      const { state } = runAll([submitCommand(), reject("u_a")], { flow });
+      expect(state.status).toBe("pending");
+      expect(state.steps[0]?.status).toBe("active");
+      expect(taskStatuses(state)).toEqual([
+        ["u_a", "rejected"],
+        ["u_b", "pending"],
+        ["u_c", "pending"],
+      ]);
+
+      const approved = runAll([submitCommand(), reject("u_a"), approve("u_b"), approve("u_c")], {
+        flow,
+      });
+      expect(approved.state.steps[0]?.status).toBe("approved");
+    });
+
+    it("EC-14 the step is rejected as soon as the quorum becomes impossible", () => {
+      const flow = parallel({ quorum: 3 }, ["u_a", "u_b", "u_c", "u_d"]);
+      const afterOne = runAll([submitCommand(), approve("u_a"), reject("u_b")], { flow });
+      expect(afterOne.state.steps[0]?.status).toBe("active");
+
+      const { state } = runAll([submitCommand(), approve("u_a"), reject("u_b"), reject("u_d")], {
+        flow,
+      });
+      expect(state.status).toBe("rejected");
+      expect(taskStatuses(state)).toEqual([
+        ["u_a", "approved"],
+        ["u_b", "rejected"],
+        ["u_c", "superseded"],
+        ["u_d", "rejected"],
+      ]);
+    });
+
+    it("EC-14 quorum 1 is not the same as any: a rejection waits for the other approvers", () => {
+      const flow = parallel({ quorum: 1 }, ["u_a", "u_b"]);
+      const afterReject = runAll([submitCommand(), reject("u_a")], { flow });
+      expect(afterReject.state.steps[0]?.status).toBe("active");
+
+      const rejected = runAll([submitCommand(), reject("u_a"), reject("u_b")], { flow });
+      expect(rejected.state.status).toBe("rejected");
+
+      const approved = runAll([submitCommand(), reject("u_a"), approve("u_b")], { flow });
+      expect(approved.state.steps[0]?.status).toBe("approved");
+    });
+
+    it("EC-14 quorum equal to the number of approvers behaves like all", () => {
+      const flow = parallel({ quorum: 3 });
+      const { state } = runAll([submitCommand(), reject("u_b")], { flow });
+      expect(state.status).toBe("rejected");
+    });
   });
 });

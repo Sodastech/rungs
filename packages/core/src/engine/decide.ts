@@ -137,14 +137,24 @@ function decideTask(
   return finish(draft);
 }
 
-/** EC-12: in mode "any" the first decision, approve or reject, decides the step. */
+/**
+ * EC-12: in mode "any" the first decision, approve or reject, decides the step.
+ * EC-13, EC-14: "all" (quorum = every approver) and quorum steps are approved once enough approvals
+ * arrive and rejected as soon as the remaining pending tasks can no longer reach the quorum.
+ */
 function stepOutcome(
-  _instance: StepInstance,
+  instance: StepInstance,
   mode: StepMode,
   decision: "approved" | "rejected",
 ): "approved" | "rejected" | "pending" {
   if (mode === "any") return decision;
-  throw new Error(`Step mode ${JSON.stringify(mode)} is not implemented yet (milestone 1.3)`);
+
+  const required = mode === "all" ? instance.tasks.length : mode.quorum;
+  const approvals = instance.tasks.filter((t) => t.status === "approved").length;
+  const pending = instance.tasks.filter((t) => t.status === "pending").length;
+  if (approvals >= required) return "approved";
+  if (approvals + pending < required) return "rejected";
+  return "pending";
 }
 
 function supersedeOpenTasks(draft: Draft, instance: StepInstance, byTaskId: string): void {
