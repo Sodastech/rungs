@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { evaluateCondition } from "../../src/flow/condition.js";
-import { ConditionError, InvalidCommandError, RungsError } from "../../src/index.js";
+import { ConditionError, FlowNotApplicableError, RungsError } from "../../src/index.js";
 import {
   approve,
   registeredFlow,
@@ -195,7 +195,12 @@ describe("E. Lifecycle", () => {
         flow: conditional("fail"),
       }),
     );
-    expect(error).toBeInstanceOf(InvalidCommandError);
+    expect(error).toBeInstanceOf(FlowNotApplicableError);
+    expect(error).toMatchObject({
+      code: "FLOW_NOT_APPLICABLE",
+      flowKey: "purchase",
+      skippedStepIds: ["manager", "legal"],
+    });
     expect((error as Error).message).toMatch(/every step was skipped/);
   });
 

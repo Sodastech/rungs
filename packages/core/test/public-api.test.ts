@@ -7,6 +7,7 @@ it("exports exactly the documented runtime API", () => {
   expect(Object.keys(core).sort()).toEqual([
     "ConditionError",
     "FlowDefinitionError",
+    "FlowNotApplicableError",
     "InvalidCommandError",
     "InvalidTransitionError",
     "NotAssignedError",

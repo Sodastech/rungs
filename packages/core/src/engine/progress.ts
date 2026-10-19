@@ -1,6 +1,6 @@
 import { evaluateCondition } from "../flow/condition.js";
 import type { ResolutionNeed } from "../model/decision.js";
-import { InvalidCommandError, ResolutionError } from "../model/errors.js";
+import { FlowNotApplicableError, ResolutionError } from "../model/errors.js";
 import type { StepDefinition } from "../model/flow.js";
 import type { SkipReason, StepInstance } from "../model/state.js";
 import { clone, type Draft, record } from "./draft.js";
@@ -103,9 +103,10 @@ function completeApproved(draft: Draft): void {
   const { state, ctx } = draft;
   const allSkipped = state.steps.every((instance) => instance.status === "skipped");
   if (allSkipped && ctx.flow.onAllSkipped === "fail") {
-    throw new InvalidCommandError(
-      `Flow "${ctx.flow.key}" does not apply to this request: every step was skipped and the flow uses onAllSkipped "fail"`,
-    );
+    throw new FlowNotApplicableError({
+      flowKey: ctx.flow.key,
+      skippedStepIds: state.steps.map((s) => s.stepId),
+    });
   }
 
   state.status = "approved";

@@ -68,7 +68,7 @@ Tier: **Core** = MIT `@rungs/core`; **Pro** = `@rungs/org`.
 | EC-36 | Payload changes after submit outside Rungs | Ignored; conditions use the snapshot. Changing data requires return + resubmit | — | Core |
 | EC-37 | Flow definition changes while requests are in flight | In-flight requests keep their pinned `flowVersion` | — | Core |
 | EC-38 | Conditional step (`when`) | Evaluated at step activation against the payload snapshot; false → `step.skipped` with reason | — | Core |
-| EC-39 | Every step is skipped (all conditions false or all empty) | Request is approved automatically; audit explains each skip | `onAllSkipped: approve \| fail` | Core |
+| EC-39 | Every step is skipped (all conditions false or all empty) | Request is approved automatically; audit explains each skip. With `fail`, the submit is refused with `FlowNotApplicableError` and no request is created | `onAllSkipped: approve \| fail` | Core |
 | EC-40 | A comparison (`gt`, `gte`, `lt`, `lte`) in a condition meets a missing field or a value of the wrong type | Fail closed: `ConditionError` (`CONDITION_INVALID`) naming the field, expected and received type; no state change. `eq`/`neq`/`in`/`nin` on a missing field evaluate against `undefined`. All branches of `all`/`any` are evaluated so an error is never masked | — | Core |
 | EC-41 | A condition would fail with `ConditionError` on a step that activates later | Submit (and resubmit) evaluate every step condition up front, so the requester's command fails and no request is created; the approver of an earlier step is never blocked. Conditions are still evaluated at activation (EC-38) | — | Core |
 

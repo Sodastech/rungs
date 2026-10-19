@@ -58,6 +58,19 @@ with `issues: { path, message }[]` listing every problem, e.g. `{ path: "steps[1
 
 Every command accepts an optional `idempotencyKey` and `expectedVersion`.
 
+The `payload` must be plain JSON, because it is persisted and conditions are evaluated against it.
+Anything else is rejected with `InvalidCommandError`, naming every offending path and its type:
+
+```ts
+await rungs.submit({ ..., payload: { amount: 1200, submittedAt: new Date(), lines: [1, undefined] } });
+// InvalidCommandError (COMMAND_INVALID):
+//   Invalid command: payload.submittedAt is a Date; send an ISO 8601 string;
+//   payload.lines[1] is undefined; omit the field or send null
+```
+
+Also rejected: `NaN` and `Infinity` ("send a finite number"), functions, `bigint`, and class
+instances such as `Map` ("send a plain object or array").
+
 ```ts
 const req = await rungs.submit({
   flow: "leave",
@@ -148,7 +161,8 @@ All extend `RungsError` and expose a stable `code`.
 | --- | --- | --- |
 | `FlowDefinitionError` | `FLOW_INVALID` | Invalid flow definition |
 | `FlowNotFoundError` | `FLOW_NOT_FOUND` | Unknown flow key |
-| `InvalidCommandError` | `COMMAND_INVALID` | Malformed command input (e.g. empty IDs, non-JSON payload, override without reason), or a submit refused by `onAllSkipped: "fail"` |
+| `InvalidCommandError` | `COMMAND_INVALID` | Malformed command input (e.g. empty IDs, non-JSON payload, override without reason). The message names each problem |
+| `FlowNotApplicableError` | `FLOW_NOT_APPLICABLE` | Submit refused because every step was skipped and the flow uses `onAllSkipped: "fail"` (EC-39). Exposes `flowKey`, `skippedStepIds` |
 | `RequestNotFoundError` | `REQUEST_NOT_FOUND` | Unknown request |
 | `NotAssignedError` | `NOT_ASSIGNED` | Actor has no pending task on this request |
 | `InvalidTransitionError` | `INVALID_TRANSITION` | e.g. approving a closed request |

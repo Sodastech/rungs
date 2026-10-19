@@ -9,7 +9,7 @@ import {
 } from "../model/errors.js";
 import type { StepMode } from "../model/flow.js";
 import type { RequestState, StepInstance } from "../model/state.js";
-import { clone, type Draft, finish, isJson, record, startDraft } from "./draft.js";
+import { clone, type Draft, finish, jsonIssues, record, startDraft } from "./draft.js";
 import { activeStep, advance, closeRejected, closeStep } from "./progress.js";
 
 const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
@@ -170,11 +170,7 @@ function validateCommand(command: Command): void {
       text(command.subject?.type, "subject.type");
       text(command.subject?.id, "subject.id");
       if (command.tenantId !== undefined) text(command.tenantId, "tenantId");
-      if (!isJson(command.payload)) {
-        problems.push(
-          "payload must be plain JSON (no undefined, NaN, Infinity, Date, functions or class instances)",
-        );
-      }
+      problems.push(...jsonIssues(command.payload, "payload"));
       break;
     case "approve":
     case "reject":

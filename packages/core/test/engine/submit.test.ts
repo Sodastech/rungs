@@ -125,6 +125,46 @@ describe("submit", () => {
     }
   });
 
+  it.each<[string, unknown, string]>([
+    [
+      "Date",
+      { submittedAt: new Date(0) },
+      "payload.submittedAt is a Date; send an ISO 8601 string",
+    ],
+    [
+      "undefined",
+      { lines: [1, undefined] },
+      "payload.lines[1] is undefined; omit the field or send null",
+    ],
+    ["NaN", { cost: { amount: Number.NaN } }, "payload.cost.amount is NaN; send a finite number"],
+    [
+      "Infinity",
+      { amount: Number.POSITIVE_INFINITY },
+      "payload.amount is Infinity; send a finite number",
+    ],
+    ["function", { fn: () => 1 }, "payload.fn is a function; send plain JSON data"],
+    ["bigint", { big: 10n }, "payload.big is a bigint; send a number or a string"],
+    ["Map", { tags: new Map() }, "payload.tags is a Map; send a plain object or array"],
+    [
+      "odd key",
+      { "line items": [new Date(0)] },
+      'payload["line items"][0] is a Date; send an ISO 8601 string',
+    ],
+    ["root", undefined, "payload is undefined; omit the field or send null"],
+  ])("names the path and type of a non-JSON payload value (%s)", (_, payload, message) => {
+    const error = thrown(() => run(null, submitCommand({ payload: payload as never })));
+    expect(error).toBeInstanceOf(InvalidCommandError);
+    expect((error as Error).message).toContain(message);
+  });
+
+  it("lists every non-JSON payload value, not only the first", () => {
+    const error = thrown(() =>
+      run(null, submitCommand({ payload: { a: new Date(0), b: Number.NaN } as never })),
+    );
+    expect((error as Error).message).toContain("payload.a is a Date");
+    expect((error as Error).message).toContain("payload.b is NaN");
+  });
+
   it("rejects a non-UTC or malformed clock value", () => {
     for (const now of ["2026-01-05T09:00:00+07:00", "yesterday", "2026-01-05"]) {
       expect(thrown(() => run(null, submitCommand(), { now }))).toBeInstanceOf(InvalidCommandError);

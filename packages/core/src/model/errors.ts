@@ -126,3 +126,20 @@ export class ResolutionError extends RungsError {
     this.reason = details.reason;
   }
 }
+
+/** The flow does not apply to the submitted payload: every step was skipped and `onAllSkipped` is "fail". */
+export class FlowNotApplicableError extends RungsError {
+  readonly code = "FLOW_NOT_APPLICABLE";
+  readonly flowKey: string;
+  readonly skippedStepIds: readonly string[];
+
+  constructor(details: { flowKey: string; skippedStepIds: readonly string[] }) {
+    super(
+      `Flow "${details.flowKey}" does not apply to this request: every step was skipped ` +
+        `(${details.skippedStepIds.join(", ")}) and the flow uses onAllSkipped "fail"`,
+    );
+    this.name = "FlowNotApplicableError";
+    this.flowKey = details.flowKey;
+    this.skippedStepIds = details.skippedStepIds;
+  }
+}

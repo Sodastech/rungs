@@ -15,6 +15,7 @@ export type { FlowIssue, ReceivedType, ResolutionFailure } from "./model/errors.
 export {
   ConditionError,
   FlowDefinitionError,
+  FlowNotApplicableError,
   InvalidCommandError,
   InvalidTransitionError,
   NotAssignedError,

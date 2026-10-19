@@ -1,6 +1,6 @@
 import type { DecidedResult, EngineContext } from "../model/decision.js";
 import type { AuditEvent, AuditEventBody, DomainEvent } from "../model/event.js";
-import type { JsonValue, RequestState } from "../model/state.js";
+import type { RequestState } from "../model/state.js";
 
 /** Mutable working copy of a request while one command is being decided. */
 export interface Draft {
@@ -55,14 +55,30 @@ export function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-export function isJson(value: unknown): value is JsonValue {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
-  if (typeof value === "number") return Number.isFinite(value);
-  if (Array.isArray(value)) return value.every(isJson);
-  if (typeof value === "object") {
-    const proto = Object.getPrototypeOf(value);
-    if (proto !== Object.prototype && proto !== null) return false;
-    return Object.values(value).every(isJson);
+/**
+ * Lists every value that is not plain JSON, naming its path and type with a hint, e.g.
+ * `payload.submittedAt is a Date; send an ISO 8601 string`. Empty when `value` is a `JsonValue`.
+ */
+export function jsonIssues(value: unknown, path: string): string[] {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return [];
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? [] : [`${path} is ${String(value)}; send a finite number`];
   }
-  return false;
+  if (value === undefined) return [`${path} is undefined; omit the field or send null`];
+  if (typeof value === "function") return [`${path} is a function; send plain JSON data`];
+  if (typeof value === "bigint") return [`${path} is a bigint; send a number or a string`];
+  if (typeof value !== "object") return [`${path} is a ${typeof value}; send plain JSON data`];
+
+  if (Array.isArray(value)) return value.flatMap((item, i) => jsonIssues(item, `${path}[${i}]`));
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) {
+    const name = (value.constructor as { name?: string } | undefined)?.name || "class instance";
+    if (value instanceof Date) return [`${path} is a Date; send an ISO 8601 string`];
+    return [`${path} is a ${name}; send a plain object or array`];
+  }
+  return Object.entries(value).flatMap(([key, item]) => jsonIssues(item, childPath(path, key)));
+}
+
+function childPath(path: string, key: string): string {
+  return /^[A-Za-z_$][\w$]*$/.test(key) ? `${path}.${key}` : `${path}[${JSON.stringify(key)}]`;
 }
