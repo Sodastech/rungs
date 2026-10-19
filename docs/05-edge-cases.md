@@ -11,9 +11,9 @@ Tier: **Core** = MIT `@rungs/core`; **Pro** = `@rungs/org`.
 | ID | Situation | Default behavior | Config | Tier |
 | --- | --- | --- | --- | --- |
 | EC-01 | Requester is one of the approvers of a step | Requester is removed from that step's approvers; reason recorded | `allowSelfApproval` | Core |
-| EC-02 | After EC-01 removal the step has no approvers | Apply `onEmptyStep` (default `skip`, recorded as `step.skipped` with reason) | `onEmptyStep: skip \| fail` (Pro: `escalate-up`) | Core / Pro |
+| EC-02 | After EC-01 removal the step has no approvers | Apply `onEmptyStep`. Default `fail`: the command fails with `ResolutionError` and nothing changes. `skip` must be chosen explicitly; it records `step.skipped` with the reason | `onEmptyStep: fail \| skip` (Pro: `escalate-up`) | Core / Pro |
 | EC-03 | Same person resolves in consecutive steps | Second occurrence auto-approved as `skipped-duplicate`, first decision carries over | `dedupeApprovers` | Core |
-| EC-04 | Resolver returns an empty list (e.g. vacant position) | Same as EC-02 | `onEmptyStep` | Core |
+| EC-04 | Resolver returns an empty list (e.g. vacant position) | Same as EC-02 (default `fail`) | `onEmptyStep` | Core |
 | EC-05 | Resolver throws | Command fails with `ResolutionError`; no state change | — | Core |
 | EC-06 | Resolved approver is inactive (left company) | Treated as absent: removed, reason recorded; may trigger EC-02 | `isActiveUser` hook | Core |
 | EC-07 | Position is vacant | Walk up the hierarchy to the next filled position | `vacancy: walk-up \| empty` | Pro |
@@ -69,6 +69,7 @@ Tier: **Core** = MIT `@rungs/core`; **Pro** = `@rungs/org`.
 | EC-37 | Flow definition changes while requests are in flight | In-flight requests keep their pinned `flowVersion` | — | Core |
 | EC-38 | Conditional step (`when`) | Evaluated at step activation against the payload snapshot; false → `step.skipped` with reason | — | Core |
 | EC-39 | Every step is skipped (all conditions false or all empty) | Request is approved automatically; audit explains each skip | `onAllSkipped: approve \| fail` | Core |
+| EC-40 | A comparison (`gt`, `gte`, `lt`, `lte`) in a condition meets a missing field or a value of the wrong type | Fail closed: `ConditionError` (`CONDITION_INVALID`) naming the field, expected and received type; no state change. `eq`/`neq`/`in`/`nin` on a missing field evaluate against `undefined`. All branches of `all`/`any` are evaluated so an error is never masked | — | Core |
 
 ## Adding a new case
 

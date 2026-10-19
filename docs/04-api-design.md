@@ -49,8 +49,10 @@ const leave = defineFlow({
 await rungs.flows.register(leave);   // validates; returns { key, version }
 ```
 
-`defineFlow` validates statically (unique step IDs, valid durations, valid conditions, quorum ≤ possible).
-Validation errors are `FlowDefinitionError` with a list of issues.
+`defineFlow` validates statically (unique step IDs, valid durations, valid conditions, quorum ≤ possible
+for static `users` lists, timeout settings, unknown keys) and returns a deeply frozen `FlowDefinition`
+with defaults applied (see `docs/03-domain-model.md`). Validation errors are `FlowDefinitionError`
+with `issues: { path, message }[]` listing every problem, e.g. `{ path: "steps[1].deadline", ... }`.
 
 ## Commands
 
@@ -123,6 +125,7 @@ All extend `RungsError` and expose a stable `code`.
 | `InvalidTransitionError` | `INVALID_TRANSITION` | e.g. approving a closed request |
 | `ConflictError` | `VERSION_CONFLICT` | `expectedVersion` mismatch or concurrent write |
 | `ResolutionError` | `RESOLUTION_FAILED` | Resolver threw, or a step is empty with `onEmptyStep: "fail"` |
+| `ConditionError` | `CONDITION_INVALID` | A `gt`/`gte`/`lt`/`lte` condition meets a missing field or a type mismatch (EC-40). Exposes `field`, `op`, `expected`, `received` |
 
 Note: Rungs checks **workflow routing** (is this actor assigned?), not **authentication**.
 The host must authenticate the actor before calling a command.

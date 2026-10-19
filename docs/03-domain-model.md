@@ -18,17 +18,23 @@ DelegationRule (independent, per user)
 
 ## FlowDefinition
 
-Immutable once registered. A change creates a new `version`.
+Created with `defineFlow(input)`, which validates the input, applies defaults and returns a deeply
+frozen copy. Immutable once registered; a change creates a new `version` (assigned by `flows.register`).
+Defaults fail closed: nothing silently bypasses an approval step.
 
 | Field | Type | Notes |
 | --- | --- | --- |
 | `key` | string | Stable identifier, e.g. `"expense"` |
-| `version` | number | Incremented on every change |
-| `steps` | StepDefinition[] | Ordered |
-| `onEmptyStep` | `"skip" \| "fail"` | Default when a step resolves to no approvers (Pro adds `"escalate-up"`) |
-| `dedupeApprovers` | `"none" \| "consecutive" \| "all"` | Collapse repeated approvers |
+| `version` | number | Assigned at registration; incremented on every change |
+| `steps` | StepDefinition[] | Ordered; at least one |
+| `onEmptyStep` | `"fail" \| "skip"` | When a step resolves to no approvers. Default `"fail"` (Pro adds `"escalate-up"`) |
+| `dedupeApprovers` | `"none" \| "consecutive" \| "all"` | Collapse repeated approvers. Default `"consecutive"` |
 | `allowSelfApproval` | boolean | Default `false` |
-| `returnPolicy` | `"restart" \| "from-returned-step"` | What runs again after resubmit |
+| `returnPolicy` | `"restart" \| "from-returned-step"` | What runs again after resubmit. Default `"restart"` |
+| `onAllSkipped` | `"approve" \| "fail"` | When every step is skipped (EC-39). Default `"approve"` |
+| `maxEscalationDepth` | number | Positive integer. Default `3` (EC-28) |
+
+Unknown keys are rejected so a typo cannot silently disable a setting.
 
 ## StepDefinition
 
@@ -37,35 +43,55 @@ Immutable once registered. A change creates a new `version`.
 | `id` | string | Unique within the flow |
 | `name` | string? | Display name |
 | `approvers` | ApproverSpec | Who decides |
-| `mode` | `"any" \| "all" \| { quorum: number }` | Default `"any"` |
-| `rejectPolicy` | `"any-reject-rejects" \| "majority"` | For `all` and quorum |
+| `mode` | `"any" \| "all" \| { quorum: number }` | Default `"any"`. A quorum larger than a static `users` list is rejected |
 | `when` | Condition? | Step runs only if true; evaluated on the payload snapshot |
-| `deadline` | ISO 8601 duration? | e.g. `"P2D"`, `"PT8H"` |
-| `remindBefore` | ISO 8601 duration? | Emit a reminder event before the deadline |
-| `onTimeout` | `"remind" \| "escalate" \| "auto-approve" \| "auto-reject"` | Default `"remind"` |
-| `escalateTo` | ApproverSpec? | Target for `"escalate"` (Pro allows org-relative targets) |
+| `deadline` | Duration? | e.g. `"P2D"`, `"PT8H"` |
+| `remindBefore` | Duration? | Emit a reminder event before the deadline. Requires `deadline`; must be shorter |
+| `onTimeout` | `"remind" \| "escalate" \| "auto-approve" \| "auto-reject"` | Default `"remind"`. Setting it requires `deadline` |
+| `escalateTo` | ApproverSpec? | Required for `"escalate"`, not allowed otherwise (Pro allows org-relative targets) |
+
+## Duration
+
+ISO 8601 durations restricted to fixed-length units: `PnW`, or `PnDTnHnMnS` with any subset of
+D/H/M/S (e.g. `"P2D"`, `"PT8H"`, `"P1DT12H"`). Years and months are rejected because their length
+varies (EC-31: durations are absolute unless a calendar is supplied). Fractions, negative and
+zero-length durations are rejected.
 
 ## ApproverSpec
 
 ```ts
 type ApproverSpec =
-  | { type: "users"; ids: string[] }
+  | { type: "users"; ids: string[] }                     // at least one id
   | { type: "role"; role: string }                       // host resolves role -> users
-  | { type: "resolver"; name: string; params?: unknown } // named resolver (host or Pro)
-  | { type: "union"; of: ApproverSpec[] };
+  | { type: "resolver"; name: string; params?: unknown } // named resolver (host or Pro); params are plain JSON
+  | { type: "union"; of: ApproverSpec[] };               // at least one spec
 ```
 
 ## Condition (JSON rule language, no code execution)
 
 ```ts
+type Primitive = string | number | boolean | null;
+
 type Condition =
-  | { field: string; op: "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "in" | "nin"; value: unknown }
-  | { all: Condition[] }
-  | { any: Condition[] }
+  | { field: string; op: "eq" | "neq"; value: Primitive }
+  | { field: string; op: "gt" | "gte" | "lt" | "lte"; value: number | string }
+  | { field: string; op: "in" | "nin"; value: Primitive[] }
+  | { all: Condition[] }   // at least one
+  | { any: Condition[] }   // at least one
   | { not: Condition };
 ```
 
-`field` is a dot path into the request payload snapshot.
+`field` is a dot path into the request payload snapshot. Only own properties are read; array
+elements are addressed by index (`"lines.0.amount"`).
+
+Evaluation fails closed:
+
+- `eq`, `neq`, `in`, `nin` use strict equality. A missing field evaluates as `undefined`.
+- `gt`, `gte`, `lt`, `lte` compare number with number or string with string (ISO 8601 timestamps
+  compare correctly as strings). A missing field, a type mismatch or `NaN` throws `ConditionError`
+  (`CONDITION_INVALID`) naming the field, the expected type and the received type (EC-40).
+- Every branch of `all` and `any` is evaluated, so an invalid comparison is never masked by
+  short-circuiting.
 
 ## Request
 
