@@ -9,7 +9,7 @@ rethink before investing in the next phase.
 - pnpm + Turborepo monorepo, TypeScript strict, Biome, Vitest, tsup, Changesets
 - GitHub repo, CI (lint, typecheck, test on Node 22 and 24)
 - Empty packages: `core`, `store-memory`
-- Reserve names: npm `rungs` and `@rungs` scope, GitHub org, domain
+- Reserve names: npm `rungs` and the `@rungsjs` scope (`@rungs` was taken), GitHub org, domain
 
 **Gate:** `pnpm build && pnpm test` passes in CI.
 
@@ -40,7 +40,10 @@ rethink before investing in the next phase.
 
 ## Phase 3 — Public launch of the free version (≈ 2 weeks)
 
-- Publish `0.1.0` to npm; README with a short demo GIF
+- Publish `0.1.0` to npm (`@rungsjs/core`, `@rungsjs/store-memory`, `@rungsjs/store-postgres`),
+  with all changesets combined into one "Initial release" note; README with a short demo GIF
+- Also publish the unscoped `rungs` package as a re-export of `@rungsjs/core` at the same version
+  (see `docs/02-free-vs-pro.md`)
 - Launch posts: Show HN, r/node, r/typescript, r/nextjs, dev.to article on approval edge cases
 - Free Claude Code skill that teaches agents how to add flows with Rungs
 
@@ -50,7 +53,7 @@ If there is no pull, do not build Pro yet; fix positioning or distribution first
 
 ## Phase 4 — Pro: org-aware resolvers (≈ 4–6 weeks)
 
-- `@rungs/org`: org graph interface, `directManager`, `managerChain(n)`, `departmentHead(level)`,
+- `@rungsjs/org`: org graph interface, `directManager`, `managerChain(n)`, `departmentHead(level)`,
   acting/interim holders, vacancy fallback, mid-flight reorganization policies, cycle detection
 - All `EC-xx` marked "Pro" have passing tests
 - Commercial license, private repo access delivered on purchase (Polar), launch pricing
@@ -59,7 +62,7 @@ If there is no pull, do not build Pro yet; fix positioning or distribution first
 
 ## Phase 5 — Pro: UI (≈ 4 weeks)
 
-- `@rungs/react`: approval inbox, request timeline, action bar, delegation settings
+- `@rungsjs/react`: approval inbox, request timeline, action bar, delegation settings
 - Headless hooks + unstyled components with a default theme
 
 ## Later (only if demand shows up)

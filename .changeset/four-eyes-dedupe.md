@@ -1,5 +1,5 @@
 ---
-"@rungs/core": minor
+"@rungsjs/core": minor
 ---
 
 Carried-over approvals (dedupe, EC-03) no longer close a step on their own while other approvers

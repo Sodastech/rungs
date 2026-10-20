@@ -9,12 +9,12 @@ deadlines, escalation, return/resubmit and a full audit trail — and gets the h
 > Status: design phase. Nothing is published yet. See `ROADMAP.md`.
 
 ```ts
-import { createRungs, defineFlow } from "@rungs/core";
+import { createRungs, defineFlow } from "@rungsjs/core";
 
 const expense = defineFlow({
   key: "expense",
   steps: [
-    // "directManager" comes from @rungs/org (Pro) or your own resolver
+    // "directManager" comes from @rungsjs/org (Pro) or your own resolver
     { id: "manager", approvers: { type: "resolver", name: "directManager" } },
     {
       id: "finance",
@@ -33,11 +33,11 @@ const expense = defineFlow({
 
 | Package | License | Purpose |
 | --- | --- | --- |
-| `@rungs/core` | MIT | Pure approval engine: flows, steps, decisions, delegation, deadlines, audit |
-| `@rungs/store-memory` | MIT | In-memory store for tests and prototypes |
-| `@rungs/store-postgres` | MIT | PostgreSQL store |
-| `@rungs/org` | Commercial (Pro) | Org-aware approver resolvers and org edge cases |
-| `@rungs/react` | Commercial (Pro) | Approval inbox, timeline and action components |
+| `@rungsjs/core` | MIT | Pure approval engine: flows, steps, decisions, delegation, deadlines, audit |
+| `@rungsjs/store-memory` | MIT | In-memory store for tests and prototypes |
+| `@rungsjs/store-postgres` | MIT | PostgreSQL store |
+| `@rungsjs/org` | Commercial (Pro) | Org-aware approver resolvers and org edge cases |
+| `@rungsjs/react` | Commercial (Pro) | Approval inbox, timeline and action components |
 
 ## Docs
 

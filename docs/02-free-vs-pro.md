@@ -4,7 +4,7 @@ The free version must be genuinely useful on its own — that is what earns trus
 Pro sells the parts that take the most experience to get right and that the free alternatives leave to
 the host application.
 
-## Free — MIT (`@rungs/core`, `@rungs/store-*`)
+## Free — MIT (`@rungsjs/core`, `@rungsjs/store-*`)
 
 - Flow definitions, validation, versioning, version pinning for in-flight requests
 - Sequential steps; parallel steps (`any`, `all`, quorum)
@@ -19,9 +19,9 @@ the host application.
 - Append-only audit trail and domain events
 - In-memory and PostgreSQL stores
 
-## Pro — commercial license (`@rungs/org`, `@rungs/react`, later the flow builder)
+## Pro — commercial license (`@rungsjs/org`, `@rungsjs/react`, later the flow builder)
 
-### `@rungs/org` — org-aware approver resolution
+### `@rungsjs/org` — org-aware approver resolution
 - Org graph interface the host implements once (people, positions, units, reporting lines)
 - Built-in resolvers: `directManager`, `managerChain(n)`, `departmentHead({ levelsUp })`,
   `unitHeadOfType(type)`, `positionHolder(positionId)`
@@ -31,7 +31,7 @@ the host application.
 - Reorganization policies for in-flight requests (keep snapshot vs re-resolve future steps)
 - Requester-at-the-top handling (CEO, board) and cycle detection in bad org data
 
-### `@rungs/react` — UI
+### `@rungsjs/react` — UI
 - Approval inbox, request timeline, decision action bar, delegation settings
 - Headless hooks plus unstyled components with an optional default theme
 
@@ -48,7 +48,12 @@ the host application.
 
 ## Licensing and delivery
 
-- Free packages: MIT, public GitHub repo, published to npm.
+- Free packages: MIT, public GitHub repo, published to npm under the `@rungsjs` scope (the `@rungs`
+  scope was taken).
+- With the first release (`0.1.0`) we also publish the unscoped package `rungs`, a thin MIT package
+  that only re-exports `@rungsjs/core` (`export * from "@rungsjs/core"`) and depends on it at the
+  same version. It gives users the short name `npm install rungs`; it never contains code of its own
+  and never re-exports Pro packages.
 - Pro packages: commercial license (per company, unlimited developers, includes 12 months of updates),
   source delivered through private GitHub repo access granted automatically after purchase via Polar.
 - Pricing is decided at Phase 4 based on Phase 3 signals. Do not hard-code prices in the docs.

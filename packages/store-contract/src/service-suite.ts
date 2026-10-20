@@ -11,7 +11,7 @@ import {
   ResolutionError,
   type RungsOptions,
   type RungsStore,
-} from "@rungs/core";
+} from "@rungsjs/core";
 import { describe, expect, it } from "vitest";
 import type { StoreFactory } from "./store-contract.js";
 

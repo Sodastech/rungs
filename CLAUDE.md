@@ -33,7 +33,7 @@ real-world edge cases handled correctly. Most existing libraries leave that to t
 1. **Clean-room code.** Never copy, port or reconstruct code, schemas or documents from any
    proprietary or third-party system. Everything in Rungs is written from scratch.
    General domain knowledge is fine; copied artifacts are not.
-2. **The core is pure.** `@rungs/core` has zero runtime dependencies and no I/O: no database, no
+2. **The core is pure.** `@rungsjs/core` has zero runtime dependencies and no I/O: no database, no
    network, no `Date.now()`, no `Math.random()`. Time, IDs and approver lookups are injected.
 3. **Every edge case has a test.** Each entry in `docs/05-edge-cases.md` has an ID (`EC-01`…).
    Its behavior is covered by a test whose name starts with that ID. When behavior changes,
@@ -64,7 +64,7 @@ real-world edge cases handled correctly. Most existing libraries leave that to t
 pnpm install
 pnpm build          # build all packages
 pnpm test           # run all tests
-pnpm test --filter @rungs/core
+pnpm test --filter @rungsjs/core
 pnpm typecheck      # tsc --noEmit in every package
 pnpm lint
 pnpm check:ec       # every Core edge case in docs/05 has a test named after its ID

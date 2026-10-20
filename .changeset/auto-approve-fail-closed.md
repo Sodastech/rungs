@@ -1,5 +1,5 @@
 ---
-"@rungs/core": minor
+"@rungsjs/core": minor
 ---
 
 `onTimeout: "auto-approve"` no longer approves a step in which a vote already rejected: the step

@@ -1,5 +1,5 @@
 ---
-"@rungs/core": minor
+"@rungsjs/core": minor
 ---
 
 Add the approver resolution pipeline and blocked steps.

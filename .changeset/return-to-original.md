@@ -1,5 +1,5 @@
 ---
-"@rungs/core": minor
+"@rungsjs/core": minor
 ---
 
 A delegated task can be handed back to the approver it acts for, by the delegate or an admin

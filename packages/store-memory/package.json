@@ -1,5 +1,5 @@
 {
-  "name": "@rungs/store-memory",
+  "name": "@rungsjs/store-memory",
   "version": "0.0.0",
   "description": "In-memory store for Rungs, for tests and prototypes.",
   "license": "MIT",
@@ -28,10 +28,10 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "@rungs/core": "workspace:^"
+    "@rungsjs/core": "workspace:^"
   },
   "devDependencies": {
-    "@rungs/core": "workspace:*",
-    "@rungs/store-contract": "workspace:*"
+    "@rungsjs/core": "workspace:*",
+    "@rungsjs/store-contract": "workspace:*"
   }
 }

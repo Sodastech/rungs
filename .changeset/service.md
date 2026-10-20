@@ -1,5 +1,5 @@
 ---
-"@rungs/core": minor
+"@rungsjs/core": minor
 ---
 
 Add the service: `createRungs` wires the engine to a store, the host's resolvers, a clock and

@@ -1,5 +1,5 @@
 ---
-"@rungs/core": minor
+"@rungsjs/core": minor
 ---
 
 Add the pure engine `decide(state, command, ctx)` with submit, approve and reject for sequential

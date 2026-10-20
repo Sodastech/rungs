@@ -1,5 +1,5 @@
 {
-  "name": "@rungs/core",
+  "name": "@rungsjs/core",
   "version": "0.0.0",
   "description": "Pure, deterministic approval workflow engine. Zero runtime dependencies.",
   "license": "MIT",

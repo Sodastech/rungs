@@ -1,5 +1,5 @@
 ---
-"@rungs/core": minor
+"@rungsjs/core": minor
 ---
 
 Add queries and delegation rules to the service: `get` (null when unknown), `history`, `inbox`

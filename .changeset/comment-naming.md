@@ -1,5 +1,5 @@
 ---
-"@rungs/core": minor
+"@rungsjs/core": minor
 ---
 
 Breaking: free text is always `comment`. `delegate`, `reassign`, `override` and `withdraw` take

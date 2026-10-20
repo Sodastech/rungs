@@ -1,5 +1,5 @@
 ---
-"@rungs/store-memory": minor
+"@rungsjs/store-memory": minor
 ---
 
 Add `memoryStore()`, an in-memory `RungsStore` with serialized copy-on-write transactions, for

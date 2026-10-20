@@ -1,5 +1,5 @@
 ---
-"@rungs/core": minor
+"@rungsjs/core": minor
 ---
 
 Add `FlowNotApplicableError` (`FLOW_NOT_APPLICABLE`) for submits refused by `onAllSkipped: "fail"`,

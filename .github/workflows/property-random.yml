@@ -34,4 +34,4 @@ jobs:
         run: |
           FC_SEED=$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')
           echo "FC_SEED=$FC_SEED (rerun locally with FC_SEED=$FC_SEED FC_RUNS=20000)"
-          FC_SEED=$FC_SEED FC_RUNS=20000 pnpm --filter @rungs/core exec vitest run test/properties.test.ts
+          FC_SEED=$FC_SEED FC_RUNS=20000 pnpm --filter @rungsjs/core exec vitest run test/properties.test.ts

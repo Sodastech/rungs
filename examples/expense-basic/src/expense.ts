@@ -1,5 +1,5 @@
-import { createRungs, type DomainEvent, type FlowInput, type Rungs } from "@rungs/core";
-import { memoryStore } from "@rungs/store-memory";
+import { createRungs, type DomainEvent, type FlowInput, type Rungs } from "@rungsjs/core";
+import { memoryStore } from "@rungsjs/store-memory";
 
 /** Who reports to whom, and who holds which role. A real app reads this from its own database. */
 const directory = {

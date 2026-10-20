@@ -4,7 +4,7 @@ This catalog is the specification. Each case has an ID, a default behavior, the 
 changes it, and the tier that implements it. Every case gets a test named after its ID
 (e.g. `it("EC-01 requester is an approver in the step", ...)`).
 
-Tier: **Core** = MIT `@rungs/core`; **Pro** = `@rungs/org`.
+Tier: **Core** = MIT `@rungsjs/core`; **Pro** = `@rungsjs/org`.
 
 ## A. Approver resolution
 

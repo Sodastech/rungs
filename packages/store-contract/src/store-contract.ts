@@ -7,7 +7,7 @@ import {
   type RegisteredFlow,
   type RequestState,
   type RungsStore,
-} from "@rungs/core";
+} from "@rungsjs/core";
 import { describe, expect, it } from "vitest";
 
 /** Makes an empty store for one test. Adapters clean up their database here. */

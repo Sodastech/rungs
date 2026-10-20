@@ -1,6 +1,6 @@
 # 03 — Domain model
 
-Plain data, no classes. All types live in `@rungs/core`. Field names are indicative; final names are
+Plain data, no classes. All types live in `@rungsjs/core`. Field names are indicative; final names are
 settled during Phase 1 and then recorded here.
 
 ## Overview
@@ -310,7 +310,7 @@ for `override` and `reassign` and optional elsewhere. `reason` is always a machi
 (`skipReason`, `blockReason`, `request.approved.reason`, `delegation.skipped.reason`,
 `removed[].reason`).
 
-Types and data (discriminated union `AuditEvent` in `@rungs/core`):
+Types and data (discriminated union `AuditEvent` in `@rungsjs/core`):
 
 | Type | Data |
 | --- | --- |

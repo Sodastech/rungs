@@ -187,10 +187,10 @@ importers:
 
   examples/expense-basic:
     dependencies:
-      '@rungs/core':
+      '@rungsjs/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@rungs/store-memory':
+      '@rungsjs/store-memory':
         specifier: workspace:*
         version: link:../../packages/store-memory
 
@@ -202,7 +202,7 @@ importers:
 
   packages/store-contract:
     dependencies:
-      '@rungs/core':
+      '@rungsjs/core':
         specifier: workspace:*
         version: link:../core
       vitest:
@@ -211,10 +211,10 @@ importers:
 
   packages/store-memory:
     devDependencies:
-      '@rungs/core':
+      '@rungsjs/core':
         specifier: workspace:*
         version: link:../core
-      '@rungs/store-contract':
+      '@rungsjs/store-contract':
         specifier: workspace:*
         version: link:../store-contract
 

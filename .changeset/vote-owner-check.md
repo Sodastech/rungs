@@ -1,5 +1,5 @@
 ---
-"@rungs/core": patch
+"@rungsjs/core": patch
 ---
 
 Fix: a manual delegation or task reassign to someone whose own vote is already in the step through

@@ -1,5 +1,5 @@
 ---
-"@rungs/core": minor
+"@rungsjs/core": minor
 ---
 
 Add `defineFlow` with static validation and fail-closed defaults, the JSON condition language

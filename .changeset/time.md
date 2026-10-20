@@ -1,5 +1,5 @@
 ---
-"@rungs/core": minor
+"@rungsjs/core": minor
 ---
 
 Add time: deadlines, reminders, timeouts and escalation, driven by a new `tick` command.

@@ -14,7 +14,7 @@ import {
   type RungsStore,
   type StoreTx,
   type TaskView,
-} from "@rungs/core";
+} from "@rungsjs/core";
 
 export interface MemoryStoreOptions {
   /** Out-of-office rules to start with (managing them through the service comes later). */

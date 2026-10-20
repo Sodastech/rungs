@@ -1,5 +1,5 @@
 ---
-"@rungs/core": minor
+"@rungsjs/core": minor
 ---
 
 `preview` requires `subject` and validates its input like `submit`, so resolvers that look data up

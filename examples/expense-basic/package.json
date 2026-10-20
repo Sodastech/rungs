@@ -1,5 +1,5 @@
 {
-  "name": "@rungs/example-expense-basic",
+  "name": "@rungsjs/example-expense-basic",
   "version": "0.0.0",
   "private": true,
   "description": "A three-step expense approval on the memory store: the Phase 1 gate.",
@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@rungs/core": "workspace:*",
-    "@rungs/store-memory": "workspace:*"
+    "@rungsjs/core": "workspace:*",
+    "@rungsjs/store-memory": "workspace:*"
   }
 }

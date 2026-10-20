@@ -1,5 +1,5 @@
 ---
-"@rungs/core": minor
+"@rungsjs/core": minor
 ---
 
 Support parallel step modes `all` and `{ quorum }`: a step approves once enough approvals arrive

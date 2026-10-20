@@ -9,7 +9,7 @@ rungs/
 ├── ROADMAP.md
 ├── docs/
 ├── packages/
-│   ├── core/              # @rungs/core — MIT, zero runtime dependencies
+│   ├── core/              # @rungsjs/core — MIT, zero runtime dependencies
 │   │   ├── src/
 │   │   │   ├── model/        # types: flows, requests, tasks, events, errors
 │   │   │   ├── flow/         # defineFlow, validation, conditions, durations
@@ -20,11 +20,11 @@ rungs/
 │   │   └── test/
 │   │       ├── edge-cases/   # one file per catalog section, tests named EC-xx
 │   │       └── helpers/      # fake clock, fake ids, fixture builders
-│   ├── store-memory/      # @rungs/store-memory — MIT
+│   ├── store-memory/      # @rungsjs/store-memory — MIT
 │   ├── store-contract/    # private: shared suites every store adapter runs
-│   ├── store-postgres/    # @rungs/store-postgres — MIT (Phase 2)
-│   ├── pro-org/           # @rungs/org — commercial (Phase 4, private repo)
-│   └── pro-react/         # @rungs/react — commercial (Phase 5, private repo)
+│   ├── store-postgres/    # @rungsjs/store-postgres — MIT (Phase 2)
+│   ├── pro-org/           # @rungsjs/org — commercial (Phase 4, private repo)
+│   └── pro-react/         # @rungsjs/react — commercial (Phase 5, private repo)
 ├── examples/
 │   ├── expense-basic/     # private: the Phase 1 gate, three steps on the memory store
 │   └── nextjs-expenses/   # Phase 2
@@ -88,7 +88,7 @@ The async part turns a need into `{ userIds, inactiveUserIds? }`; a host callbac
 `ResolutionError` with the original error as `cause` (EC-05). Each pure stage records why a person
 was removed (`removed` on the step and in its audit event), so the UI and audit can explain why a
 person is (or is not) an approver.
-Pro's `@rungs/org` plugs in as named resolvers plus an extra stage for vacancy and acting holders.
+Pro's `@rungsjs/org` plugs in as named resolvers plus an extra stage for vacancy and acting holders.
 
 ## Concurrency and idempotency
 

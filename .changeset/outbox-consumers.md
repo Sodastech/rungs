@@ -1,5 +1,5 @@
 ---
-"@rungs/core": minor
+"@rungsjs/core": minor
 ---
 
 Without `onEvent`, events now stay pending in the outbox for a worker running `dispatchPending`

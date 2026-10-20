@@ -12,8 +12,8 @@ Draft for Phase 1. Shapes may change until `1.0`; every change is recorded here.
 ## Creating an instance
 
 ```ts
-import { createRungs } from "@rungs/core";
-import { postgresStore } from "@rungs/store-postgres";
+import { createRungs } from "@rungsjs/core";
+import { postgresStore } from "@rungsjs/store-postgres";
 
 const rungs = createRungs({
   store: postgresStore({ pool }),
@@ -56,7 +56,7 @@ Every command method returns the new `RequestState` and accepts `idempotencyKey`
 ## Flows
 
 ```ts
-import { defineFlow } from "@rungs/core";
+import { defineFlow } from "@rungsjs/core";
 
 const leave = defineFlow({
   key: "leave",
@@ -138,7 +138,7 @@ await rungs.tick();   // process deadlines, reminders, timeouts; safe to run on 
 ## Pure engine (advanced)
 
 ```ts
-import { decide } from "@rungs/core";
+import { decide } from "@rungsjs/core";
 
 const decision = decide(state /* RequestState | null */, command, {
   now: "2026-01-05T09:00:00.000Z", // ISO 8601 UTC, injected
@@ -383,7 +383,7 @@ the user on the active step of pending requests whose `tenantId` matches exactly
 none), ordered by (`assignedAt`, `taskId`), starting after `after` when given.
 
 Adapters prove they meet this contract by running the shared suites from the private
-`@rungs/store-contract` package in their own tests: `storeContract(name, makeStore)` for the store
+`@rungsjs/store-contract` package in their own tests: `storeContract(name, makeStore)` for the store
 itself and `serviceSuite(name, makeStore)` for `createRungs` on top of it.
 
 `RegisteredFlow` gains an optional `tenantId`, and a request pinned to a tenant's flow records it
