@@ -120,7 +120,8 @@ Rungs does not enforce tenant isolation beyond that; the host remains responsibl
   activated step; nobody holds two votes in one step instance; the requester never holds a task
   unless `allowSelfApproval`; carried-over votes never approve a step on their own while someone
   else could decide (four-eyes); refusals are always a `RungsError`; inputs are never changed; the
-  same input always gives the same output.
+  same input always gives the same output. CI runs them with a fixed seed; the scheduled
+  workflow `property-random.yml` runs them daily with a random seed and many more runs.
 - `examples/expense-basic` runs a three-step expense approval end to end on the memory store
   (preview, delegation, return and resubmit, reminders, inbox, history): the Phase 1 gate.
 

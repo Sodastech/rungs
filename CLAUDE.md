@@ -37,7 +37,10 @@ real-world edge cases handled correctly. Most existing libraries leave that to t
    network, no `Date.now()`, no `Math.random()`. Time, IDs and approver lookups are injected.
 3. **Every edge case has a test.** Each entry in `docs/05-edge-cases.md` has an ID (`EC-01`…).
    Its behavior is covered by a test whose name starts with that ID. When behavior changes,
-   update the doc and the test in the same change.
+   update the doc and the test in the same change. `pnpm check:ec` enforces this.
+   Property tests run with a fixed seed in CI and with random seeds in a scheduled workflow.
+   **Every failure from a random seed must first become a deterministic regression test**
+   (the shrunk counterexample, named after the edge case it breaks), and only then be fixed.
 4. **Public API changes are deliberate.** Anything exported from a package entry point is public.
    Changing it requires updating `docs/04-api-design.md` and adding a changeset.
 5. **Free/Pro boundary is respected.** Org-aware resolvers, the React UI and the flow builder live in

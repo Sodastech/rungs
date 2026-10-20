@@ -1,0 +1,36 @@
+name: Property tests (random seeds)
+
+# The main CI runs the property tests with a fixed seed so every push and PR is deterministic.
+# This scheduled job explores new cases with a random seed and many more runs. When it fails,
+# turn the printed counterexample into a deterministic regression test before fixing (CLAUDE.md).
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  properties:
+    name: Random seed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # pnpm version comes from "packageManager" in package.json
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run the property tests with a random seed
+        run: |
+          FC_SEED=$(od -An -N4 -tu4 /dev/urandom | tr -d ' ')
+          echo "FC_SEED=$FC_SEED (rerun locally with FC_SEED=$FC_SEED FC_RUNS=20000)"
+          FC_SEED=$FC_SEED FC_RUNS=20000 pnpm --filter @rungs/core exec vitest run test/properties.test.ts
