@@ -88,12 +88,12 @@ await rungs.reject({ requestId: req.id, actorId: "u_08", comment: "Overlaps rele
 await rungs.return({ requestId: req.id, actorId: "u_08", to: "requester", comment: "Attach doctor's note" });
 await rungs.resubmit({ requestId: req.id, actorId: "u_17", payload: { days: 4 } });
 await rungs.withdraw({ requestId: req.id, actorId: "u_17" });
-await rungs.delegate({ requestId: req.id, taskId, actorId: "u_08", toUserId: "u_09", reason: "Travelling" });
-await rungs.reassign({ requestId: req.id, taskId, adminId: "u_admin", toUserId: "u_11", reason: "Approver left company" });
-await rungs.override({ requestId: req.id, adminId: "u_admin", decision: "approve", reason: "Board decision" });
+await rungs.delegate({ requestId: req.id, taskId, actorId: "u_08", toUserId: "u_09", comment: "Travelling" });
+await rungs.reassign({ requestId: req.id, taskId, adminId: "u_admin", toUserId: "u_11", comment: "Approver left company" });
+await rungs.override({ requestId: req.id, adminId: "u_admin", decision: "approve", comment: "Board decision" });
 
 // A blocked step (EC-42): no approvers were left when it activated
-await rungs.reassign({ requestId: req.id, stepId: "hr", adminId: "u_admin", toUserIds: ["u_12"], reason: "HR lead on leave" });
+await rungs.reassign({ requestId: req.id, stepId: "hr", adminId: "u_admin", toUserIds: ["u_12"], comment: "HR lead on leave" });
 await rungs.retry({ requestId: req.id, stepId: "hr", adminId: "u_admin" }); // after fixing org/role data
 
 await rungs.tick();   // process deadlines, reminders, timeouts; safe to run on a schedule
@@ -122,30 +122,31 @@ Commands:
 
 - `{ type: "submit", requestId, requesterId, subject, payload, tenantId? }`
 - `{ type: "approve" | "reject", requestId, actorId, comment? }`
-- `{ type: "delegate", requestId, taskId, actorId, toUserId, reason? }`: the assignee hands a
+- `{ type: "delegate", requestId, taskId, actorId, toUserId, comment? }`: the assignee hands a
   pending task to someone else (EC-25). The old task becomes `delegated`; the new one carries the
   same vote (`onBehalfOf`) and follows the delegate's own out-of-office rules.
-- `{ type: "reassign", requestId, adminId, taskId, toUserId, reason }`: an admin moves one pending
+- `{ type: "reassign", requestId, adminId, taskId, toUserId, comment }`: an admin moves one pending
   task. The old task becomes `reassigned`; the new one has no `onBehalfOf`.
 
   Both refuse, with `InvalidCommandError` naming each problem, a target who is the requester
   (without `allowSelfApproval`), inactive, already holds a task in the step (EC-48) or approved an
   earlier step of the request (EC-49). Delegating to yourself is refused too. The exception is
   the approver the task acts for (`onBehalfOf`): it can always be handed back to them (EC-50).
-- `{ type: "reassign", requestId, adminId, stepId, toUserIds, reason }`: gives a blocked step to
+- `{ type: "reassign", requestId, adminId, stepId, toUserIds, comment }`: gives a blocked step to
   users the admin chose. They pass the same checks as resolved approvers; a chosen user who is
   inactive or the requester (without `allowSelfApproval`), or too few users for the step's mode,
   refuses the command with `InvalidCommandError` naming each problem.
 - `{ type: "retry", requestId, adminId, stepId }`: resolves a blocked step's spec again.
-- `{ type: "override", requestId, adminId, decision: "approve" | "reject", reason }`: closes the
+- `{ type: "override", requestId, adminId, decision: "approve" | "reject", comment }`: closes the
   request; open tasks and the open step are cancelled (EC-18).
 - `{ type: "return", requestId, actorId, to: "requester" | { stepId }, comment? }`: the actor
   needs a pending task; `stepId` must be an earlier step that ran (EC-32, EC-33).
 - `{ type: "resubmit", requestId, actorId, payload? }`: requester only; see `returnPolicy` in
   `docs/03-domain-model.md` (EC-34, EC-51).
-- `{ type: "withdraw", requestId, actorId, reason? }`: requester only (EC-35).
+- `{ type: "withdraw", requestId, actorId, comment? }`: requester only (EC-35).
 
-A returned request accepts only `resubmit`, `withdraw` and `override`; anything else is an
+Free text is always `comment` (required for `override` and `reassign`); `reason` is reserved
+for machine-readable causes. A returned request accepts only `resubmit`, `withdraw` and `override`; anything else is an
 `InvalidTransitionError`. `tick` comes in a later milestone. `decide` throws a `RungsError` when a command is not
 allowed and never changes its input. Task IDs are derived from the request ID, so the engine needs
 no ID generator. Rungs does not check that `adminId` is an admin; that is the host's job.
@@ -209,7 +210,7 @@ All extend `RungsError` and expose a stable `code`.
 | --- | --- | --- |
 | `FlowDefinitionError` | `FLOW_INVALID` | Invalid flow definition |
 | `FlowNotFoundError` | `FLOW_NOT_FOUND` | Unknown flow key |
-| `InvalidCommandError` | `COMMAND_INVALID` | Malformed command input (e.g. empty IDs, non-JSON payload, override without reason). The message names each problem |
+| `InvalidCommandError` | `COMMAND_INVALID` | Malformed command input (e.g. empty IDs, non-JSON payload, override without a comment). The message names each problem |
 | `FlowNotApplicableError` | `FLOW_NOT_APPLICABLE` | Submit refused because every step was skipped and the flow uses `onAllSkipped: "fail"` (EC-39). Exposes `flowKey`, `skippedStepIds` |
 | `RequestNotFoundError` | `REQUEST_NOT_FOUND` | Unknown request |
 | `NotAssignedError` | `NOT_ASSIGNED` | Actor has no pending task on this request, or is not the requester for `resubmit` / `withdraw` |

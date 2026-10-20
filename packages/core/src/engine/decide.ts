@@ -214,7 +214,7 @@ function reassignStep(
     stepId: step.id,
     stepIndex: instance.index,
     toUserIds,
-    reason: command.reason,
+    comment: command.comment,
   });
   return proceed(draft, resume(draft, instance, plan));
 }
@@ -265,7 +265,7 @@ function overrideRequest(
   next.status = command.decision === "approve" ? "approved" : "rejected";
   next.closedAt = ctx.now;
   next.currentStepIndex = null;
-  const data = { reason: "override" as const, comment: command.reason };
+  const data = { reason: "override" as const, comment: command.comment };
   if (command.decision === "approve") record(draft, "request.approved", data);
   else record(draft, "request.rejected", data);
   return finish(draft);
@@ -302,9 +302,12 @@ function validateCommand(command: Command): void {
     if (typeof value !== "string" || value.length === 0)
       problems.push(`${name} must be a non-empty string`);
   };
-  const reason = (value: unknown) => {
+  const requiredComment = (value: unknown) => {
     if (typeof value !== "string" || value.trim().length === 0)
-      problems.push("reason must be a non-empty string");
+      problems.push("comment must be a non-empty string");
+  };
+  const optionalComment = (value: unknown) => {
+    if (value !== undefined && typeof value !== "string") problems.push("comment must be a string");
   };
 
   switch (command.type) {
@@ -340,23 +343,19 @@ function validateCommand(command: Command): void {
     case "withdraw":
       text(command.requestId, "requestId");
       text(command.actorId, "actorId");
-      if (command.reason !== undefined && typeof command.reason !== "string") {
-        problems.push("reason must be a string");
-      }
+      optionalComment(command.comment);
       break;
     case "delegate":
       text(command.requestId, "requestId");
       text(command.actorId, "actorId");
       text(command.taskId, "taskId");
       text(command.toUserId, "toUserId");
-      if (command.reason !== undefined && typeof command.reason !== "string") {
-        problems.push("reason must be a string");
-      }
+      optionalComment(command.comment);
       break;
     case "reassign":
       text(command.requestId, "requestId");
       text(command.adminId, "adminId");
-      reason(command.reason);
+      requiredComment(command.comment);
       if ((command.stepId === undefined) === (command.taskId === undefined)) {
         problems.push("a reassign names either stepId or taskId");
       } else if (command.taskId !== undefined) {
@@ -379,7 +378,7 @@ function validateCommand(command: Command): void {
     case "override":
       text(command.requestId, "requestId");
       text(command.adminId, "adminId");
-      reason(command.reason);
+      requiredComment(command.comment);
       if (command.decision !== "approve" && command.decision !== "reject") {
         problems.push('decision must be "approve" or "reject"');
       }

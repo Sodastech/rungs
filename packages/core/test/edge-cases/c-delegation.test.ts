@@ -283,7 +283,7 @@ describe("C. Delegation", () => {
             stepId: "manager",
             toTaskId: "r1.t3",
             toUserId: "u_b",
-            reason: "Travelling",
+            comment: "Travelling",
           },
         ],
         [
@@ -457,7 +457,7 @@ describe("C. Delegation", () => {
         stepId: "manager",
         toTaskId: "r1.t3",
         toUserId: "u_x",
-        reason: "Approver left",
+        comment: "Approver left",
       });
     });
 

@@ -258,6 +258,11 @@ bounce back and forth.
 | `at` | ISO string | |
 | `data` | JSON | Event-specific details, including reasons |
 
+Naming: `comment` is always free text written by a person, in commands and in audit data, required
+for `override` and `reassign` and optional elsewhere. `reason` is always a machine-readable cause
+(`skipReason`, `blockReason`, `request.approved.reason`, `delegation.skipped.reason`,
+`removed[].reason`).
+
 Types and data (discriminated union `AuditEvent` in `@rungs/core`):
 
 | Type | Data |
@@ -271,13 +276,13 @@ Types and data (discriminated union `AuditEvent` in `@rungs/core`):
 | `step.activated` | `stepId`, `stepIndex`, `approvers`, `removed?` |
 | `step.skipped` | `stepId`, `stepIndex`, `reason` (`condition-false` with the condition, or `no-approvers`), `removed?` |
 | `step.blocked` | `stepId`, `stepIndex`, `reason` (`no-approvers` or `quorum-unreachable`), `removed?` (EC-42) |
-| `step.reassigned` | `stepId`, `stepIndex`, `toUserIds`, `reason` (EC-46) |
+| `step.reassigned` | `stepId`, `stepIndex`, `toUserIds`, `comment` (EC-46) |
 | `step.retried` | `stepId`, `stepIndex`, `result: "unblocked"`, or `result: "still-blocked"` with `reason` and `removed?` (EC-46) |
 | `step.completed` | `stepId`, `stepIndex`, `outcome: "approved" \| "rejected" \| "returned"` |
 | `step.cancelled` | `stepId`, `stepIndex` (override) |
 | `task.assigned` | `taskId`, `stepId`, `assigneeId`, `onBehalfOf?`, `chain?` (the out-of-office hops followed, from the first user to the assignee) |
-| `task.delegated` | `taskId`, `stepId`, `toTaskId`, `toUserId`, `reason?`, `returnedToOriginal?` (EC-25, EC-50) |
-| `task.reassigned` | `taskId`, `stepId`, `toTaskId`, `toUserId`, `reason`, `returnedToOriginal?` (EC-50) |
+| `task.delegated` | `taskId`, `stepId`, `toTaskId`, `toUserId`, `comment?`, `returnedToOriginal?` (EC-25, EC-50) |
+| `task.reassigned` | `taskId`, `stepId`, `toTaskId`, `toUserId`, `comment`, `returnedToOriginal?` (EC-50) |
 | `delegation.skipped` | `stepId`, `userId` (whose rule), `toUserId`, `reason: "requester" \| "inactive" \| "target-already-approver" \| "target-already-decided"` (EC-23, EC-48, EC-49) |
 | `delegation.cycle_detected` | `stepId`, `userId` (the original approver), `chain` (EC-22) |
 | `task.deduplicated` | `taskId`, `stepId`, `assigneeId`, `ofTaskId` (the earlier approval that carries over, EC-03) |

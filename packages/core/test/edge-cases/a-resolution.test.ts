@@ -552,7 +552,7 @@ describe("A. Approver resolution", () => {
         stepId: "finance",
         stepIndex: 1,
         toUserIds: ["u_fin2"],
-        reason: "Approver on leave",
+        comment: "Approver on leave",
       });
       const done = run(state, approve("u_fin2"), { flow: flow() });
       expect(done.state.status).toBe("approved");

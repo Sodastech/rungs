@@ -142,7 +142,7 @@ export function withdrawRequest(
   record(
     draft,
     "request.withdrawn",
-    command.reason === undefined ? {} : { comment: command.reason },
+    command.comment === undefined ? {} : { comment: command.comment },
   );
   return finish(draft);
 }

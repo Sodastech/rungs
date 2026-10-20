@@ -66,24 +66,24 @@ export function reject(actorId: string, comment?: string): RejectCommand {
 export function reassignStep(
   stepId: string,
   toUserIds: string[],
-  reason = "Approver on leave",
+  comment = "Approver on leave",
 ): ReassignStepCommand {
-  return { type: "reassign", requestId: "r1", adminId: "u_admin", stepId, toUserIds, reason };
+  return { type: "reassign", requestId: "r1", adminId: "u_admin", stepId, toUserIds, comment };
 }
 
 export function reassignTask(
   taskId: string,
   toUserId: string,
-  reason = "Approver left",
+  comment = "Approver left",
 ): ReassignTaskCommand {
-  return { type: "reassign", requestId: "r1", adminId: "u_admin", taskId, toUserId, reason };
+  return { type: "reassign", requestId: "r1", adminId: "u_admin", taskId, toUserId, comment };
 }
 
 export function delegate(
   actorId: string,
   taskId: string,
   toUserId: string,
-  reason?: string,
+  comment?: string,
 ): DelegateCommand {
   return {
     type: "delegate",
@@ -91,7 +91,7 @@ export function delegate(
     actorId,
     taskId,
     toUserId,
-    ...(reason ? { reason } : {}),
+    ...(comment ? { comment } : {}),
   };
 }
 
@@ -128,8 +128,8 @@ export function resubmit(payload?: ResubmitCommand["payload"], actorId = "u_req"
   };
 }
 
-export function withdraw(actorId = "u_req", reason?: string): WithdrawCommand {
-  return { type: "withdraw", requestId: "r1", actorId, ...(reason ? { reason } : {}) };
+export function withdraw(actorId = "u_req", comment?: string): WithdrawCommand {
+  return { type: "withdraw", requestId: "r1", actorId, ...(comment ? { comment } : {}) };
 }
 
 export function retryStep(stepId: string): RetryStepCommand {
@@ -138,9 +138,9 @@ export function retryStep(stepId: string): RetryStepCommand {
 
 export function override(
   decision: "approve" | "reject",
-  reason = "Board decision",
+  comment = "Board decision",
 ): OverrideCommand {
-  return { type: "override", requestId: "r1", adminId: "u_admin", decision, reason };
+  return { type: "override", requestId: "r1", adminId: "u_admin", decision, comment };
 }
 
 export interface RunOptions {

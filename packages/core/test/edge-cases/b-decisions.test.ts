@@ -118,11 +118,11 @@ describe("B. Decisions", () => {
     });
   });
 
-  it("EC-18 an override needs a reason and an open request", () => {
+  it("EC-18 an override needs a comment and an open request", () => {
     const { state } = run(null, submitCommand());
     const error = thrown(() => run(state, override("approve", "  ")));
     expect(error).toBeInstanceOf(InvalidCommandError);
-    expect((error as Error).message).toContain("reason");
+    expect((error as Error).message).toContain("comment must be a non-empty string");
 
     const closed = runAll([submitCommand(), reject("u_mgr")]).state;
     expect(thrown(() => run(closed, override("approve")))).toBeInstanceOf(InvalidTransitionError);

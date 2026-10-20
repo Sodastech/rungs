@@ -52,7 +52,7 @@ export type AuditEventBody =
   | { type: "step.activated"; data: StepData & RemovedData & { approvers: string[] } }
   | { type: "step.skipped"; data: StepData & RemovedData & { reason: SkipReason } }
   | { type: "step.blocked"; data: StepData & RemovedData & { reason: ApproverShortfall } }
-  | { type: "step.reassigned"; data: StepData & { toUserIds: string[]; reason: string } }
+  | { type: "step.reassigned"; data: StepData & { toUserIds: string[]; comment: string } }
   | {
       type: "step.retried";
       data: StepData &
@@ -68,8 +68,8 @@ export type AuditEventBody =
       /** `chain`: the out-of-office hops followed, from the first user to the assignee. */
       data: TaskData & { assigneeId: string; onBehalfOf?: string; chain?: string[] };
     }
-  | { type: "task.delegated"; data: HandoverData & { reason?: string } }
-  | { type: "task.reassigned"; data: HandoverData & { reason: string } }
+  | { type: "task.delegated"; data: HandoverData & { comment?: string } }
+  | { type: "task.reassigned"; data: HandoverData & { comment: string } }
   | {
       type: "delegation.skipped";
       data: { stepId: string; userId: string; toUserId: string; reason: DelegationSkipReason };

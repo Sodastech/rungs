@@ -38,7 +38,7 @@ Tier: **Core** = MIT `@rungs/core`; **Pro** = `@rungs/org`.
 | EC-15 | Two approvers act at the same moment | One commit wins; the other gets `ConflictError` and re-reads state (it may now be superseded) | — | Core |
 | EC-16 | The same command is sent twice (double click, retry) | With the same `idempotencyKey`, the second call returns the first result | `idempotencyKey` | Core |
 | EC-17 | A user who is not assigned tries to decide | `NotAssignedError`; nothing recorded except an optional security audit event | — | Core |
-| EC-18 | Admin forces a decision | Allowed via `override` only, reason required, audited with the admin as actor. Closes the request; open tasks and the open (active or blocked) step become `cancelled` | — | Core |
+| EC-18 | Admin forces a decision | Allowed via `override` only, a `comment` is required, audited with the admin as actor. Closes the request; open tasks and the open (active or blocked) step become `cancelled` | — | Core |
 | EC-19 | Decision on a closed request (approved/rejected/withdrawn) | `InvalidTransitionError` | — | Core |
 
 ## C. Delegation

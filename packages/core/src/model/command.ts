@@ -47,7 +47,7 @@ export interface WithdrawCommand {
   type: "withdraw";
   requestId: string;
   actorId: string;
-  reason?: string;
+  comment?: string;
 }
 
 /** Hands the actor's pending task to a delegate (EC-25). */
@@ -57,7 +57,7 @@ export interface DelegateCommand {
   actorId: string;
   taskId: string;
   toUserId: string;
-  reason?: string;
+  comment?: string;
 }
 
 /** Gives a blocked step to users chosen by an admin (EC-46). */
@@ -67,7 +67,7 @@ export interface ReassignStepCommand {
   adminId: string;
   stepId: string;
   toUserIds: string[];
-  reason: string;
+  comment: string;
   taskId?: never;
 }
 
@@ -78,7 +78,7 @@ export interface ReassignTaskCommand {
   adminId: string;
   taskId: string;
   toUserId: string;
-  reason: string;
+  comment: string;
   stepId?: never;
 }
 
@@ -96,7 +96,7 @@ export interface OverrideCommand {
   requestId: string;
   adminId: string;
   decision: "approve" | "reject";
-  reason: string;
+  comment: string;
 }
 
 export type Command =

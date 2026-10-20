@@ -35,7 +35,7 @@ export function delegateTask(
       taskId: task.id,
       stepId: instance.stepId,
       ...handover,
-      ...(command.reason === undefined ? {} : { reason: command.reason }),
+      ...(command.comment === undefined ? {} : { comment: command.comment }),
     });
     return task.onBehalfOf ?? task.assigneeId;
   });
@@ -61,7 +61,7 @@ export function reassignTask(
       taskId: task.id,
       stepId: instance.stepId,
       ...handover,
-      reason: command.reason,
+      comment: command.comment,
     });
     return undefined;
   });
