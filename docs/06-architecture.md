@@ -22,7 +22,7 @@ rungs/
 │   │       └── helpers/      # fake clock, fake ids, fixture builders
 │   ├── store-memory/      # @rungsjs/store-memory — MIT
 │   ├── store-contract/    # private: shared suites every store adapter runs
-│   ├── store-postgres/    # @rungsjs/store-postgres — MIT (Phase 2)
+│   ├── store-postgres/    # @rungsjs/store-postgres — MIT, PostgreSQL 15+, bring your own driver
 │   ├── pro-org/           # @rungsjs/org — commercial (Phase 4, private repo)
 │   └── pro-react/         # @rungsjs/react — commercial (Phase 5, private repo)
 ├── examples/
@@ -113,8 +113,10 @@ Rungs does not enforce tenant isolation beyond that; the host remains responsibl
 - Store adapters run the shared suites of the private `packages/store-contract`:
   `storeContract(name, makeStore)` (transactions, compare-and-set, outbox order and backoff,
   idempotency and flow scopes, inbox, delegation rules) and `serviceSuite(name, makeStore)` (every
-  `createRungs` behavior, through the public API only). `store-memory` runs both today; the
-  Postgres store runs the same suites in Phase 2.
+  `createRungs` behavior, through the public API only). `store-memory` and `store-postgres` run both.
+  `store-postgres` runs them on PGlite (in-process PostgreSQL, no server needed) everywhere, and in
+  CI also on real PostgreSQL 15 to 18 with node-postgres and postgres.js, plus concurrency tests
+  (row locks, `SKIP LOCKED` leases, parallel ticks) that need several connections.
 - Property-based tests (fast-check) play random flows and command sequences against the engine and
   check after every command: version and audit `seq` move by one command without gaps; a closed or
   returned request has no pending tasks; at most one step is open; every task belongs to an

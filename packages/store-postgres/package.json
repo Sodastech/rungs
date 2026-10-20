@@ -1,0 +1,43 @@
+{
+  "name": "@rungsjs/store-postgres",
+  "version": "0.0.0",
+  "description": "PostgreSQL store for Rungs. Bring your own driver: node-postgres, postgres.js or PGlite.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "migrations"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@rungsjs/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@rungsjs/core": "workspace:*",
+    "@rungsjs/store-contract": "workspace:*",
+    "@types/node": "22.20.5",
+    "@types/pg": "8.23.1",
+    "pg": "8.23.1",
+    "postgres": "3.4.9"
+  }
+}

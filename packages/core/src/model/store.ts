@@ -64,6 +64,16 @@ export interface InboxQuery {
   readonly after?: { readonly assignedAt: string; readonly taskId: string };
 }
 
+/**
+ * `claim: true` is passed by `tick` and event delivery. An adapter may then lease what it returns
+ * for a short time, so that concurrent workers skip it instead of doing the same work twice (the
+ * PostgreSQL store does, with `FOR UPDATE SKIP LOCKED`). Without it nothing is leased, so reads for
+ * inspection never hide anything. Correctness never depends on the lease (EC-27).
+ */
+export interface ClaimOptions {
+  readonly claim?: boolean;
+}
+
 /** Persistence for the service. Everything passed in and out is plain JSON. */
 export interface RungsStore {
   /** Runs `fn` atomically: all writes commit together, or none do when `fn` throws. */
@@ -84,7 +94,7 @@ export interface StoreTx {
   saveRequest(state: RequestState, expectedVersion: number | null): Promise<void>;
   appendAudit(events: readonly AuditEvent[]): Promise<void>;
   /** Ids of requests with `nextDueAt <= now`, earliest first. */
-  findDue(now: string, limit: number): Promise<string[]>;
+  findDue(now: string, limit: number, options?: ClaimOptions): Promise<string[]>;
 
   /** Adds events with zero attempts, due at `now`. */
   enqueueEvents(events: readonly DomainEvent[], now: string): Promise<void>;
@@ -93,8 +103,11 @@ export interface StoreTx {
    * still undelivered: each request contributes its due events in `seq` order from its oldest
    * undelivered one. Requests are ordered by that oldest event's `nextAttemptAt`, then by id.
    */
-  pendingEvents(query: { now: string; limit: number; requestId?: string }): Promise<OutboxEntry[]>;
-  markDispatched(keys: readonly EventKey[]): Promise<void>;
+  pendingEvents(
+    query: { now: string; limit: number; requestId?: string } & ClaimOptions,
+  ): Promise<OutboxEntry[]>;
+  /** `now`: when they were delivered; adapters that keep delivered events may record it. */
+  markDispatched(keys: readonly EventKey[], now?: string): Promise<void>;
   markFailed(
     key: EventKey,
     failure: { attempts: number; nextAttemptAt: string; error: string },

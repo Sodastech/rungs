@@ -93,6 +93,7 @@ export type {
   TaskStatus,
 } from "./model/state.js";
 export type {
+  ClaimOptions,
   EventKey,
   FlowRef,
   IdempotencyRef,

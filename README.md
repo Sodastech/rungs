@@ -108,7 +108,7 @@ Every case has an ID in the [catalog](docs/05-edge-cases.md) and a test named af
 | --- | --- | --- |
 | `@rungsjs/core` | MIT | Engine and service: flows, decisions, delegation, deadlines, audit, queries |
 | `@rungsjs/store-memory` | MIT | In-memory store for tests and prototypes |
-| `@rungsjs/store-postgres` | MIT | Planned (Phase 2) |
+| `@rungsjs/store-postgres` | MIT | PostgreSQL 15+ store; bring your own driver (node-postgres, postgres.js, PGlite) |
 | `@rungsjs/org` | Commercial (Pro) | Planned: org-aware resolvers (manager chains, vacancies, acting holders) |
 | `@rungsjs/react` | Commercial (Pro) | Planned: inbox, timeline and action components |
 

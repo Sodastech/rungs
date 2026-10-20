@@ -324,6 +324,65 @@ All extend `RungsError` and expose a stable `code`.
 Note: Rungs checks **workflow routing** (is this actor assigned?), not **authentication**.
 The host must authenticate the actor before calling a command.
 
+## PostgreSQL store (`@rungsjs/store-postgres`)
+
+PostgreSQL 15 or newer. The package has no runtime dependencies: you pass the driver you already
+use through a small adapter.
+
+```ts
+import pg from "pg";
+import { fromPg, migrate, postgresStore } from "@rungsjs/store-postgres";
+
+const db = fromPg(new pg.Pool({ connectionString }));  // or fromPostgresJs(sql), fromPglite(db)
+await migrate(db);                                      // once per deploy; safe to run concurrently
+const rungs = createRungs({ store: postgresStore(db), clock, ids });
+```
+
+- **Drivers.** `fromPg` (node-postgres `Pool`), `fromPostgresJs` (postgres.js `sql`) and
+  `fromPglite` (PGlite, in-process PostgreSQL for tests and demos). Any other driver works by
+  implementing `PgClient`: `query(text, params)`, `execute(script)` and `transaction(fn)`.
+- **Schema.** Request state is stored as JSONB; the columns and the `inbox` table that `findDue`,
+  `findInbox` and `pendingEvents` need are written in the same transaction and indexed. Tables live
+  in schema `public` with prefix `rungs_` by default; pass `{ schema, tablePrefix }` to
+  `migrate`, `postgresStore` and the purge functions to change that.
+- **Migrations.** `migrate(db)` applies missing migrations in one transaction under an advisory
+  lock. Hosts with their own migration tool use `migrationSql({ schema, tablePrefix, from })`, or
+  the scripts shipped in `migrations/`. Migrations only go forward. The store refuses to work on an
+  older schema (`ConfigurationError`), so a forgotten migration fails loudly.
+- **Concurrency.** Commands lock the request row (`SELECT … FOR UPDATE`) and save with a
+  compare-and-set on `version`. `tick` and event delivery claim rows with a short lease
+  (`leaseSeconds`, default 60) using `FOR UPDATE SKIP LOCKED`, so workers running at the same time
+  skip each other's rows. Correctness does not depend on the lease (EC-27).
+- **Tenants.** Every tenant-scoped query matches `tenantId` exactly. Row Level Security is not
+  supported yet.
+- **Audit trail.** A trigger rejects every UPDATE, DELETE and TRUNCATE on the audit table, except
+  DELETE inside the purge functions below. It guards against accidents, not against a database
+  user who sets the purge flag deliberately.
+
+### Data retention is the host's responsibility
+
+Rungs never deletes data on its own. Your retention policy, and requests to erase personal data
+(for example under GDPR or Indonesia's UU PDP), are carried out by calling these functions, for
+example from a scheduled job. Each returns what it deleted, so you can record it in your own logs.
+
+```ts
+await purgeRequest(db, requestId);                                   // one closed request (EC-61)
+await purgeRequests(db, { closedBefore: "2025-01-01T00:00:00Z", tenantId: "acme", limit: 1000 });
+await purgeIdempotency(db, { olderThan: "2026-01-01T00:00:00Z" });   // { idempotencyKeys }
+await purgeDispatchedEvents(db, { olderThan: "2026-01-01T00:00:00Z" }); // { events }
+```
+
+- `purgeRequest` and `purgeRequests` delete **closed** requests (approved, rejected, withdrawn)
+  with their audit events, outbox events, inbox rows and idempotency records, in one transaction,
+  and return `{ requests, auditEvents, outboxEvents, idempotencyKeys }`. A request that is still
+  open is refused with `InvalidTransitionError`; nothing is deleted.
+- `purgeRequests` handles at most `limit` (default 1000) requests per call; call it again until
+  `requests` is below the limit. Without `tenantId` it covers every tenant.
+- `purgeIdempotency`: after it, repeating one of those commands runs it again, so keep records at
+  least as long as clients may retry. `purgeDispatchedEvents` never touches undelivered events.
+- Payloads may contain personal data. Purging a request removes its state and audit trail; data
+  your application copied elsewhere (notifications, logs, your own tables) is yours to delete.
+
 ## Store interface (for adapter authors)
 
 Fixed for 1.8. Everything the store returns is plain JSON; the service never shares objects with it.
@@ -363,12 +422,12 @@ interface StoreTx {
   getRequest(id: string, opts?: { forUpdate?: boolean }): Promise<RequestState | null>;
   saveRequest(state: RequestState, expectedVersion: number | null): Promise<void>;
   appendAudit(events: AuditEvent[]): Promise<void>;
-  findDue(now: string, limit: number): Promise<string[]>; // ids with nextDueAt <= now
+  findDue(now: string, limit: number, options?: { claim?: boolean }): Promise<string[]>; // nextDueAt <= now
 
   // Outbox (see "Event delivery").
   enqueueEvents(events: DomainEvent[], now: string): Promise<void>; // attempts 0, due now
-  pendingEvents(q: { now: string; limit: number; requestId?: string }): Promise<OutboxEntry[]>;
-  markDispatched(keys: EventKey[]): Promise<void>;
+  pendingEvents(q: { now: string; limit: number; requestId?: string; claim?: boolean }): Promise<OutboxEntry[]>;
+  markDispatched(keys: EventKey[], now?: string): Promise<void>;
   markFailed(
     key: EventKey,
     failure: { attempts: number; nextAttemptAt: string; error: string },
@@ -395,6 +454,11 @@ interface StoreTx {
 step of pending requests that are assigned to the user or held by a delegate on the user's behalf
 (`onBehalfOf`; the service adds `heldBy`) whose `tenantId` matches exactly (none matches
 none), ordered by (`assignedAt`, `taskId`), starting after `after` when given.
+
+`tick` and event delivery pass `claim: true`. An adapter may then lease what it returns for a short
+time so that concurrent workers skip it; without `claim` nothing is leased, so reads for inspection
+never hide anything. `markDispatched` receives the delivery time for adapters that keep delivered
+events.
 
 Adapters prove they meet this contract by running the shared suites from the private
 `@rungsjs/store-contract` package in their own tests: `storeContract(name, makeStore)` for the store

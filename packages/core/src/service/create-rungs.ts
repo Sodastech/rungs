@@ -244,7 +244,9 @@ export function createRungs(options: RungsOptions): Rungs {
   ): Promise<DispatchSummary> {
     const onEvent = options.onEvent;
     if (onEvent === undefined) throw new ConfigurationError("dispatchPending needs onEvent");
-    const entries = await store.transaction((tx) => tx.pendingEvents({ now: at, ...filter }));
+    const entries = await store.transaction((tx) =>
+      tx.pendingEvents({ now: at, ...filter, claim: true }),
+    );
 
     const held = new Set<string>();
     const delivered: EventKey[] = [];
@@ -272,7 +274,7 @@ export function createRungs(options: RungsOptions): Rungs {
         }
       }
     }
-    if (delivered.length > 0) await store.transaction((tx) => tx.markDispatched(delivered));
+    if (delivered.length > 0) await store.transaction((tx) => tx.markDispatched(delivered, at));
     return { delivered: delivered.length, failed };
   }
 
@@ -315,7 +317,9 @@ export function createRungs(options: RungsOptions): Rungs {
     override: command("override"),
     async tick(tickOptions = {}) {
       const at = now();
-      const due = await store.transaction((tx) => tx.findDue(at, tickOptions.limit ?? 100));
+      const due = await store.transaction((tx) =>
+        tx.findDue(at, tickOptions.limit ?? 100, { claim: true }),
+      );
       const changed: string[] = [];
       const skipped: string[] = [];
       const failed: { requestId: string; error: unknown }[] = [];
