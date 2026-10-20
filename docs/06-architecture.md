@@ -27,6 +27,7 @@ rungs/
 │   └── pro-react/         # @rungsjs/react — commercial (Phase 5, private repo)
 ├── examples/
 │   ├── expense-basic/     # private: the Phase 1 gate, three steps on the memory store
+│   ├── playground/        # private: scenario files played as a readable timeline (pnpm playground)
 │   └── nextjs-expenses/   # Phase 2
 └── skills/
     └── rungs/SKILL.md     # Claude Code skill (Phase 3)

@@ -72,7 +72,9 @@ console.log(done.status); // "approved"
 
 This exact example runs in CI (`examples/expense-basic/test/readme.test.ts`). For a fuller tour
 with delegation, return and resubmit, reminders, the inbox and the audit history, see
-[`examples/expense-basic`](examples/expense-basic).
+[`examples/expense-basic`](examples/expense-basic). To try your own cases by hand, write a
+scenario and run it in the [playground](examples/playground): `pnpm playground scenarios/03-four-eyes.ts`
+prints a readable timeline of every step, approver and decision.
 
 Beyond this: parallel steps (`any`, `all`, quorum), conditions, out-of-office delegation, deadlines
 with reminders, escalation and timeouts driven by `tick`, return and resubmit, admin override,

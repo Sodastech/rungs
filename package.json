@@ -11,6 +11,7 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "playground": "turbo run build --filter=@rungsjs/playground^... --output-logs=errors-only && pnpm --filter @rungsjs/playground play",
     "lint": "biome check .",
     "check:ec": "node scripts/check-ec-coverage.mjs",
     "check:readme": "node scripts/check-readme.mjs",
