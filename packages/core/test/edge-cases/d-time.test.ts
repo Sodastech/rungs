@@ -191,6 +191,51 @@ describe("D. Time", () => {
       expect(result.state.steps[1]).toMatchObject({ stepId: "finance", status: "active" });
     });
 
+    it("EC-59 auto-approve is skipped once a vote rejected; the step stays active and is reminded", () => {
+      const flow = timed({ onTimeout: "auto-approve", mode: { quorum: 1 } });
+      const afterReject = run(submitted(flow), reject("u_a"), { flow, now: T1 }).state;
+      expect(afterReject.steps[0]?.status).toBe("active");
+
+      const result = decided(tick(afterReject, day(1), { flow }));
+      expect(result.audit.map((e) => [e.type, e.actorId, e.data])).toEqual([
+        [
+          "step.timed_out",
+          null,
+          {
+            stepId: "manager",
+            stepIndex: 0,
+            action: "remind",
+            reason: "auto-approve-skipped-rejection-present",
+          },
+        ],
+        [
+          "task.reminder",
+          null,
+          {
+            taskId: "r1.t2",
+            stepId: "manager",
+            assigneeId: "u_b",
+            deadlineAt: day(1),
+            overdue: true,
+            count: 1,
+          },
+        ],
+      ]);
+      expect(result.state.steps[0]?.status).toBe("active");
+      expect(result.state.steps[0]?.tasks.map((t) => t.status)).toEqual(["rejected", "pending"]);
+      expect(result.state.nextDueAt).toBe(day(2));
+
+      const again = decided(tick(result.state, day(2), { flow }));
+      expect(again.audit[0]?.data).toMatchObject({ assigneeId: "u_b", count: 2 });
+      expect(run(again.state, approve("u_b"), { flow }).state.steps[0]?.status).toBe("approved");
+    });
+
+    it("EC-59 without a rejection auto-approve still applies", () => {
+      const flow = timed({ onTimeout: "auto-approve", mode: { quorum: 1 } });
+      const result = decided(tick(submitted(flow), day(1), { flow }));
+      expect(result.state.steps[0]?.status).toBe("approved");
+    });
+
     it("EC-26 onTimeout auto-reject expires the tasks and rejects the request", () => {
       const flow = timed({ onTimeout: "auto-reject" });
       const result = decided(tick(submitted(flow), day(1), { flow }));

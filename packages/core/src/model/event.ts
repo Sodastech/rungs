@@ -67,7 +67,14 @@ export type AuditEventBody =
           | ({ reason: "too-few-targets"; required: number; available: number } & RemovedData)
         );
     }
-  | { type: "step.timed_out"; data: StepData & { action: "auto-approve" | "auto-reject" } }
+  | {
+      type: "step.timed_out";
+      data: StepData &
+        (
+          | { action: "auto-approve" | "auto-reject" }
+          | { action: "remind"; reason: "auto-approve-skipped-rejection-present" }
+        );
+    }
   | {
       type: "step.still_blocked";
       data: StepData & { blockedSince: string; reason: ApproverShortfall; count: number };

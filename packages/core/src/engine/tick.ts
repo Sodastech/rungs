@@ -110,7 +110,18 @@ function timeOut(
   if (action === "escalate") return escalate(draft, instance, step, deadline);
 
   deadline.timedOutAt = draft.ctx.now;
-  if (action === "remind") {
+  // EC-59: fail closed. Auto-approve never overrides a rejection already cast in the step; the
+  // step stays active and is reminded like an overdue step (EC-55).
+  const rejected = instance.tasks.some((t) => t.status === "rejected");
+  if (action === "auto-approve" && rejected) {
+    record(draft, "step.timed_out", {
+      stepId: instance.stepId,
+      stepIndex: instance.index,
+      action: "remind",
+      reason: "auto-approve-skipped-rejection-present",
+    });
+  }
+  if (action === "remind" || (action === "auto-approve" && rejected)) {
     deadline.reminders = 1;
     remind(draft, instance, deadline, true);
     scheduleOverdue(draft, deadline);

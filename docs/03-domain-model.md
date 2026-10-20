@@ -221,6 +221,10 @@ is due it returns `unchanged`. Durations are absolute UTC time unless a `calenda
 - **`auto-approve` / `auto-reject`.** Pending tasks become `expired`, `step.timed_out` is recorded
   and the step closes. These are explicit opt-ins and count as nobody's vote: nothing carries over
   by dedupe. An auto-rejected request records `request.rejected` with `reason: "timeout"`.
+  Auto-approve fails closed: it never overrides a rejection already cast in the step (possible in a
+  quorum step that can still reach its quorum). Then the step stays active, `step.timed_out`
+  records `action: "remind"` with `reason: "auto-approve-skipped-rejection-present"`, and the
+  overdue reminders of EC-55 follow (EC-59).
 - **`escalate` (EC-28, EC-54).** `escalateTo` is resolved afresh (the need carries
   `escalationDepth`, so a resolver can walk up). Targets pass the usual pipeline (inactive,
   requester, delegation) and anyone who already voted in this step or approved an earlier step is
@@ -319,7 +323,7 @@ Types and data (discriminated union `AuditEvent` in `@rungs/core`):
 | `request.resubmit_overdue` | `stepId` (that returned it), `dueAt` (EC-52) |
 | `request.escalated` | `stepId`, `stepIndex`, `depth`, `toUserIds`, `removed?` (EC-28, EC-54) |
 | `request.escalation_failed` | `stepId`, `stepIndex`, `depth`, `reason: "max-depth"`, or `reason: "too-few-targets"` with `required`, `available`, `removed?` (EC-28) |
-| `step.timed_out` | `stepId`, `stepIndex`, `action: "auto-approve" \| "auto-reject"` (EC-26) |
+| `step.timed_out` | `stepId`, `stepIndex`, `action: "auto-approve" \| "auto-reject"` (EC-26), or `action: "remind"` with `reason: "auto-approve-skipped-rejection-present"` (EC-59) |
 | `step.still_blocked` | `stepId`, `stepIndex`, `blockedSince`, `reason`, `count` (EC-53) |
 | `step.activated` | `stepId`, `stepIndex`, `approvers`, `removed?` |
 | `step.skipped` | `stepId`, `stepIndex`, `reason` (`condition-false` with the condition, or `no-approvers`), `removed?` |
