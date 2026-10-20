@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/brand/rungs-icon-rounded.svg" alt="Rungs logo" width="96" height="96">
+</p>
+
 # Rungs
 
 **Rungs is an approval workflow engine for TypeScript that gets the hard part right: who approves,

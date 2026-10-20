@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Rungs</title>
+  <rect width="512" height="512" fill="#0E1422"/>
+  <rect x="112" y="322" width="176" height="46" rx="23" fill="#3A4560"/>
+  <rect x="168" y="233" width="176" height="46" rx="23" fill="#8A96B0"/>
+  <rect x="224" y="144" width="176" height="46" rx="23" fill="#34D399"/>
+</svg>
