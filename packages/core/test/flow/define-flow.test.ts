@@ -28,6 +28,7 @@ describe("defineFlow", () => {
       returnPolicy: "restart",
       onAllSkipped: "approve",
       maxEscalationDepth: 3,
+      maxDelegationDepth: 3,
       steps: [
         {
           id: "manager",
@@ -64,6 +65,7 @@ describe("defineFlow", () => {
         returnPolicy: "from-returned-step",
         onAllSkipped: "fail",
         maxEscalationDepth: 1,
+        maxDelegationDepth: 2,
         steps: [
           step({
             name: "Finance",
@@ -79,6 +81,7 @@ describe("defineFlow", () => {
     );
     expect(flow.onEmptyStep).toBe("skip");
     expect(flow.maxEscalationDepth).toBe(1);
+    expect(flow.maxDelegationDepth).toBe(2);
     expect(flow.steps[0]).toMatchObject({
       name: "Finance",
       mode: { quorum: 1 },
@@ -151,6 +154,14 @@ describe("defineFlow", () => {
       expectIssue(
         flowInput({ maxEscalationDepth: value }),
         "maxEscalationDepth",
+        /positive integer/,
+      );
+    });
+
+    it.each([0, -1, 1.5])("rejects maxDelegationDepth %s", (value) => {
+      expectIssue(
+        flowInput({ maxDelegationDepth: value }),
+        "maxDelegationDepth",
         /positive integer/,
       );
     });

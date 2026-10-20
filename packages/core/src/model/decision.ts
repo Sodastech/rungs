@@ -1,3 +1,4 @@
+import type { DelegationRule } from "./delegation.js";
 import type { AuditEvent, DomainEvent } from "./event.js";
 import type { ApproverSpec } from "./flow.js";
 import type { RegisteredFlow, RequestState } from "./state.js";
@@ -5,8 +6,13 @@ import type { RegisteredFlow, RequestState } from "./state.js";
 /** Approvers collected by the service for one need, before the engine filters them. */
 export interface StepResolution {
   readonly userIds: readonly string[];
-  /** Subset of `userIds` the host reports as inactive (EC-06). */
+  /** Users the host reports as inactive (EC-06), including delegates the rules lead to. */
   readonly inactiveUserIds?: readonly string[];
+  /**
+   * Out-of-office rules of these users and of the delegates their rules lead to. The engine
+   * applies only those active at `ctx.now`, in scope and in the tenant (EC-20).
+   */
+  readonly delegations?: readonly DelegationRule[];
 }
 
 export interface EngineContext {

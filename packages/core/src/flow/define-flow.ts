@@ -18,6 +18,7 @@ export function defineFlow(input: FlowInput): FlowDefinition {
     returnPolicy: input.returnPolicy ?? "restart",
     onAllSkipped: input.onAllSkipped ?? "approve",
     maxEscalationDepth: input.maxEscalationDepth ?? 3,
+    maxDelegationDepth: input.maxDelegationDepth ?? 3,
     steps: input.steps.map(normalizeStep),
   });
 }

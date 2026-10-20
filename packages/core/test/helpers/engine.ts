@@ -2,11 +2,14 @@ import {
   type ApproveCommand,
   type Command,
   type DecidedResult,
+  type DelegateCommand,
+  type DelegationRule,
   decide,
   defineFlow,
   type FlowInput,
   type OverrideCommand,
   type ReassignStepCommand,
+  type ReassignTaskCommand,
   type RegisteredFlow,
   type RejectCommand,
   type RequestState,
@@ -65,6 +68,46 @@ export function reassignStep(
   return { type: "reassign", requestId: "r1", adminId: "u_admin", stepId, toUserIds, reason };
 }
 
+export function reassignTask(
+  taskId: string,
+  toUserId: string,
+  reason = "Approver left",
+): ReassignTaskCommand {
+  return { type: "reassign", requestId: "r1", adminId: "u_admin", taskId, toUserId, reason };
+}
+
+export function delegate(
+  actorId: string,
+  taskId: string,
+  toUserId: string,
+  reason?: string,
+): DelegateCommand {
+  return {
+    type: "delegate",
+    requestId: "r1",
+    actorId,
+    taskId,
+    toUserId,
+    ...(reason ? { reason } : {}),
+  };
+}
+
+/** An out-of-office rule active for the whole of January 2026 unless overridden. */
+export function rule(
+  fromUserId: string,
+  toUserId: string,
+  overrides: Partial<DelegationRule> = {},
+): DelegationRule {
+  return {
+    id: `d_${fromUserId}_${toUserId}`,
+    fromUserId,
+    toUserId,
+    startsAt: "2026-01-01T00:00:00.000Z",
+    endsAt: "2026-02-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
 export function retryStep(stepId: string): RetryStepCommand {
   return { type: "retry", requestId: "r1", adminId: "u_admin", stepId };
 }
@@ -83,6 +126,8 @@ export interface RunOptions {
   approvers?: Record<string, readonly string[]>;
   /** Users reported inactive by the host. */
   inactive?: readonly string[];
+  /** Out-of-office rules the service would load; passed with every resolution. */
+  delegations?: readonly DelegationRule[];
 }
 
 /**
@@ -103,9 +148,12 @@ export function run(
       const userIds =
         options.approvers?.[need.key] ?? (need.spec.type === "users" ? need.spec.ids : undefined);
       if (userIds === undefined) throw new Error(`test gave no approvers for need "${need.key}"`);
-      const inactiveUserIds = userIds.filter((id) => options.inactive?.includes(id));
-      resolutions[need.key] =
-        inactiveUserIds.length > 0 ? { userIds, inactiveUserIds } : { userIds };
+      const inactiveUserIds = options.inactive?.filter((id) => id.length > 0) ?? [];
+      resolutions[need.key] = {
+        userIds,
+        ...(inactiveUserIds.length > 0 ? { inactiveUserIds } : {}),
+        ...(options.delegations ? { delegations: options.delegations } : {}),
+      };
     }
   }
   throw new Error("resolution loop did not converge");

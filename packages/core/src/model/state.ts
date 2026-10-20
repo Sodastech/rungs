@@ -41,6 +41,7 @@ export type TaskStatus =
   | "returned"
   | "superseded"
   | "delegated"
+  | "reassigned"
   | "skipped-duplicate"
   | "cancelled"
   | "expired";
@@ -67,7 +68,7 @@ export interface Task {
   id: string;
   /** Who can act now. */
   assigneeId: string;
-  /** Original approver when delegated. */
+  /** The approver whose vote this task carries, when it reached the assignee by delegation. */
   onBehalfOf?: string;
   status: TaskStatus;
   assignedAt: string;

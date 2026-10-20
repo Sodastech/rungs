@@ -9,6 +9,12 @@ import type {
   StepInstance,
 } from "../model/state.js";
 import {
+  type Delegated,
+  type DelegationContext,
+  decidedEarlier,
+  followDelegations,
+} from "../resolution/delegation.js";
+import {
   carriedApprovals,
   eligibleApprovers,
   requiredApprovals,
@@ -18,7 +24,12 @@ import { clone, type Draft, record } from "./draft.js";
 
 /** What resolving a step leads to, before anything is recorded. */
 export type StepPlan =
-  | { kind: "activate"; approvers: string[]; removed: RemovedApprover[] }
+  | {
+      kind: "activate";
+      approvers: string[];
+      removed: RemovedApprover[];
+      resolution: StepResolution;
+    }
   | { kind: "skip"; removed: RemovedApprover[] }
   | { kind: "block"; reason: ApproverShortfall; removed: RemovedApprover[] };
 
@@ -34,7 +45,7 @@ export function planStep(draft: Draft, step: StepDefinition, resolution: StepRes
     flow.allowSelfApproval,
   );
   const reason = shortfall(step.mode, approvers.length);
-  if (reason === null) return { kind: "activate", approvers, removed };
+  if (reason === null) return { kind: "activate", approvers, removed, resolution };
   if (reason.type === "no-approvers" && flow.onEmptyStep === "skip")
     return { kind: "skip", removed };
   return { kind: "block", reason, removed };
@@ -69,7 +80,7 @@ export function advance(draft: Draft, fromIndex: number): ResolutionNeed | null 
       block(draft, instance, plan.reason, plan.removed);
       return null;
     }
-    if (!activate(draft, instance, plan.approvers, plan.removed)) return null;
+    if (!activate(draft, instance, plan.approvers, plan.removed, plan.resolution)) return null;
   }
 
   completeApproved(draft);
@@ -87,7 +98,7 @@ export function resume(
     skip(draft, instance, { type: "no-approvers" }, plan.removed);
     return advance(draft, instance.index + 1);
   }
-  if (!activate(draft, instance, plan.approvers, plan.removed)) return null;
+  if (!activate(draft, instance, plan.approvers, plan.removed, plan.resolution)) return null;
   return advance(draft, instance.index + 1);
 }
 
@@ -169,21 +180,39 @@ function place(draft: Draft, instance: StepInstance): void {
 
 /**
  * Activates the step with its tasks. Approvers who already approved earlier get a
- * `skipped-duplicate` task that counts as their vote (EC-03). The step is approved at once only
- * when every approver is carried over; otherwise someone else must decide (EC-47).
- * Returns true when the step closed that way.
+ * `skipped-duplicate` task that counts as their vote (EC-03); they are not delegated. The step is
+ * approved at once only when every approver is carried over; otherwise someone else must decide
+ * (EC-47). Everyone else's task follows their out-of-office rules (EC-20..EC-23), without ever
+ * giving one person two votes (EC-48). `approvers` becomes the users who hold the tasks.
+ * Returns true when the step closed at once.
  */
 function activate(
   draft: Draft,
   instance: StepInstance,
   approvers: string[],
   removed: RemovedApprover[],
+  resolution: StepResolution,
 ): boolean {
   const { state, ctx } = draft;
   const earlier = state.steps.filter((s) => s !== instance);
   const carried = carriedApprovals(earlier, ctx.flow.dedupeApprovers);
+  const holders = new Set(approvers);
+  const delegation = delegationContext(draft, earlier, resolution, holders);
+  const assignments = approvers.map((userId) => {
+    if (carried.has(userId)) return { userId, delegated: null };
+    const delegated = followDelegations(userId, delegation);
+    holders.add(delegated.assigneeId);
+    return { userId, delegated };
+  });
+  const assignees = assignments.map((a) => a.delegated?.assigneeId ?? a.userId);
+
   place(draft, instance);
-  Object.assign(instance, { status: "active", activatedAt: ctx.now, approvers, tasks: [] });
+  Object.assign(instance, {
+    status: "active",
+    activatedAt: ctx.now,
+    approvers: assignees,
+    tasks: [],
+  });
   delete instance.blockReason;
   delete instance.removed;
   if (removed.length > 0) instance.removed = clone(removed);
@@ -191,32 +220,103 @@ function activate(
   record(draft, "step.activated", {
     stepId: instance.stepId,
     stepIndex: instance.index,
-    approvers,
+    approvers: assignees,
     ...removedData(removed),
   });
 
-  for (const assigneeId of approvers) {
-    state.lastTaskNumber += 1;
-    const taskId = `${state.id}.t${state.lastTaskNumber}`;
-    const ofTaskId = carried.get(assigneeId);
-    if (ofTaskId === undefined) {
-      instance.tasks.push({ id: taskId, assigneeId, status: "pending", assignedAt: ctx.now });
-      record(draft, "task.assigned", { taskId, stepId: instance.stepId, assigneeId });
+  for (const { userId, delegated } of assignments) {
+    if (delegated !== null) {
+      assignTask(draft, instance, delegated, userId === delegated.assigneeId ? undefined : userId);
       continue;
     }
+    const taskId = nextTaskId(draft);
     instance.tasks.push({
       id: taskId,
-      assigneeId,
+      assigneeId: userId,
       status: "skipped-duplicate",
       assignedAt: ctx.now,
       decidedAt: ctx.now,
     });
-    record(draft, "task.deduplicated", { taskId, stepId: instance.stepId, assigneeId, ofTaskId });
+    record(draft, "task.deduplicated", {
+      taskId,
+      stepId: instance.stepId,
+      assigneeId: userId,
+      ofTaskId: carried.get(userId) as string,
+    });
   }
 
   if (!approvers.every((id) => carried.has(id))) return false;
   closeStep(draft, instance, "approved");
   return true;
+}
+
+export function delegationContext(
+  draft: Draft,
+  earlier: readonly StepInstance[],
+  resolution: StepResolution,
+  holders: ReadonlySet<string>,
+): DelegationContext {
+  const { state, ctx } = draft;
+  return {
+    now: ctx.now,
+    flowKey: ctx.flow.key,
+    ...(state.tenantId === undefined ? {} : { tenantId: state.tenantId }),
+    requesterId: state.requesterId,
+    allowSelfApproval: ctx.flow.allowSelfApproval,
+    maxDepth: ctx.flow.maxDelegationDepth,
+    rules: resolution.delegations ?? [],
+    inactive: new Set(resolution.inactiveUserIds ?? []),
+    holders,
+    decided: decidedEarlier(earlier),
+  };
+}
+
+/** Records the delegation notes and creates a pending task for the delegated assignee. */
+export function assignTask(
+  draft: Draft,
+  instance: StepInstance,
+  delegated: Delegated,
+  onBehalfOf: string | undefined,
+): string {
+  const { ctx } = draft;
+  for (const note of delegated.notes) {
+    if (note.type === "cycle") {
+      record(draft, "delegation.cycle_detected", {
+        stepId: instance.stepId,
+        userId: note.userId,
+        chain: note.chain,
+      });
+    } else {
+      record(draft, "delegation.skipped", {
+        stepId: instance.stepId,
+        userId: note.userId,
+        toUserId: note.toUserId,
+        reason: note.reason,
+      });
+    }
+  }
+  const taskId = nextTaskId(draft);
+  const assigneeId = delegated.assigneeId;
+  instance.tasks.push({
+    id: taskId,
+    assigneeId,
+    ...(onBehalfOf === undefined ? {} : { onBehalfOf }),
+    status: "pending",
+    assignedAt: ctx.now,
+  });
+  record(draft, "task.assigned", {
+    taskId,
+    stepId: instance.stepId,
+    assigneeId,
+    ...(onBehalfOf === undefined ? {} : { onBehalfOf }),
+    ...(delegated.chain.length > 1 ? { chain: delegated.chain } : {}),
+  });
+  return taskId;
+}
+
+function nextTaskId(draft: Draft): string {
+  draft.state.lastTaskNumber += 1;
+  return `${draft.state.id}.t${draft.state.lastTaskNumber}`;
 }
 
 function skip(

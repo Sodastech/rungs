@@ -5,8 +5,10 @@ export { defineFlow } from "./flow/define-flow.js";
 export type {
   ApproveCommand,
   Command,
+  DelegateCommand,
   OverrideCommand,
   ReassignStepCommand,
+  ReassignTaskCommand,
   RejectCommand,
   RetryStepCommand,
   SubmitCommand,
@@ -19,6 +21,7 @@ export type {
   ResolutionNeed,
   StepResolution,
 } from "./model/decision.js";
+export type { DelegationRule, DelegationSkipReason } from "./model/delegation.js";
 export type { FlowIssue, ReceivedType } from "./model/errors.js";
 export {
   ConditionError,

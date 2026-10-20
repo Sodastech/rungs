@@ -12,6 +12,7 @@ const FLOW_KEYS = [
   "returnPolicy",
   "onAllSkipped",
   "maxEscalationDepth",
+  "maxDelegationDepth",
 ];
 const STEP_KEYS = [
   "id",
@@ -61,6 +62,9 @@ export function validateFlow(input: unknown): FlowIssue[] {
   }
   if (input.maxEscalationDepth !== undefined && !isPositiveInteger(input.maxEscalationDepth)) {
     issues.push({ path: "maxEscalationDepth", message: "must be a positive integer" });
+  }
+  if (input.maxDelegationDepth !== undefined && !isPositiveInteger(input.maxDelegationDepth)) {
+    issues.push({ path: "maxDelegationDepth", message: "must be a positive integer" });
   }
   rejectUnknownKeys(input, FLOW_KEYS, "", issues);
   return issues;

@@ -20,6 +20,7 @@ import type { StepDefinition } from "../model/flow.js";
 import type { RequestState, StepInstance } from "../model/state.js";
 import { requiredApprovals } from "../resolution/pipeline.js";
 import { clone, type Draft, finish, jsonIssues, record, startDraft } from "./draft.js";
+import { delegateTask, reassignTask } from "./handover.js";
 import {
   activeStep,
   advance,
@@ -82,8 +83,12 @@ export function decide(state: RequestState | null, command: Command, ctx: Engine
     case "approve":
     case "reject":
       return decideTask(state, command, ctx);
+    case "delegate":
+      return delegateTask(state, command, ctx);
     case "reassign":
-      return reassignStep(state, command, ctx);
+      return command.taskId === undefined
+        ? reassignStep(state, command, ctx)
+        : reassignTask(state, command, ctx);
     case "retry":
       return retryStep(state, command, ctx);
     case "override":
@@ -332,15 +337,31 @@ function validateCommand(command: Command): void {
         problems.push("comment must be a string");
       }
       break;
+    case "delegate":
+      text(command.requestId, "requestId");
+      text(command.actorId, "actorId");
+      text(command.taskId, "taskId");
+      text(command.toUserId, "toUserId");
+      if (command.reason !== undefined && typeof command.reason !== "string") {
+        problems.push("reason must be a string");
+      }
+      break;
     case "reassign":
       text(command.requestId, "requestId");
       text(command.adminId, "adminId");
-      text(command.stepId, "stepId");
       reason(command.reason);
-      if (!Array.isArray(command.toUserIds) || command.toUserIds.length === 0) {
-        problems.push("toUserIds must be a non-empty array");
+      if ((command.stepId === undefined) === (command.taskId === undefined)) {
+        problems.push("a reassign names either stepId or taskId");
+      } else if (command.taskId !== undefined) {
+        text(command.taskId, "taskId");
+        text(command.toUserId, "toUserId");
       } else {
-        for (const [i, id] of command.toUserIds.entries()) text(id, `toUserIds[${i}]`);
+        text(command.stepId, "stepId");
+        if (!Array.isArray(command.toUserIds) || command.toUserIds.length === 0) {
+          problems.push("toUserIds must be a non-empty array");
+        } else {
+          for (const [i, id] of command.toUserIds.entries()) text(id, `toUserIds[${i}]`);
+        }
       }
       break;
     case "retry":

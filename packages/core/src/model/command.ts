@@ -24,6 +24,16 @@ export interface RejectCommand {
   comment?: string;
 }
 
+/** Hands the actor's pending task to a delegate (EC-25). */
+export interface DelegateCommand {
+  type: "delegate";
+  requestId: string;
+  actorId: string;
+  taskId: string;
+  toUserId: string;
+  reason?: string;
+}
+
 /** Gives a blocked step to users chosen by an admin (EC-46). */
 export interface ReassignStepCommand {
   type: "reassign";
@@ -32,6 +42,18 @@ export interface ReassignStepCommand {
   stepId: string;
   toUserIds: string[];
   reason: string;
+  taskId?: never;
+}
+
+/** Moves one pending task to another user, chosen by an admin. */
+export interface ReassignTaskCommand {
+  type: "reassign";
+  requestId: string;
+  adminId: string;
+  taskId: string;
+  toUserId: string;
+  reason: string;
+  stepId?: never;
 }
 
 /** Resolves the approvers of a blocked step again, e.g. after the host fixed its data (EC-46). */
@@ -55,6 +77,8 @@ export type Command =
   | SubmitCommand
   | ApproveCommand
   | RejectCommand
+  | DelegateCommand
   | ReassignStepCommand
+  | ReassignTaskCommand
   | RetryStepCommand
   | OverrideCommand;

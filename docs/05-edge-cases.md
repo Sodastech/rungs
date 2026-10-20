@@ -45,12 +45,14 @@ Tier: **Core** = MIT `@rungs/core`; **Pro** = `@rungs/org`.
 
 | ID | Situation | Default behavior | Config | Tier |
 | --- | --- | --- | --- | --- |
-| EC-20 | Approver has an active out-of-office rule when the task is assigned | Task is assigned to the delegate with `onBehalfOf` set | rule `scope` | Core |
-| EC-21 | Delegation chain A→B→C | Followed up to depth 3; deeper chains stop at the last valid delegate | `maxDelegationDepth` | Core |
-| EC-22 | Delegation cycle A→B→A | Cycle detected; task stays with the original approver; warning event | — | Core |
-| EC-23 | Delegate is the requester | Delegate skipped; task stays with original approver (or next in chain) | — | Core |
-| EC-24 | Delegation rule ends while a delegated task is pending | Task stays with the delegate (no surprise reassignment) | `onDelegationEnd: keep \| revert` | Core |
-| EC-25 | Approver delegates a single task manually | New task for the delegate; original task `delegated`; both audited | — | Core |
+| EC-20 | Approver has an active out-of-office rule when the task is assigned | Task is assigned to the delegate with `onBehalfOf` set; `task.assigned` records the chain. Only rules active at that moment, in scope and in the tenant apply; with several, the most recently started wins | rule `scope` | Core |
+| EC-21 | Delegation chain A→B→C | Followed up to depth 3; deeper chains stop at the last valid delegate | `maxDelegationDepth` (flow) | Core |
+| EC-22 | Delegation cycle A→B→A | Cycle detected; task stays with the original approver; `delegation.cycle_detected` warning event | — | Core |
+| EC-23 | Delegate is the requester (or inactive) | Delegate skipped with `delegation.skipped`; the chain continues with that delegate's rule, otherwise the task stays with the original approver. With `allowSelfApproval` the requester can be a delegate | — | Core |
+| EC-24 | Delegation rule ends while a delegated task is pending | Task stays with the delegate (no surprise reassignment): rules are evaluated once, when the task is created. Reverting is not supported yet | — | Core |
+| EC-25 | Approver delegates a single task manually | New task for the delegate carrying the same vote (`onBehalfOf`); original task `delegated`; both audited. The delegate's own out-of-office rule applies. Refused for yourself, the requester, an inactive user, or a target covered by EC-48/EC-49 | — | Core |
+| EC-48 | A delegation would give one person two votes in a step (the delegate already approves there, directly or through another delegation) | Separation of duties: delegation never merges votes. An out-of-office hop to such a person is skipped with `delegation.skipped` (`target-already-approver`) and the task stays with the last valid holder, usually the original approver. Example: A and C both delegate to D; A's task goes to D, C keeps their own. A manual delegation or admin reassign to someone who already holds a task in the step is refused | — | Core |
+| EC-49 | The target of a delegation already approved an earlier step of the same request | Refused for a manual delegation and an admin task reassign, so one person cannot approve two levels. An out-of-office hop to that person is skipped (`target-already-decided`) | — | Core |
 
 ## D. Time
 

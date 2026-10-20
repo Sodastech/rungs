@@ -66,10 +66,10 @@ ApproverSpec
   → merge duplicates       (EC-44)                                            ┐
   → remove inactive users  (EC-06)                                            │
   → remove requester       (EC-01, unless allowSelfApproval)                  │ pure, engine:
-  → apply delegation rules (EC-20..EC-23, 1.5)                                │ resolution/pipeline
-  → too few for the mode?  → submit: NoApproversError (EC-43, EC-45)          │
+  → too few for the mode?  → submit: NoApproversError (EC-43, EC-45)          │ resolution/pipeline
                            → mid-flow: blocked, or skipped by onEmptyStep     │
-  → dedupe                 (EC-03)                                            ┘
+  → dedupe                 (EC-03; carried-over votes are not delegated)      │
+  → apply delegation rules (EC-20..EC-24, EC-48, EC-49; never merges votes)   ┘ resolution/delegation
 ```
 
 The async part turns a need into `{ userIds, inactiveUserIds? }`; a host callback that throws becomes

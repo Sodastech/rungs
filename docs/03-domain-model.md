@@ -33,6 +33,7 @@ Defaults fail closed: nothing silently bypasses an approval step.
 | `returnPolicy` | `"restart" \| "from-returned-step"` | What runs again after resubmit. Default `"restart"` |
 | `onAllSkipped` | `"approve" \| "fail"` | When every step is skipped (EC-39). Default `"approve"` |
 | `maxEscalationDepth` | number | Positive integer. Default `3` (EC-28) |
+| `maxDelegationDepth` | number | Positive integer. Default `3`. Most out-of-office hops followed from one approver (EC-21). A flow setting so each flow can be stricter |
 
 Unknown keys are rejected so a typo cannot silently disable a setting.
 
@@ -126,7 +127,7 @@ activation and stored as a snapshot. A step can have several instances after a r
 | `stepId` | string | From the definition |
 | `index` | number | Position of the step in the pinned flow |
 | `status` | `"skipped" \| "active" \| "blocked" \| "approved" \| "rejected" \| "returned" \| "cancelled"` | `blocked`: see below |
-| `approvers` | string[] | Snapshot after removing inactive users and the requester (and, from 1.5, delegation); empty when skipped or blocked |
+| `approvers` | string[] | Snapshot of the users holding the step's tasks at activation: after removing inactive users and the requester, and after delegation. Empty when skipped or blocked |
 | `removed` | `{ userId; reason: "inactive" \| "requester" }[]`? | Resolved users who are not approvers, with the reason (EC-01, EC-06). Absent when nobody was removed |
 | `skipReason` | `{ type: "condition-false"; condition } \| { type: "no-approvers" }`? | Why the step was skipped (EC-38, EC-02, EC-04) |
 | `blockReason` | `{ type: "no-approvers" } \| { type: "quorum-unreachable"; required; available }`? | Why the step is blocked (EC-42, EC-45) |
@@ -175,8 +176,8 @@ One per approver per step instance.
 | --- | --- | --- |
 | `id` | string | Derived deterministically: `${requestId}.t${n}` |
 | `assigneeId` | string | Who can act now |
-| `onBehalfOf` | string? | Original approver when delegated |
-| `status` | `"pending" \| "approved" \| "rejected" \| "returned" \| "superseded" \| "delegated" \| "skipped-duplicate" \| "cancelled" \| "expired"` | `delegated`: handed to a delegate (EC-25). `skipped-duplicate`: counted as approved by dedupe (EC-03) |
+| `onBehalfOf` | string? | The approver whose vote the task carries when it reached the assignee by delegation (EC-20, EC-25). Kept through further delegation; dropped by an admin reassign |
+| `status` | `"pending" \| "approved" \| "rejected" \| "returned" \| "superseded" \| "delegated" \| "reassigned" \| "skipped-duplicate" \| "cancelled" \| "expired"` | `delegated`: handed to a delegate (EC-25). `reassigned`: moved to another user by an admin. `skipped-duplicate`: counted as approved by dedupe (EC-03). `cancelled` is used only for withdraw and override |
 | `assignedAt`, `decidedAt` | ISO string | `decidedAt` is also set when a task is superseded |
 | `comment` | string? | |
 
@@ -184,9 +185,33 @@ One per approver per step instance.
 
 | Field | Type | Notes |
 | --- | --- | --- |
+| `id` | string | |
 | `fromUserId`, `toUserId` | string | |
-| `startsAt`, `endsAt` | ISO string | |
-| `scope` | `{ flowKeys?: string[] }` | Empty = all flows |
+| `startsAt`, `endsAt` | ISO string | Active from `startsAt` (inclusive) until `endsAt` (exclusive) |
+| `scope` | `{ flowKeys?: string[] }`? | Empty or missing = all flows |
+| `tenantId` | string? | When set, applies only to requests of that tenant |
+
+Rules are applied when a task is created and never re-evaluated afterwards: a task stays with the
+delegate after the rule ends (EC-24). When one user has several active rules, the one that started
+most recently wins (then the lowest `id`). For each approver the engine follows the chain of rules:
+
+- At most `maxDelegationDepth` hops; the task goes to the last valid delegate (EC-21).
+- A cycle keeps the task with the original approver and records `delegation.cycle_detected` (EC-22).
+- A delegate who is the requester (without `allowSelfApproval`) or inactive is passed over; the
+  chain continues with that delegate's own rule (EC-23).
+- A delegate who already holds a vote in the step, directly or through another delegation, or who
+  approved an earlier step of the request, ends the chain: the task stays with the last valid
+  holder, usually the original approver (EC-48, EC-49).
+
+Every hop not taken is recorded as `delegation.skipped` with the reason.
+
+**Delegation never merges votes.** The reason is separation of duties: a step that needs two
+approvals must get them from two people, and a person who approved one level must not approve the
+next level on someone else's behalf. Because no two slots ever end up with the same person, the
+number of votes in a step never shrinks through delegation and `onBehalfOf` names exactly one
+approver. A manual delegation (EC-25) or an admin reassign of a task is refused outright for a
+user who already holds a task in the step or approved an earlier step, instead of being passed
+over, because someone chose that user explicitly.
 
 ## AuditEvent (append-only)
 
@@ -213,7 +238,11 @@ Types and data (discriminated union `AuditEvent` in `@rungs/core`):
 | `step.retried` | `stepId`, `stepIndex`, `result: "unblocked"`, or `result: "still-blocked"` with `reason` and `removed?` (EC-46) |
 | `step.completed` | `stepId`, `stepIndex`, `outcome: "approved" \| "rejected"` |
 | `step.cancelled` | `stepId`, `stepIndex` (override) |
-| `task.assigned` | `taskId`, `stepId`, `assigneeId` |
+| `task.assigned` | `taskId`, `stepId`, `assigneeId`, `onBehalfOf?`, `chain?` (the out-of-office hops followed, from the first user to the assignee) |
+| `task.delegated` | `taskId`, `stepId`, `toTaskId`, `toUserId`, `reason?` (EC-25) |
+| `task.reassigned` | `taskId`, `stepId`, `toTaskId`, `toUserId`, `reason` |
+| `delegation.skipped` | `stepId`, `userId` (whose rule), `toUserId`, `reason: "requester" \| "inactive" \| "target-already-approver" \| "target-already-decided"` (EC-23, EC-48, EC-49) |
+| `delegation.cycle_detected` | `stepId`, `userId` (the original approver), `chain` (EC-22) |
 | `task.deduplicated` | `taskId`, `stepId`, `assigneeId`, `ofTaskId` (the earlier approval that carries over, EC-03) |
 | `task.approved`, `task.rejected` | `taskId`, `stepId`, `comment?` |
 | `task.superseded` | `taskId`, `stepId`, `byTaskId` |

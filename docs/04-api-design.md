@@ -54,6 +54,9 @@ for static `users` lists, timeout settings, unknown keys) and returns a deeply f
 with defaults applied (see `docs/03-domain-model.md`). Validation errors are `FlowDefinitionError`
 with `issues: { path, message }[]` listing every problem, e.g. `{ path: "steps[1].deadline", ... }`.
 
+Limits that shape a flow's behavior are flow settings, not `createRungs` options, so a flow carries
+everything needed to replay it: `maxEscalationDepth` and `maxDelegationDepth` (both default `3`).
+
 ## Commands
 
 Every command accepts an optional `idempotencyKey` and `expectedVersion`.
@@ -85,8 +88,8 @@ await rungs.reject({ requestId: req.id, actorId: "u_08", comment: "Overlaps rele
 await rungs.return({ requestId: req.id, actorId: "u_08", to: "requester", comment: "Attach doctor's note" });
 await rungs.resubmit({ requestId: req.id, actorId: "u_17", payload: { days: 4 } });
 await rungs.withdraw({ requestId: req.id, actorId: "u_17" });
-await rungs.delegate({ taskId, actorId: "u_08", toUserId: "u_09", reason: "Travelling" });
-await rungs.reassign({ taskId, adminId: "u_admin", toUserId: "u_11", reason: "Approver left company" });
+await rungs.delegate({ requestId: req.id, taskId, actorId: "u_08", toUserId: "u_09", reason: "Travelling" });
+await rungs.reassign({ requestId: req.id, taskId, adminId: "u_admin", toUserId: "u_11", reason: "Approver left company" });
 await rungs.override({ requestId: req.id, adminId: "u_admin", decision: "approve", reason: "Board decision" });
 
 // A blocked step (EC-42): no approvers were left when it activated
@@ -119,6 +122,15 @@ Commands:
 
 - `{ type: "submit", requestId, requesterId, subject, payload, tenantId? }`
 - `{ type: "approve" | "reject", requestId, actorId, comment? }`
+- `{ type: "delegate", requestId, taskId, actorId, toUserId, reason? }`: the assignee hands a
+  pending task to someone else (EC-25). The old task becomes `delegated`; the new one carries the
+  same vote (`onBehalfOf`) and follows the delegate's own out-of-office rules.
+- `{ type: "reassign", requestId, adminId, taskId, toUserId, reason }`: an admin moves one pending
+  task. The old task becomes `reassigned`; the new one has no `onBehalfOf`.
+
+  Both refuse, with `InvalidCommandError` naming each problem, a target who is the requester
+  (without `allowSelfApproval`), inactive, already holds a task in the step (EC-48) or approved an
+  earlier step of the request (EC-49). Delegating to yourself is refused too.
 - `{ type: "reassign", requestId, adminId, stepId, toUserIds, reason }`: gives a blocked step to
   users the admin chose. They pass the same checks as resolved approvers; a chosen user who is
   inactive or the requester (without `allowSelfApproval`), or too few users for the step's mode,
@@ -131,10 +143,13 @@ More commands come in later milestones. `decide` throws a `RungsError` when a co
 allowed and never changes its input. Task IDs are derived from the request ID, so the engine needs
 no ID generator. Rungs does not check that `adminId` is an admin; that is the host's job.
 
-A resolution is `{ userIds, inactiveUserIds? }`: the raw users the spec resolved to, and which of
-them the host's `isActiveUser` reported inactive. The engine removes inactive users and the
-requester itself and records why. The `reassign` need has the key `reassign:<stepId>` and a `users`
-spec with the chosen users, so the service only checks whether they are active.
+A resolution is `{ userIds, inactiveUserIds?, delegations? }`: the raw users the spec resolved
+to, which users the host's `isActiveUser` reported inactive, and the out-of-office rules of those
+users and of the delegates their rules lead to (`inactiveUserIds` covers those delegates too).
+The engine removes inactive users and the requester, applies only the rules active at `now`, in
+scope and in the tenant, and records why. Needs for chosen users have their own keys
+(`reassign:<stepId>`, `reassign:<taskId>`, `delegate:<taskId>`) and a `users` spec with those users,
+so the service only checks whether they are active and loads their rules.
 
 On submit the engine evaluates every step condition once against the payload, so an invalid
 condition fails the requester's submit instead of blocking an approver later (EC-41). It then asks
@@ -168,8 +183,9 @@ Emitted after a command commits (outbox-style; the store persists them in the sa
 request.submitted   request.approved   request.rejected   request.returned   request.withdrawn
 step.activated      step.skipped       step.completed     step.blocked       step.reassigned
 step.retried        step.cancelled
+delegation.skipped  delegation.cycle_detected
 task.assigned       task.decided       task.superseded    task.deduplicated  task.cancelled
-task.delegated      task.reminder      task.expired
+task.delegated      task.reassigned    task.reminder      task.expired
 request.escalated
 ```
 

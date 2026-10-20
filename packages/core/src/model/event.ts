@@ -1,3 +1,4 @@
+import type { DelegationSkipReason } from "./delegation.js";
 import type { ApproverShortfall, RemovedApprover, SkipReason, Subject } from "./state.js";
 
 interface TaskData {
@@ -47,7 +48,24 @@ export type AuditEventBody =
     }
   | { type: "step.completed"; data: StepData & { outcome: "approved" | "rejected" } }
   | { type: "step.cancelled"; data: StepData }
-  | { type: "task.assigned"; data: TaskData & { assigneeId: string } }
+  | {
+      type: "task.assigned";
+      /** `chain`: the out-of-office hops followed, from the first user to the assignee. */
+      data: TaskData & { assigneeId: string; onBehalfOf?: string; chain?: string[] };
+    }
+  | {
+      type: "task.delegated";
+      data: TaskData & { toTaskId: string; toUserId: string; reason?: string };
+    }
+  | {
+      type: "task.reassigned";
+      data: TaskData & { toTaskId: string; toUserId: string; reason: string };
+    }
+  | {
+      type: "delegation.skipped";
+      data: { stepId: string; userId: string; toUserId: string; reason: DelegationSkipReason };
+    }
+  | { type: "delegation.cycle_detected"; data: { stepId: string; userId: string; chain: string[] } }
   | { type: "task.deduplicated"; data: TaskData & { assigneeId: string; ofTaskId: string } }
   | { type: "task.approved"; data: DecisionData }
   | { type: "task.rejected"; data: DecisionData }

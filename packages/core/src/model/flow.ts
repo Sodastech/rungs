@@ -67,6 +67,8 @@ export interface FlowInput {
   readonly onAllSkipped?: AllSkippedPolicy;
   /** Default `3`. */
   readonly maxEscalationDepth?: number;
+  /** Most out-of-office hops followed from one approver (EC-21). Default `3`. */
+  readonly maxDelegationDepth?: number;
 }
 
 export interface StepDefinition {
@@ -92,4 +94,5 @@ export interface FlowDefinition {
   readonly returnPolicy: ReturnPolicy;
   readonly onAllSkipped: AllSkippedPolicy;
   readonly maxEscalationDepth: number;
+  readonly maxDelegationDepth: number;
 }
