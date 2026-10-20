@@ -82,12 +82,12 @@ export function storeContract(name: string, makeStore: StoreFactory): void {
       );
     });
 
-    it("serializes transactions so each one sees the previous commit", async () => {
+    it("getRequest with forUpdate serializes writers, so each one sees the previous commit", async () => {
       const store = await makeStore();
       await store.transaction((tx) => tx.saveRequest(request(), null));
       const bump = () =>
         store.transaction(async (tx) => {
-          const current = (await tx.getRequest("r1")) as RequestState;
+          const current = (await tx.getRequest("r1", { forUpdate: true })) as RequestState;
           await tx.saveRequest({ ...current, version: current.version + 1 }, current.version);
         });
       await Promise.all([bump(), bump(), bump()]);

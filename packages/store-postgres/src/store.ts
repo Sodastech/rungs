@@ -80,7 +80,7 @@ function transactionOn(q: PgQueryable, n: Names, leaseMs: number): StoreTx {
 
     async saveFlow(flow) {
       await q.query(
-        `INSERT INTO ${t.flows} (tenant, key, version, flow) VALUES ($1, $2, $3, $4::jsonb)`,
+        `INSERT INTO ${t.flows} (tenant, key, version, flow) VALUES ($1, $2, $3, $4::text::jsonb)`,
         [tenant(flow.tenantId), flow.key, flow.version, json(flow)],
       );
     },
@@ -107,14 +107,14 @@ function transactionOn(q: PgQueryable, n: Names, leaseMs: number): StoreTx {
         expectedVersion === null
           ? await q.query(
               `INSERT INTO ${t.requests} (id, tenant, status, version, closed_at, next_due_at, state)
-               VALUES ($1, $2, $3, $4, $5::timestamptz, $6::timestamptz, $7::jsonb)
+               VALUES ($1, $2, $3, $4, $5::timestamptz, $6::timestamptz, $7::text::jsonb)
                ON CONFLICT (id) DO NOTHING`,
               columns,
             )
           : await q.query(
               `UPDATE ${t.requests}
                SET tenant = $2, status = $3, version = $4, closed_at = $5::timestamptz,
-                   next_due_at = $6::timestamptz, claimed_until = NULL, state = $7::jsonb
+                   next_due_at = $6::timestamptz, claimed_until = NULL, state = $7::text::jsonb
                WHERE id = $1 AND version = $8`,
               [...columns, expectedVersion],
             );
@@ -134,7 +134,7 @@ function transactionOn(q: PgQueryable, n: Names, leaseMs: number): StoreTx {
       for (const view of inboxViews(state)) {
         await q.query(
           `INSERT INTO ${t.inbox} (task_id, request_id, tenant, assignee_id, on_behalf_of, assigned_at, view)
-           VALUES ($1, $2, $3, $4, $5, $6::timestamptz, $7::jsonb)`,
+           VALUES ($1, $2, $3, $4, $5, $6::timestamptz, $7::text::jsonb)`,
           [
             view.taskId,
             state.id,
@@ -153,7 +153,7 @@ function transactionOn(q: PgQueryable, n: Names, leaseMs: number): StoreTx {
         await q.query(
           `INSERT INTO ${t.audit} (request_id, seq, tenant, type, at, event)
            VALUES ($1, $2, coalesce((SELECT tenant FROM ${t.requests} WHERE id = $1), ''), $3,
-                   $4::timestamptz, $5::jsonb)`,
+                   $4::timestamptz, $5::text::jsonb)`,
           [event.requestId, event.seq, event.type, event.at, json(event)],
         );
       }
@@ -193,7 +193,7 @@ function transactionOn(q: PgQueryable, n: Names, leaseMs: number): StoreTx {
       for (const event of events) {
         await q.query(
           `INSERT INTO ${t.outbox} (request_id, seq, event, next_attempt_at)
-           VALUES ($1, $2, $3::jsonb, $4::timestamptz)`,
+           VALUES ($1, $2, $3::text::jsonb, $4::timestamptz)`,
           [event.requestId, event.seq, json(event), now],
         );
       }
@@ -292,7 +292,7 @@ function transactionOn(q: PgQueryable, n: Names, leaseMs: number): StoreTx {
     async putIdempotent(ref, record) {
       await q.query(
         `INSERT INTO ${t.idempotency} (tenant, key, request_id, at, record)
-         VALUES ($1, $2, $3, $4::timestamptz, $5::jsonb)`,
+         VALUES ($1, $2, $3, $4::timestamptz, $5::text::jsonb)`,
         [tenant(ref.tenantId), ref.key, record.result.id, record.at, json(record)],
       );
     },
@@ -333,7 +333,7 @@ function transactionOn(q: PgQueryable, n: Names, leaseMs: number): StoreTx {
     async saveDelegation(rule) {
       await q.query(
         `INSERT INTO ${t.delegations} (id, tenant, from_user_id, to_user_id, rule)
-         VALUES ($1, $2, $3, $4, $5::jsonb)
+         VALUES ($1, $2, $3, $4, $5::text::jsonb)
          ON CONFLICT (id) DO UPDATE SET tenant = EXCLUDED.tenant, from_user_id = EXCLUDED.from_user_id,
            to_user_id = EXCLUDED.to_user_id, rule = EXCLUDED.rule`,
         [rule.id, tenant(rule.tenantId), rule.fromUserId, rule.toUserId, json(rule)],

@@ -310,8 +310,10 @@ export function serviceSuite(name: string, makeStore: StoreFactory): void {
           rungs.approve({ requestId: "r1", actorId: "u_a", expectedVersion: version }),
           rungs.approve({ requestId: "r1", actorId: "u_b", expectedVersion: version }),
         ]);
-        expect(results.map((r) => r.status)).toEqual(["fulfilled", "rejected"]);
-        expect((results[1] as PromiseRejectedResult).reason).toBeInstanceOf(ConflictError);
+        // Either may win on a real database; exactly one does, the other conflicts.
+        expect(results.map((r) => r.status).sort()).toEqual(["fulfilled", "rejected"]);
+        const loser = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
+        expect(loser.reason).toBeInstanceOf(ConflictError);
       });
 
       it("EC-16 the same idempotencyKey returns the first result without repeating anything", async () => {
