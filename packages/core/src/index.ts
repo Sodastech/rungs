@@ -31,6 +31,7 @@ export type { DelegationRule, DelegationSkipReason } from "./model/delegation.js
 export type { FlowIssue, ReceivedType } from "./model/errors.js";
 export {
   ConditionError,
+  ConfigurationError,
   ConflictError,
   FlowDefinitionError,
   FlowNotApplicableError,

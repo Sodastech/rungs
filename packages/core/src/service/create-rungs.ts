@@ -16,7 +16,12 @@ import type {
   WithdrawCommand,
 } from "../model/command.js";
 import type { Calendar, StepResolution } from "../model/decision.js";
-import { ConflictError, InvalidCommandError, RequestNotFoundError } from "../model/errors.js";
+import {
+  ConfigurationError,
+  ConflictError,
+  InvalidCommandError,
+  RequestNotFoundError,
+} from "../model/errors.js";
 import type { DomainEvent } from "../model/event.js";
 import type { Duration } from "../model/flow.js";
 import type { RegisteredFlow, RequestState } from "../model/state.js";
@@ -32,8 +37,14 @@ export interface RungsOptions extends ResolutionHooks {
   /** Required: generates request ids. */
   readonly ids: () => string;
   readonly calendar?: Calendar;
-  /** Called after each commit, in `seq` order, at least once. A throw never fails the command. */
+  /**
+   * Called after each commit, in `seq` order, at least once. A throw never fails the command.
+   * Without it, events stay in the outbox for a process that has it, e.g. a worker running
+   * `dispatchPending` (EC-58).
+   */
   readonly onEvent?: (event: DomainEvent) => void | Promise<void>;
+  /** `"discard"` writes no outbox entries, for hosts that never consume events. Default `"outbox"`. */
+  readonly events?: "outbox" | "discard";
   /** Called for each failed delivery; the event stays in the outbox and is retried later. */
   readonly onEventError?: (error: unknown, event: DomainEvent, attempts: number) => void;
   /** Backoff for failed deliveries. Default `{ baseDelay: "PT30S", maxDelay: "PT1H" }`. */
@@ -101,10 +112,17 @@ const MAX_RESOLUTION_ROUNDS = 50;
 export function createRungs(options: RungsOptions): Rungs {
   const { store, clock, ids } = options;
   if (typeof store?.transaction !== "function") {
-    throw new InvalidCommandError("createRungs: store must be a RungsStore");
+    throw new ConfigurationError("createRungs: store must be a RungsStore");
   }
   if (typeof clock !== "function" || typeof ids !== "function") {
-    throw new InvalidCommandError("createRungs: clock and ids are required");
+    throw new ConfigurationError("createRungs: clock and ids are required");
+  }
+  const events = options.events ?? "outbox";
+  if (events !== "outbox" && events !== "discard") {
+    throw new ConfigurationError('createRungs: events must be "outbox" or "discard"');
+  }
+  if (events === "discard" && options.onEvent !== undefined) {
+    throw new ConfigurationError('createRungs: events "discard" cannot be combined with onEvent');
   }
   const hooks: ResolutionHooks = {
     ...(options.roles === undefined ? {} : { roles: options.roles }),
@@ -117,7 +135,7 @@ export function createRungs(options: RungsOptions): Rungs {
   const now = (): string => {
     const date = clock();
     if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
-      throw new InvalidCommandError("clock must return a valid Date");
+      throw new ConfigurationError("clock must return a valid Date");
     }
     return date.toISOString();
   };
@@ -174,13 +192,13 @@ export function createRungs(options: RungsOptions): Rungs {
 
       await tx.saveRequest(decision.state, state === null ? null : state.version);
       await tx.appendAudit(decision.audit);
-      await tx.enqueueEvents(decision.events, at);
+      if (events === "outbox") await tx.enqueueEvents(decision.events, at);
       if (ref !== undefined) {
         await tx.putIdempotent(ref, { fingerprint, result: decision.state, at });
       }
       return { state: decision.state, changed: true };
     });
-    if (outcome.changed) {
+    if (outcome.changed && options.onEvent !== undefined) {
       // Delivery problems never fail a committed command; the outbox keeps the events.
       await deliver({ requestId: outcome.state.id, limit: 1000 }, at).catch(() => undefined);
     }
@@ -215,12 +233,9 @@ export function createRungs(options: RungsOptions): Rungs {
     filter: { requestId?: string; limit: number },
     at: string,
   ): Promise<DispatchSummary> {
-    const entries = await store.transaction((tx) => tx.pendingEvents({ now: at, ...filter }));
     const onEvent = options.onEvent;
-    if (onEvent === undefined) {
-      await store.transaction((tx) => tx.markDispatched(entries.map(keyOf)));
-      return { delivered: entries.length, failed: 0 };
-    }
+    if (onEvent === undefined) throw new ConfigurationError("dispatchPending needs onEvent");
+    const entries = await store.transaction((tx) => tx.pendingEvents({ now: at, ...filter }));
 
     const held = new Set<string>();
     const delivered: EventKey[] = [];
@@ -272,7 +287,7 @@ export function createRungs(options: RungsOptions): Rungs {
       const at = now();
       const requestId = ids();
       if (typeof requestId !== "string" || requestId.length === 0) {
-        throw new InvalidCommandError("ids must return a non-empty string");
+        throw new ConfigurationError("ids must return a non-empty string");
       }
       const outcome = await execute(
         { type: "submit", requestId, ...fields },
@@ -338,7 +353,7 @@ function keyOf(entry: OutboxEntry): EventKey {
 function delayOption(value: Duration, name: string): number {
   const parsed = parseDuration(value);
   if (!parsed.ok) {
-    throw new InvalidCommandError(`createRungs: dispatchRetry.${name} ${parsed.reason}`);
+    throw new ConfigurationError(`createRungs: dispatchRetry.${name} ${parsed.reason}`);
   }
   return durationToMilliseconds(parsed.value);
 }

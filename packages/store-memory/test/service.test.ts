@@ -1,4 +1,5 @@
 import {
+  ConfigurationError,
   ConflictError,
   createRungs,
   type DomainEvent,
@@ -157,10 +158,38 @@ describe("createRungs", () => {
       );
     });
 
-    it("refuses a clock that does not return a valid Date", async () => {
-      const { rungs } = setup({ clock: () => new Date("nonsense") });
-      await rungs.flows.register(expense);
-      await expect(rungs.submit(submitInput())).rejects.toBeInstanceOf(InvalidCommandError);
+    it("refuses a clock or id generator that returns something unusable", async () => {
+      const badClock = setup({ clock: () => new Date("nonsense") });
+      await badClock.rungs.flows.register(expense);
+      const error = await badClock.rungs.submit(submitInput()).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(ConfigurationError);
+      expect(error).toMatchObject({ code: "CONFIG_INVALID" });
+      const badIds = setup({ ids: () => "" });
+      await badIds.rungs.flows.register(expense);
+      await expect(badIds.rungs.submit(submitInput())).rejects.toBeInstanceOf(ConfigurationError);
+    });
+
+    it("refuses invalid options with ConfigurationError", () => {
+      const store = memoryStore();
+      const clock = () => new Date(T0);
+      const ids = () => "r1";
+      const invalid = [
+        { clock, ids },
+        { store, ids },
+        { store, clock },
+        { store, clock, ids, dispatchRetry: { baseDelay: "P1M" } },
+        { store, clock, ids, events: "sometimes" },
+      ];
+      for (const options of invalid) {
+        const error = (() => {
+          try {
+            createRungs(options as never);
+          } catch (e) {
+            return e;
+          }
+        })();
+        expect(error).toBeInstanceOf(ConfigurationError);
+      }
     });
 
     it("EC-37 in-flight requests keep their pinned version after a new one is registered", async () => {
@@ -435,11 +464,42 @@ describe("createRungs", () => {
       ]);
     });
 
-    it("without onEvent the outbox is cleared after the commit", async () => {
+    it("EC-58 without onEvent the events stay in the outbox for a worker to deliver", async () => {
       const { rungs, store } = setup({ onEvent: undefined });
       await rungs.flows.register(expense);
       await rungs.submit(submitInput());
+      expect(store.snapshot().outbox.map((e) => e.event.seq)).toEqual([1, 2, 3]);
+
+      const delivered: DomainEvent[] = [];
+      const worker = createRungs({
+        store,
+        clock: () => new Date(T0),
+        ids: () => "unused",
+        onEvent: (event) => {
+          delivered.push(event);
+        },
+      });
+      expect(await worker.dispatchPending()).toEqual({ delivered: 3, failed: 0 });
+      expect(delivered.map((e) => e.type)).toEqual([
+        "request.submitted",
+        "step.activated",
+        "task.assigned",
+      ]);
       expect(store.snapshot().outbox).toEqual([]);
+    });
+
+    it("EC-58 events: discard writes no outbox entries; the audit is kept", async () => {
+      const { rungs, store } = setup({ onEvent: undefined, events: "discard" });
+      await rungs.flows.register(expense);
+      const state = await rungs.submit(submitInput());
+      expect(store.snapshot().outbox).toEqual([]);
+      expect(store.snapshot().audit).toHaveLength(state.lastAuditSeq);
+    });
+
+    it("EC-58 discarding events with onEvent, or dispatching without onEvent, is a configuration error", async () => {
+      expect(() => setup({ events: "discard" })).toThrow(ConfigurationError);
+      const { rungs } = setup({ onEvent: undefined });
+      await expect(rungs.dispatchPending()).rejects.toBeInstanceOf(ConfigurationError);
     });
   });
 });

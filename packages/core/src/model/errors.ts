@@ -62,6 +62,16 @@ export class ConditionError extends RungsError {
   }
 }
 
+/** `createRungs` was given unusable options, or a configured function returned unusable data. */
+export class ConfigurationError extends RungsError {
+  readonly code = "CONFIG_INVALID";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "ConfigurationError";
+  }
+}
+
 export class InvalidCommandError extends RungsError {
   readonly code = "COMMAND_INVALID";
 

@@ -29,6 +29,7 @@ const rungs = createRungs({
   onEvent: async (event) => notify(event),                  // notifications, webhooks
   onEventError: (error, event, attempts) => log(error),     // optional; delivery is retried
   dispatchRetry: { baseDelay: "PT30S", maxDelay: "PT1H" },  // optional; these are the defaults
+  events: "outbox",                                         // default; "discard" writes no outbox
 });
 ```
 
@@ -261,6 +262,7 @@ All extend `RungsError` and expose a stable `code`.
 | --- | --- | --- |
 | `FlowDefinitionError` | `FLOW_INVALID` | Invalid flow definition |
 | `FlowNotFoundError` | `FLOW_NOT_FOUND` | No flow with this key (and version) for the tenant or globally (EC-56). Exposes `flowKey`, `version?`, `tenantId?` |
+| `ConfigurationError` | `CONFIG_INVALID` | `createRungs` was given unusable options (missing `store`, `clock` or `ids`, an invalid `dispatchRetry` duration, `events: "discard"` with `onEvent`), `clock` or `ids` returned unusable values, or `dispatchPending` was called without `onEvent` |
 | `InvalidCommandError` | `COMMAND_INVALID` | Malformed command input (e.g. empty IDs, non-JSON payload, override without a comment). The message names each problem |
 | `FlowNotApplicableError` | `FLOW_NOT_APPLICABLE` | Submit refused because every step was skipped and the flow uses `onAllSkipped: "fail"` (EC-39). Exposes `flowKey`, `skippedStepIds` |
 | `RequestNotFoundError` | `REQUEST_NOT_FOUND` | Unknown request |
@@ -351,6 +353,12 @@ Domain events are written to the outbox in the same transaction as the command a
   `nextAttemptAt = now + min(baseDelay * 2^(attempts - 1), maxDelay)`. A failing event therefore
   sits out its backoff instead of taking a share of every `dispatchPending` call's `limit`.
 - Events are never dropped. `rungs.dispatchPending({ limit })` delivers what is due, for example
-  from a scheduled job or after a crash.
+  from a scheduled job or after a crash. It needs `onEvent`; without it, it throws
+  `ConfigurationError`.
+- Without `onEvent`, a process only writes events to the outbox; they stay pending (EC-58). This
+  supports the common split between web processes (no `onEvent`) and a worker that runs
+  `dispatchPending` with `onEvent`. **Without any consumer the outbox keeps growing.** A host that
+  never needs events sets `events: "discard"`: nothing is written to the outbox (the audit trail
+  is still kept). `"discard"` together with `onEvent` is a `ConfigurationError`.
 - `createRungs({ dispatchRetry: { baseDelay: "PT30S", maxDelay: "PT1H" } })` sets the backoff
   (these are the defaults).
