@@ -21,10 +21,12 @@ rungs/
 │   │       ├── edge-cases/   # one file per catalog section, tests named EC-xx
 │   │       └── helpers/      # fake clock, fake ids, fixture builders
 │   ├── store-memory/      # @rungs/store-memory — MIT
+│   ├── store-contract/    # private: shared suites every store adapter runs
 │   ├── store-postgres/    # @rungs/store-postgres — MIT (Phase 2)
 │   ├── pro-org/           # @rungs/org — commercial (Phase 4, private repo)
 │   └── pro-react/         # @rungs/react — commercial (Phase 5, private repo)
 ├── examples/
+│   ├── expense-basic/     # private: the Phase 1 gate, three steps on the memory store
 │   └── nextjs-expenses/   # Phase 2
 └── skills/
     └── rungs/SKILL.md     # Claude Code skill (Phase 3)
@@ -104,10 +106,23 @@ Rungs does not enforce tenant isolation beyond that; the host remains responsibl
 ## Testing strategy
 
 - Unit tests on the pure engine using fixture builders and a fake clock.
-- Edge-case suites mirror `docs/05-edge-cases.md` one-to-one.
-- Store adapters run a shared contract test suite (same tests for memory and Postgres).
-- Property-based tests (fast-check) for invariants, e.g. "a closed request never has pending tasks",
-  "audit `seq` is strictly increasing", "every task belongs to an activated step".
+- Edge-case suites mirror `docs/05-edge-cases.md` one-to-one. `pnpm check:ec`
+  (`scripts/check-ec-coverage.mjs`, also in CI) fails when an edge case marked Core has no test whose
+  name starts with its ID, or when a test names an ID that is not in the catalog.
+- Store adapters run the shared suites of the private `packages/store-contract`:
+  `storeContract(name, makeStore)` (transactions, compare-and-set, outbox order and backoff,
+  idempotency and flow scopes, inbox, delegation rules) and `serviceSuite(name, makeStore)` (every
+  `createRungs` behavior, through the public API only). `store-memory` runs both today; the
+  Postgres store runs the same suites in Phase 2.
+- Property-based tests (fast-check) play random flows and command sequences against the engine and
+  check after every command: version and audit `seq` move by one command without gaps; a closed or
+  returned request has no pending tasks; at most one step is open; every task belongs to an
+  activated step; nobody holds two votes in one step instance; the requester never holds a task
+  unless `allowSelfApproval`; carried-over votes never approve a step on their own while someone
+  else could decide (four-eyes); refusals are always a `RungsError`; inputs are never changed; the
+  same input always gives the same output.
+- `examples/expense-basic` runs a three-step expense approval end to end on the memory store
+  (preview, delegation, return and resubmit, reminders, inbox, history): the Phase 1 gate.
 
 ## Non-goals (for now)
 

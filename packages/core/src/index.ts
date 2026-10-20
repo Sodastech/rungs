@@ -1,6 +1,7 @@
 // Public entry point: everything exported here is public API (see docs/04-api-design.md).
 
 export { decide } from "./engine/decide.js";
+export type { PreviewInput, PreviewResult, PreviewStep } from "./engine/preview.js";
 export { defineFlow } from "./flow/define-flow.js";
 export type {
   ApproveCommand,
@@ -96,9 +97,11 @@ export type {
   FlowRef,
   IdempotencyRef,
   IdempotentRecord,
+  InboxQuery,
   OutboxEntry,
   RungsStore,
   StoreTx,
+  TaskView,
 } from "./model/store.js";
 export type {
   ResolutionHooks,
@@ -116,3 +119,12 @@ export {
   type TickSummary,
 } from "./service/create-rungs.js";
 export type { FlowRegistration, FlowRegistry } from "./service/flows.js";
+export type {
+  DelegationInput,
+  Delegations,
+  InboxEntry,
+  InboxInput,
+  InboxPage,
+  PreviewRequestInput,
+  Queries,
+} from "./service/queries.js";

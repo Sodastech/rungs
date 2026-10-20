@@ -64,6 +64,7 @@ pnpm test           # run all tests
 pnpm test --filter @rungs/core
 pnpm typecheck      # tsc --noEmit in every package
 pnpm lint
+pnpm check:ec       # every Core edge case in docs/05 has a test named after its ID
 pnpm changeset      # record a release note for a public change
 ```
 

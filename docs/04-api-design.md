@@ -218,21 +218,49 @@ when one of them could never run (EC-43). Mid-flow, such a step is blocked inste
 ## Queries
 
 ```ts
-await rungs.get(requestId);                       // request + steps + tasks
-await rungs.inbox({ userId: "u_08", tenantId });  // pending tasks assigned to the user (incl. delegated)
-await rungs.history(requestId);                   // audit events, ordered
-await rungs.preview({ flow: "leave", requesterId: "u_17", payload: { days: 5 } }); // who would approve, without submitting
+await rungs.get(requestId);        // RequestState, or null when it does not exist
+await rungs.history(requestId);    // audit events, ordered by seq ([] when unknown)
+await rungs.inbox({ userId: "u_08", tenantId: "acme", limit: 50, after });
+// { tasks: [{ requestId, tenantId?, flowKey, flowVersion, subject, requesterId, stepId,
+//             taskId, assigneeId, onBehalfOf?, assignedAt, deadlineAt?, overdue }], next? }
+await rungs.preview({ flow: "leave", requesterId: "u_17", payload: { days: 5 }, tenantId: "acme" });
 ```
 
-`preview` is important for UX: it shows the requester the expected approval chain before submitting.
+**`inbox`** lists the pending tasks assigned to the user on active steps, including tasks they hold
+as a delegate (`onBehalfOf`), oldest first. Pass `next` back as `after` for the next page. Without
+`tenantId` it returns only requests without a tenant, never other tenants' tasks.
+
+**`preview`** shows the requester the expected approval chain before submitting, without storing
+anything. For each step: `status` (`"will-run"`, `"skipped"` with `skipReason`, or `"cannot-run"`
+with `shortfall`), the `approvers` who would get a task after removals and delegation, `removed`
+with reasons, and `delegations` (who would act for whom). `submittable` is false when a submit would
+be refused now (a step cannot run, or every step is skipped under `onAllSkipped: "fail"`). An
+invalid payload throws `ConditionError`, as a submit would.
+
+- The preview reflects the moment it runs. The actual approvers can differ if the org data, roles
+  or delegation rules change before a step activates; each step is resolved again then. Dedupe is
+  not applied, because it depends on who actually approves the earlier steps.
+- A preview can show other people's out-of-office rules to the requester (who covers for whom).
+  The host decides whether to display that information.
 
 ## Delegation rules (out of office)
 
 ```ts
-await rungs.delegations.set({ fromUserId: "u_08", toUserId: "u_09", startsAt, endsAt, scope: { flowKeys: ["leave"] } });
-await rungs.delegations.list({ userId: "u_08" });
+await rungs.delegations.set({
+  fromUserId: "u_08", toUserId: "u_09", startsAt, endsAt, scope: { flowKeys: ["leave"] }, tenantId,
+}); // returns the rule with a generated id
+await rungs.delegations.list({ userId: "u_08", tenantId }); // rules from or to the user
 await rungs.delegations.end({ id });
 ```
+
+- `set` refuses delegating to oneself, timestamps that are not ISO 8601 UTC and an empty period
+  (`InvalidCommandError`). Overlapping rules are allowed; the most recently started one applies.
+- `end` ends an active rule now (`endsAt = now`). A rule that has not started yet is cancelled
+  instead (`cancelledAt = now`, kept for history), so `endsAt` never precedes `startsAt`; a
+  cancelled rule never applies. Ending a rule never moves tasks already delegated (EC-24).
+- Rules without a `tenantId` apply to every tenant; rules with one apply only to that tenant.
+- **Rungs does not check who may manage a rule.** The host must make sure `fromUserId` is the
+  signed-in user, or that the caller is an admin, before calling `set` or `end`.
 
 ## Events
 
@@ -330,10 +358,26 @@ interface StoreTx {
   getIdempotent(ref: IdempotencyRef): Promise<IdempotentRecord | null>;
   putIdempotent(ref: IdempotencyRef, record: IdempotentRecord): Promise<void>;
 
-  // Delegation rules of these users; the engine filters by time, scope and tenant.
+  // Queries.
+  getAudit(requestId: string): Promise<AuditEvent[]>;               // ordered by seq
+  findInbox(query: InboxQuery): Promise<TaskView[]>;               // see below
+
+  // Delegation rules. With a tenantId: that tenant's rules and rules without one; without: only
+  // rules without one. The engine filters by time, scope, tenant and cancelledAt.
   findDelegations(fromUserIds: string[], tenantId?: string): Promise<DelegationRule[]>;
+  saveDelegation(rule: DelegationRule): Promise<void>;             // insert or replace by id
+  getDelegation(id: string): Promise<DelegationRule | null>;
+  listDelegations(query: { userId: string; tenantId?: string }): Promise<DelegationRule[]>; // from or to
 }
 ```
+
+`findInbox({ userId, tenantId?, limit, after? })` returns `TaskView`s for pending tasks assigned to
+the user on the active step of pending requests whose `tenantId` matches exactly (none matches
+none), ordered by (`assignedAt`, `taskId`), starting after `after` when given.
+
+Adapters prove they meet this contract by running the shared suites from the private
+`@rungs/store-contract` package in their own tests: `storeContract(name, makeStore)` for the store
+itself and `serviceSuite(name, makeStore)` for `createRungs` on top of it.
 
 `RegisteredFlow` gains an optional `tenantId`, and a request pinned to a tenant's flow records it
 as `flowTenantId`, so later commands load exactly the pinned flow (EC-37).

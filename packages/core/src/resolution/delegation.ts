@@ -87,7 +87,7 @@ function skipReason(userId: string, ctx: DelegationContext): DelegationSkipReaso
 function activeRule(userId: string, ctx: DelegationContext): DelegationRule | undefined {
   const now = Date.parse(ctx.now);
   const active = ctx.rules.filter((rule) => {
-    if (rule.fromUserId !== userId) return false;
+    if (rule.fromUserId !== userId || rule.cancelledAt !== undefined) return false;
     if (!(Date.parse(rule.startsAt) <= now && now < Date.parse(rule.endsAt))) return false;
     if (rule.tenantId !== undefined && rule.tenantId !== ctx.tenantId) return false;
     const flowKeys = rule.scope?.flowKeys ?? [];

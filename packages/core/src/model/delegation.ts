@@ -10,6 +10,8 @@ export interface DelegationRule {
   scope?: { flowKeys?: string[] };
   /** When set, the rule applies only to requests of this tenant. */
   tenantId?: string;
+  /** Set when the rule was ended before it started; a cancelled rule never applies. */
+  cancelledAt?: string;
 }
 
 /** Why one hop of a delegation chain was not taken (EC-23, EC-48, EC-49). */

@@ -259,6 +259,7 @@ One per approver per step instance.
 | `startsAt`, `endsAt` | ISO string | Active from `startsAt` (inclusive) until `endsAt` (exclusive) |
 | `scope` | `{ flowKeys?: string[] }`? | Empty or missing = all flows |
 | `tenantId` | string? | When set, applies only to requests of that tenant |
+| `cancelledAt` | ISO string? | Set when the rule was ended before it started; a cancelled rule never applies |
 
 Rules are applied when a task is created and never re-evaluated afterwards: a task stays with the
 delegate after the rule ends (EC-24). When one user has several active rules, the one that started

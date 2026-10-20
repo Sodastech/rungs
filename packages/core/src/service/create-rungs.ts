@@ -29,6 +29,7 @@ import type { EventKey, OutboxEntry, RungsStore, StoreTx } from "../model/store.
 import type { ResolutionHooks, ResolveRequest } from "../resolution/collect.js";
 import { type FlowRegistry, findFlow, flowRegistry, pinnedFlow } from "./flows.js";
 import { gatherResolution } from "./gather.js";
+import { type Queries, queries } from "./queries.js";
 
 export interface RungsOptions extends ResolutionHooks {
   readonly store: RungsStore;
@@ -79,7 +80,7 @@ export interface DispatchSummary {
   readonly failed: number;
 }
 
-export interface Rungs {
+export interface Rungs extends Queries {
   readonly flows: FlowRegistry;
   submit(input: SubmitInput): Promise<RequestState>;
   approve(input: Input<ApproveCommand>): Promise<RequestState>;
@@ -138,6 +139,14 @@ export function createRungs(options: RungsOptions): Rungs {
       throw new ConfigurationError("clock must return a valid Date");
     }
     return date.toISOString();
+  };
+
+  const nextId = (): string => {
+    const id = ids();
+    if (typeof id !== "string" || id.length === 0) {
+      throw new ConfigurationError("ids must return a non-empty string");
+    }
+    return id;
   };
 
   async function execute(
@@ -281,14 +290,12 @@ export function createRungs(options: RungsOptions): Rungs {
     };
 
   return {
+    ...queries(store, hooks, now, nextId, options.calendar),
     flows: flowRegistry(store, hooks),
     async submit(input) {
       const { flow, idempotencyKey, ...fields } = input;
       const at = now();
-      const requestId = ids();
-      if (typeof requestId !== "string" || requestId.length === 0) {
-        throw new ConfigurationError("ids must return a non-empty string");
-      }
+      const requestId = nextId();
       const outcome = await execute(
         { type: "submit", requestId, ...fields },
         idempotencyKey === undefined ? {} : { idempotencyKey },

@@ -60,12 +60,13 @@ describe("C. Delegation", () => {
       expect(run(state, approve("u_b"), { flow: flow() }).state.status).toBe("approved");
     });
 
-    it("EC-20 only rules that are active now, in scope and in the tenant apply", () => {
+    it("EC-20 only rules that are active now, in scope, in the tenant and not cancelled apply", () => {
       const ignored = [
         rule("u_a", "u_b", { startsAt: T1 }),
         rule("u_a", "u_b", { endsAt: T0 }),
         rule("u_a", "u_b", { scope: { flowKeys: ["leave"] } }),
         rule("u_a", "u_b", { tenantId: "other" }),
+        rule("u_a", "u_b", { cancelledAt: T0 }),
       ];
       for (const r of ignored) {
         const { state } = run(null, submitCommand({ tenantId: "acme" }), {

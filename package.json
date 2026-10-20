@@ -12,6 +12,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "lint": "biome check .",
+    "check:ec": "node scripts/check-ec-coverage.mjs",
     "format": "biome check --write .",
     "changeset": "changeset"
   },

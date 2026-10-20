@@ -31,6 +31,7 @@
     "@rungs/core": "workspace:^"
   },
   "devDependencies": {
-    "@rungs/core": "workspace:*"
+    "@rungs/core": "workspace:*",
+    "@rungs/store-contract": "workspace:*"
   }
 }

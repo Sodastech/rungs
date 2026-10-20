@@ -13,6 +13,7 @@ import {
   type RequestState,
   type RungsStore,
   type StoreTx,
+  type TaskView,
 } from "@rungs/core";
 
 export interface MemoryStoreOptions {
@@ -146,11 +147,69 @@ function transactionOn(data: Data): StoreTx {
     async putIdempotent(ref, record) {
       data.idempotency.push(copy({ ref: scoped(ref), record }));
     },
+    async getAudit(requestId) {
+      return copy(
+        data.audit.filter((e) => e.requestId === requestId).sort((a, b) => a.seq - b.seq),
+      );
+    },
+    async findInbox({ userId, tenantId, limit, after }) {
+      const views: TaskView[] = [];
+      for (const request of Object.values(data.requests)) {
+        if (request.status !== "pending" || request.tenantId !== tenantId) continue;
+        const step = request.steps.findLast((s) => s.status === "active");
+        for (const task of step?.tasks ?? []) {
+          if (step === undefined || task.status !== "pending" || task.assigneeId !== userId)
+            continue;
+          views.push({
+            requestId: request.id,
+            ...(request.tenantId === undefined ? {} : { tenantId: request.tenantId }),
+            flowKey: request.flowKey,
+            flowVersion: request.flowVersion,
+            subject: request.subject,
+            requesterId: request.requesterId,
+            stepId: step.stepId,
+            taskId: task.id,
+            assigneeId: task.assigneeId,
+            ...(task.onBehalfOf === undefined ? {} : { onBehalfOf: task.onBehalfOf }),
+            assignedAt: task.assignedAt,
+            ...(step.deadline === undefined ? {} : { deadlineAt: step.deadline.deadlineAt }),
+          });
+        }
+      }
+      const order = (v: { assignedAt: string; taskId: string }) =>
+        [Date.parse(v.assignedAt), v.taskId] as const;
+      const before = (
+        a: { assignedAt: string; taskId: string },
+        b: { assignedAt: string; taskId: string },
+      ) => {
+        const [ta, ia] = order(a);
+        const [tb, ib] = order(b);
+        return ta !== tb ? ta < tb : ia < ib;
+      };
+      views.sort((a, b) => (before(a, b) ? -1 : before(b, a) ? 1 : 0));
+      const start = after === undefined ? views : views.filter((v) => before(after, v));
+      return copy(start.slice(0, limit));
+    },
     async findDelegations(fromUserIds, tenantId) {
       return copy(
         data.delegations.filter(
           (rule) =>
             fromUserIds.includes(rule.fromUserId) &&
+            (rule.tenantId === undefined || rule.tenantId === tenantId),
+        ),
+      );
+    },
+    async saveDelegation(rule) {
+      data.delegations = [...data.delegations.filter((r) => r.id !== rule.id), copy(rule)];
+    },
+    async getDelegation(id) {
+      return copy(data.delegations.find((r) => r.id === id) ?? null);
+    },
+    async listDelegations({ userId, tenantId }) {
+      return copy(
+        data.delegations.filter(
+          (rule) =>
+            (rule.fromUserId === userId || rule.toUserId === userId) &&
             (rule.tenantId === undefined || rule.tenantId === tenantId),
         ),
       );

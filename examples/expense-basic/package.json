@@ -1,0 +1,16 @@
+{
+  "name": "@rungs/example-expense-basic",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A three-step expense approval on the memory store: the Phase 1 gate.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@rungs/core": "workspace:*",
+    "@rungs/store-memory": "workspace:*"
+  }
+}
