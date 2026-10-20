@@ -15,7 +15,8 @@ permissions:
 jobs:
   properties:
     name: Random seed
-    runs-on: ubuntu-latest
+    # Pinned on purpose; move to a newer image deliberately.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 

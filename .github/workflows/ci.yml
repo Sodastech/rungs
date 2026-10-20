@@ -15,7 +15,8 @@ concurrency:
 jobs:
   ci:
     name: Node ${{ matrix.node }}
-    runs-on: ubuntu-latest
+    # Pinned on purpose; move to a newer image deliberately.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:

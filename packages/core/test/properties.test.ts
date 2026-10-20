@@ -279,53 +279,60 @@ function checkInvariants(
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env;
 const SEED = Number(env?.FC_SEED ?? 20260105);
 const RUNS = Number(env?.FC_RUNS ?? 400);
+/** Vitest's default 5 s is too short for the scheduled runs; allow 5 ms per run. */
+const TIMEOUT = Math.max(5_000, RUNS * 5);
 
 describe("engine invariants (property-based)", () => {
-  it("hold after every command of random scenarios", () => {
-    fc.assert(
-      fc.property(scenarioArb, (scenario) => {
-        const flow = buildFlow(scenario.flow);
-        let clock = Date.parse("2026-01-05T09:00:00.000Z");
-        const now = () => new Date(clock).toISOString();
-        let state: RequestState | null = null;
+  it(
+    "hold after every command of random scenarios",
+    () => {
+      fc.assert(
+        fc.property(scenarioArb, (scenario) => {
+          const flow = buildFlow(scenario.flow);
+          let clock = Date.parse("2026-01-05T09:00:00.000Z");
+          const now = () => new Date(clock).toISOString();
+          let state: RequestState | null = null;
 
-        const submit: Command = {
-          type: "submit",
-          requestId: "r1",
-          requesterId: "u_req",
-          subject: { type: "expense", id: "EXP-1" },
-          payload: { amount: scenario.amount },
-        };
-        for (const [index, cmd] of [undefined, ...scenario.commands].entries()) {
-          if (index > 0) {
-            if (state === null) return;
-            clock += cmd?.kind === "tick" ? cmd.hours * 3_600_000 : 600_000;
+          const submit: Command = {
+            type: "submit",
+            requestId: "r1",
+            requesterId: "u_req",
+            subject: { type: "expense", id: "EXP-1" },
+            payload: { amount: scenario.amount },
+          };
+          for (const [index, cmd] of [undefined, ...scenario.commands].entries()) {
+            if (index > 0) {
+              if (state === null) return;
+              clock += cmd?.kind === "tick" ? cmd.hours * 3_600_000 : 600_000;
+            }
+            const command =
+              index === 0 ? submit : toCommand(cmd as Cmd, state as RequestState, flow);
+            const before: RequestState | null =
+              state === null ? null : deepFreeze(structuredCopy(state));
+            const inactive =
+              index >= scenario.leaveAt
+                ? [...scenario.inactive, ...scenario.leavers]
+                : scenario.inactive;
+            let result: DecidedResult | Unchanged;
+            try {
+              result = resolve(before, command, flow, now(), scenario, inactive);
+            } catch (error) {
+              // Refusals are fine; anything that is not a RungsError is a bug.
+              if (!(error instanceof RungsError)) throw error;
+              continue;
+            }
+            // Deterministic: the same input gives the same output.
+            expect(resolve(before, command, flow, now(), scenario, inactive)).toEqual(result);
+            if (result.kind === "unchanged") continue;
+            checkInvariants(before, result, flow);
+            state = result.state;
           }
-          const command = index === 0 ? submit : toCommand(cmd as Cmd, state as RequestState, flow);
-          const before: RequestState | null =
-            state === null ? null : deepFreeze(structuredCopy(state));
-          const inactive =
-            index >= scenario.leaveAt
-              ? [...scenario.inactive, ...scenario.leavers]
-              : scenario.inactive;
-          let result: DecidedResult | Unchanged;
-          try {
-            result = resolve(before, command, flow, now(), scenario, inactive);
-          } catch (error) {
-            // Refusals are fine; anything that is not a RungsError is a bug.
-            if (!(error instanceof RungsError)) throw error;
-            continue;
-          }
-          // Deterministic: the same input gives the same output.
-          expect(resolve(before, command, flow, now(), scenario, inactive)).toEqual(result);
-          if (result.kind === "unchanged") continue;
-          checkInvariants(before, result, flow);
-          state = result.state;
-        }
-      }),
-      { numRuns: RUNS, seed: SEED },
-    );
-  });
+        }),
+        { numRuns: RUNS, seed: SEED },
+      );
+    },
+    TIMEOUT,
+  );
 });
 
 function structuredCopy<T>(value: T): T {
