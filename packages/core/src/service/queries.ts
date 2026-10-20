@@ -90,6 +90,8 @@ export function queries(
       );
       const page = tasks.slice(0, limit).map((task) => ({
         ...task,
+        // EC-60: a task a delegate holds for this user is theirs to decide too.
+        ...(task.assigneeId === input.userId ? {} : { heldBy: task.assigneeId }),
         overdue: task.deadlineAt !== undefined && Date.parse(task.deadlineAt) <= Date.parse(at),
       }));
       const last = page.at(-1);

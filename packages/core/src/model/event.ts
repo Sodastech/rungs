@@ -7,8 +7,14 @@ interface TaskData {
   stepId: string;
 }
 
+/**
+ * `onBehalfOf`: the approver whose vote the task carries, when it was delegated. `heldBy`: the
+ * delegate holding the task, when that approver decided it directly instead (EC-60).
+ */
 interface DecisionData extends TaskData {
   comment?: string;
+  onBehalfOf?: string;
+  heldBy?: string;
 }
 
 interface StepData {

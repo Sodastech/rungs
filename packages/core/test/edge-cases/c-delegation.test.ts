@@ -12,6 +12,8 @@ import {
   delegate,
   reassignTask,
   registeredFlow,
+  reject,
+  returnTo,
   rule,
   run,
   runAll,
@@ -54,9 +56,7 @@ describe("C. Delegation", () => {
         chain: ["u_a", "u_b"],
       });
 
-      expect(thrown(() => run(state, approve("u_a"), { flow: flow() }))).toBeInstanceOf(
-        NotAssignedError,
-      );
+      // u_a could also decide it directly (EC-60).
       expect(run(state, approve("u_b"), { flow: flow() }).state.status).toBe("approved");
     });
 
@@ -313,9 +313,7 @@ describe("C. Delegation", () => {
         ],
       ]);
 
-      expect(thrown(() => run(state, approve("u_a"), { flow: parallel }))).toBeInstanceOf(
-        NotAssignedError,
-      );
+      // u_a's own task is retired; u_a can still decide the delegated one directly (EC-60).
       const afterDelegate = run(state, approve("u_b"), { flow: parallel }).state;
       expect(afterDelegate.steps[0]?.status).toBe("active");
       expect(run(afterDelegate, approve("u_c"), { flow: parallel }).state.status).toBe("approved");
@@ -378,6 +376,110 @@ describe("C. Delegation", () => {
       const error = thrown(() => run(state, delegate("u_a", "r1.t2", "u_m"), { flow: target }));
       expect(error).toBeInstanceOf(InvalidCommandError);
       expect((error as Error).message).toContain('"u_m" already approved step "manager"');
+    });
+  });
+
+  describe("the owner decides a delegated task", () => {
+    const parallel = flow({}, [{ ...single("u_a", "u_c"), mode: "all" }]);
+    /** u_a handed r1.t1 to u_b by hand: r1.t3 is held by u_b on behalf of u_a. */
+    const delegated = () => {
+      const submitted = run(null, submitCommand(), { flow: parallel }).state;
+      return run(submitted, delegate("u_a", "r1.t1", "u_b"), { flow: parallel }).state;
+    };
+    const task = (state: RequestState, id: string) =>
+      state.steps.flatMap((step) => step.tasks).find((t) => t.id === id);
+
+    it("EC-60 the approver a task acts for can approve it directly; the audit names both", () => {
+      const { state, audit, events } = run(delegated(), approve("u_a", "Back early"), {
+        flow: parallel,
+        now: T1,
+      });
+      expect(task(state, "r1.t3")).toEqual({
+        id: "r1.t3",
+        assigneeId: "u_b",
+        onBehalfOf: "u_a",
+        status: "approved",
+        assignedAt: T0,
+        decidedAt: T1,
+        decidedBy: "u_a",
+        comment: "Back early",
+      });
+      expect(audit[0]).toMatchObject({
+        type: "task.approved",
+        actorId: "u_a",
+        data: {
+          taskId: "r1.t3",
+          stepId: "manager",
+          comment: "Back early",
+          onBehalfOf: "u_a",
+          heldBy: "u_b",
+        },
+      });
+      expect(events[0]).toMatchObject({
+        type: "task.decided",
+        data: { decision: "approved", onBehalfOf: "u_a", heldBy: "u_b" },
+      });
+      // One task, one vote: the delegate can no longer decide it, and u_c still has to.
+      expect(state.steps[0]?.status).toBe("active");
+      expect(thrown(() => run(state, approve("u_b"), { flow: parallel }))).toBeInstanceOf(
+        NotAssignedError,
+      );
+      expect(run(state, approve("u_c"), { flow: parallel }).state.status).toBe("approved");
+    });
+
+    it("EC-60 when the delegate decides first, the owner can no longer; the audit names the owner", () => {
+      const { state, audit } = run(delegated(), approve("u_b"), { flow: parallel });
+      expect(audit[0]).toMatchObject({
+        actorId: "u_b",
+        data: { taskId: "r1.t3", onBehalfOf: "u_a" },
+      });
+      expect(audit[0]?.data).not.toHaveProperty("heldBy");
+      expect(task(state, "r1.t3")).not.toHaveProperty("decidedBy");
+      expect(thrown(() => run(state, approve("u_a"), { flow: parallel }))).toBeInstanceOf(
+        NotAssignedError,
+      );
+    });
+
+    it("EC-60 the owner can also reject or return, and it works for out-of-office delegation", () => {
+      const rejected = run(delegated(), reject("u_a", "No"), { flow: parallel });
+      expect(rejected.state.status).toBe("rejected");
+      expect(rejected.audit[0]).toMatchObject({ type: "task.rejected", data: { heldBy: "u_b" } });
+
+      const returned = run(delegated(), returnTo("u_a", "requester"), { flow: parallel });
+      expect(returned.state.status).toBe("returned");
+      expect(returned.audit[0]).toMatchObject({
+        type: "task.returned",
+        actorId: "u_a",
+        data: { onBehalfOf: "u_a", heldBy: "u_b" },
+      });
+
+      const delegations = [rule("u_a", "u_b")];
+      const byRule = run(null, submitCommand(), { flow: flow(), delegations }).state;
+      const decided = run(byRule, approve("u_a"), { flow: flow(), delegations });
+      expect(decided.state.status).toBe("approved");
+      expect(task(decided.state, "r1.t1")).toMatchObject({ assigneeId: "u_b", decidedBy: "u_a" });
+    });
+
+    it("EC-60 only the owner: someone in the middle of a chain, or after a reassign, cannot", () => {
+      const twice = run(delegated(), delegate("u_b", "r1.t3", "u_e"), { flow: parallel }).state;
+      expect(thrown(() => run(twice, approve("u_b"), { flow: parallel }))).toBeInstanceOf(
+        NotAssignedError,
+      );
+      expect(task(run(twice, approve("u_a"), { flow: parallel }).state, "r1.t4")).toMatchObject({
+        assigneeId: "u_e",
+        decidedBy: "u_a",
+      });
+
+      const reassigned = run(delegated(), reassignTask("r1.t3", "u_x"), { flow: parallel }).state;
+      expect(thrown(() => run(reassigned, approve("u_a"), { flow: parallel }))).toBeInstanceOf(
+        NotAssignedError,
+      );
+    });
+
+    it("EC-60 the owner cannot delegate the task further; only its holder can", () => {
+      expect(
+        thrown(() => run(delegated(), delegate("u_a", "r1.t3", "u_e"), { flow: parallel })),
+      ).toBeInstanceOf(NotAssignedError);
     });
   });
 

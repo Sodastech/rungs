@@ -15,9 +15,10 @@ const files = readdirSync(dir)
 const highlights: Record<string, string[]> = {
   "01-expense-three-steps.ts": ["reminder to Farah (u_farah)", "request APPROVED"],
   "02-manager-on-leave.ts": [
-    "on behalf of Bob (u_bob)",
+    "held by Dina (u_dina) for you; you can decide it",
+    "Bob (u_bob) approved directly (task held by Dina (u_dina))",
     "refused (expected) NOT_ASSIGNED",
-    "handed the task to Gina",
+    "Gina (u_gina) approved on behalf of Farah (u_farah)",
   ],
   "03-four-eyes.ts": [
     "removed Alice (u_alice): is the requester",

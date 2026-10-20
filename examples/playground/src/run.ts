@@ -100,7 +100,7 @@ export async function runScenario(
         problems.push(`action ${index + 1} (${action.do}) failed: ${error.code}: ${error.message}`);
     }
 
-    if (requestId !== undefined && action.do !== "preview") {
+    if (requestId !== undefined && action.do !== "preview" && action.do !== "inbox") {
       const history = await rungs.history(requestId);
       const owners = new Map<string, string>();
       for (const event of history) {
@@ -144,6 +144,19 @@ export async function runScenario(
         payload: action.payload,
       });
       for (const line of previewLines(result, name, s)) write(`  ${line}`);
+      return id;
+    }
+    if (action.do === "inbox") {
+      const { tasks } = await rungs.inbox({ userId: action.by });
+      if (tasks.length === 0) write(s.dim("  (empty)"));
+      for (const t of tasks) {
+        const note = t.heldBy
+          ? s.info(`held by ${name(t.heldBy)} for you; you can decide it`)
+          : t.onBehalfOf
+            ? `on behalf of ${name(t.onBehalfOf)}`
+            : "assigned to you";
+        write(`  ${t.requestId} · ${t.stepId} · ${note}${t.overdue ? s.warn(" · overdue") : ""}`);
+      }
       return id;
     }
     if (action.do === "submit") {
@@ -217,6 +230,8 @@ function label(action: Action, name: (id: string) => string): string {
   switch (action.do) {
     case "preview":
       return `preview for ${name(action.by)}`;
+    case "inbox":
+      return `inbox of ${name(action.by)}`;
     case "submit":
       return `submit by ${name(action.by)}`;
     case "approve":

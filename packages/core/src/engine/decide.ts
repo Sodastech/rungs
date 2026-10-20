@@ -21,11 +21,12 @@ import { clone, type Draft, finish, jsonIssues, record, startDraft } from "./dra
 import { delegateTask, reassignTask } from "./handover.js";
 import { checkRunnable, resubmitRequest, returnRequest, withdrawRequest } from "./lifecycle.js";
 import {
-  activeStep,
   advance,
   cancelOpenStep,
   closeRejected,
   closeStep,
+  decidableTask,
+  decideOn,
   openStep,
   planStep,
   removedData,
@@ -161,23 +162,15 @@ function decideTask(
   ctx: EngineContext,
 ): Decision {
   const draft = startDraft(state, command.actorId, ctx);
-  const instance = activeStep(draft);
-  const task = instance?.tasks.find(
-    (t) => t.status === "pending" && t.assigneeId === command.actorId,
-  );
-  if (instance === undefined || task === undefined) {
+  const found = decidableTask(draft, command.actorId);
+  if (found === undefined) {
     throw new NotAssignedError({ requestId: state.id, actorId: command.actorId });
   }
+  const { instance, task } = found;
 
   const decision = command.type === "approve" ? "approved" : "rejected";
-  task.status = decision;
-  task.decidedAt = ctx.now;
-  if (command.comment !== undefined) task.comment = command.comment;
-  record(draft, command.type === "approve" ? "task.approved" : "task.rejected", {
-    taskId: task.id,
-    stepId: instance.stepId,
-    ...(command.comment === undefined ? {} : { comment: command.comment }),
-  });
+  const data = decideOn(draft, instance, task, decision, command.comment);
+  record(draft, command.type === "approve" ? "task.approved" : "task.rejected", data);
 
   const outcome = stepOutcome(draft, instance, decision);
   if (outcome === "pending") return finish(draft);

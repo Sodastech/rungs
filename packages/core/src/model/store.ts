@@ -51,6 +51,8 @@ export interface TaskView {
   readonly onBehalfOf?: string;
   readonly assignedAt: string;
   readonly deadlineAt?: string;
+  /** In the inbox of the approver a task acts for: the delegate holding it (EC-60). */
+  readonly heldBy?: string;
 }
 
 export interface InboxQuery {
@@ -104,8 +106,9 @@ export interface StoreTx {
   /** Audit events of one request, ordered by `seq`. */
   getAudit(requestId: string): Promise<AuditEvent[]>;
   /**
-   * Pending tasks assigned to the user on active steps of pending requests, ordered by
-   * (`assignedAt`, `taskId`). The tenant must match exactly.
+   * Pending tasks on active steps of pending requests that the user holds (`assigneeId`) or that a
+   * delegate holds on the user's behalf (`onBehalfOf`, EC-60), ordered by (`assignedAt`, `taskId`).
+   * The tenant must match exactly. Adapters return the task as stored; the service adds `heldBy`.
    */
   findInbox(query: InboxQuery): Promise<TaskView[]>;
 

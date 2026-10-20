@@ -252,6 +252,7 @@ One per approver per step instance.
 | `onBehalfOf` | string? | The approver whose vote the task carries when it reached the assignee by delegation (EC-20, EC-25). Kept through further delegation; dropped by an admin reassign |
 | `status` | `"pending" \| "approved" \| "rejected" \| "returned" \| "superseded" \| "delegated" \| "reassigned" \| "skipped-duplicate" \| "cancelled" \| "expired"` | `delegated`: handed to a delegate (EC-25). `reassigned`: moved to another user by an admin. `skipped-duplicate`: counted as approved by dedupe (EC-03). `cancelled` is used only for withdraw and override |
 | `assignedAt`, `decidedAt` | ISO string | `decidedAt` is also set when a task is superseded |
+| `decidedBy` | string? | Set when the approver the task acts for (`onBehalfOf`) decided it instead of its assignee (EC-60) |
 | `comment` | string? | |
 
 ## DelegationRule
@@ -288,8 +289,17 @@ user who already holds a task in the step, whose own vote is in the step through
 who approved an earlier step, instead of being passed
 over, because someone chose that user explicitly.
 
-The one exception is handing a task back to the approver it acts for (EC-50), for example when
-they return early: the vote is theirs, so nothing is merged. The new task has no `onBehalfOf`, no
+**The owner of a delegated vote can always decide it directly (EC-60).** The approver a task acts
+for (`onBehalfOf`) may approve, reject or return the pending task their delegate holds, without
+taking it back first. It is the same task and the same vote: whoever decides first closes it, the
+other gets `NotAssignedError`, and the audit records who acted (`actorId`), whose vote it was
+(`onBehalfOf`) and, when the owner acted, who held the task (`heldBy`). Only the owner has this
+right, not someone in the middle of a delegation chain; it ends when an admin reassigns the task or
+an escalation expires it. Rungs does not check whether the owner is still active at that moment
+(nor any assignee); the host must block users who left.
+
+Handing a task back to the approver it acts for (EC-50) is still possible, for example so it shows
+as their own task again: the vote is theirs, so nothing is merged. The new task has no `onBehalfOf`, no
 out-of-office rules are followed, and `task.delegated` / `task.reassigned` carry
 `returnedToOriginal: true`. Anyone else who held a task in the step stays refused, so a task cannot
 bounce back and forth.
@@ -338,8 +348,8 @@ Types and data (discriminated union `AuditEvent` in `@rungsjs/core`):
 | `delegation.skipped` | `stepId`, `userId` (whose rule), `toUserId`, `reason: "requester" \| "inactive" \| "target-already-approver" \| "target-already-decided"` (EC-23, EC-48, EC-49) |
 | `delegation.cycle_detected` | `stepId`, `userId` (the original approver), `chain` (EC-22) |
 | `task.deduplicated` | `taskId`, `stepId`, `assigneeId`, `ofTaskId` (the earlier approval that carries over, EC-03) |
-| `task.approved`, `task.rejected` | `taskId`, `stepId`, `comment?` |
-| `task.returned` | `taskId`, `stepId`, `to: "requester" \| { stepId }`, `comment?` (EC-32, EC-33) |
+| `task.approved`, `task.rejected` | `taskId`, `stepId`, `comment?`, `onBehalfOf?` (whose vote, when delegated), `heldBy?` (the delegate, when the owner decided directly, EC-60) |
+| `task.returned` | `taskId`, `stepId`, `to: "requester" \| { stepId }`, `comment?`, `onBehalfOf?`, `heldBy?` (EC-32, EC-33, EC-60) |
 | `task.superseded` | `taskId`, `stepId`, `byTaskId` |
 | `task.cancelled` | `taskId`, `stepId` (override, withdraw) |
 | `task.reminder` | `taskId`, `stepId`, `assigneeId`, `deadlineAt`, `overdue: false`, or `overdue: true` with `count` (EC-26, EC-55) |

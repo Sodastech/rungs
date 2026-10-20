@@ -134,12 +134,15 @@ export function describe(
     case "task.rejected": {
       const verb = event.type === "task.approved" ? s.good("approved") : s.bad("rejected");
       const comment = event.data.comment ? s.dim(` — "${event.data.comment}"`) : "";
-      return [`${name(event.actorId ?? "")} ${verb}${comment}`];
+      return [`${name(event.actorId ?? "")} ${verb}${acting(event.data, name)}${comment}`];
     }
     case "task.returned": {
       const to = event.data.to === "requester" ? "the requester" : `step ${event.data.to.stepId}`;
       const comment = event.data.comment ? s.dim(` — "${event.data.comment}"`) : "";
-      return [s.warn(`${name(event.actorId ?? "")} returned it to ${to}`) + comment];
+      return [
+        s.warn(`${name(event.actorId ?? "")} returned it to ${to}${acting(event.data, name)}`) +
+          comment,
+      ];
     }
     case "task.delegated":
       return [
@@ -175,6 +178,13 @@ export function describe(
     default:
       return [s.dim(`${event.type} ${JSON.stringify(event.data)}`)];
   }
+}
+
+/** EC-60: a decision by the owner of a delegated vote, or by the delegate on their behalf. */
+function acting(data: { onBehalfOf?: string; heldBy?: string }, name: Names): string {
+  if (data.heldBy) return ` directly (task held by ${name(data.heldBy)})`;
+  if (data.onBehalfOf) return ` on behalf of ${name(data.onBehalfOf)}`;
+  return "";
 }
 
 /** Where the request stands after an action. */

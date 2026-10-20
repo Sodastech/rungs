@@ -42,6 +42,8 @@ interface Timing {
 export type Action = Timing &
   (
     | { readonly do: "preview"; readonly by: string; readonly payload: JsonValue }
+    /** Shows the user's inbox, including tasks a delegate holds on their behalf. */
+    | { readonly do: "inbox"; readonly by: string }
     | {
         readonly do: "submit";
         readonly by: string;

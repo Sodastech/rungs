@@ -334,6 +334,25 @@ export function storeContract(name: string, makeStore: StoreFactory): void {
         expect(first.map((t) => t.taskId)).toEqual(["r1.t1"]);
       });
 
+      it("EC-60 also lists pending tasks held by a delegate on the user's behalf", async () => {
+        const store = await makeStore();
+        await store.transaction(async (tx) => {
+          await tx.saveRequest(
+            withTasks("r1", [
+              { ...task("r1.t1", "u_b", NOW), onBehalfOf: "u_a" },
+              { ...task("r1.t2", "u_c", NOW), onBehalfOf: "u_a", status: "approved" },
+            ]),
+            null,
+          );
+        });
+        const owner = await store.transaction((tx) => tx.findInbox({ userId: "u_a", limit: 10 }));
+        expect(owner.map((t) => [t.taskId, t.assigneeId, t.onBehalfOf])).toEqual([
+          ["r1.t1", "u_b", "u_a"],
+        ]);
+        const holder = await store.transaction((tx) => tx.findInbox({ userId: "u_b", limit: 10 }));
+        expect(holder.map((t) => t.taskId)).toEqual(["r1.t1"]);
+      });
+
       it("matches the tenant exactly: without a tenant only requests without one", async () => {
         const store = await makeStore();
         await store.transaction(async (tx) => {

@@ -4,7 +4,7 @@ import { scenario } from "../src/scenario.js";
 export default scenario({
   name: "Manager on leave",
   description:
-    "Bob is out of office and Dina covers for him: the manager task goes to Dina on his behalf, so Bob himself cannot approve it. In finance, Farah hands her task to Gina by hand.",
+    "Bob is out of office and Dina covers for him: the manager task goes to Dina on his behalf, and it also shows in Bob's inbox. Bob comes back early and decides it himself, which closes Dina's copy. In finance, Farah hands her task to Gina, who decides on her behalf.",
   start: "2026-03-02T09:00:00.000Z",
   users: {
     u_alice: "Alice",
@@ -43,8 +43,10 @@ export default scenario({
   },
   actions: [
     { do: "submit", by: "u_alice", payload: { amount: 2400, purpose: "New laptop" } },
-    { do: "approve", by: "u_bob", expectError: "NOT_ASSIGNED" },
-    { do: "approve", by: "u_dina", comment: "Covering for Bob", wait: "PT2H" },
+    { do: "inbox", by: "u_dina" },
+    { do: "inbox", by: "u_bob" },
+    { do: "approve", by: "u_bob", comment: "Back early, approved", wait: "PT2H" },
+    { do: "approve", by: "u_dina", expectError: "NOT_ASSIGNED" },
     { do: "delegate", by: "u_farah", to: "u_gina", comment: "Travelling this week" },
     { do: "approve", by: "u_gina", wait: "PT3H" },
     { do: "approve", by: "u_dan", wait: "PT1H" },

@@ -15,7 +15,7 @@ The example scenarios run in CI (`test/scenarios.test.ts`), so they keep working
 | Scenario | Shows |
 | --- | --- |
 | `01-expense-three-steps.ts` | Preview, a three-step expense, a reminder before the finance deadline |
-| `02-manager-on-leave.ts` | Out-of-office delegation, a refused approval, a manual hand-over |
+| `02-manager-on-leave.ts` | Out-of-office delegation, the owner deciding a delegated task directly, a manual hand-over |
 | `03-four-eyes.ts` | The same person on two steps: one carried vote, someone else must decide |
 | `04-resubmit-amount-changed.ts` | Return, then resubmit with a new amount: restart and a skipped step |
 
@@ -43,7 +43,7 @@ export default scenario({
 });
 ```
 
-Actions: `preview`, `submit`, `approve`, `reject`, `delegate` (`to`), `return` (`to` an earlier step,
+Actions: `preview`, `inbox`, `submit`, `approve`, `reject`, `delegate` (`to`), `return` (`to` an earlier step,
 default the requester), `resubmit` (optional new `payload`), `withdraw` and `tick`. Each action can
 set `at` (an ISO time) or `wait` (`"PT2H"`, `"P1D"`, `"P1DT30M"`); otherwise the clock moves one
 minute. Add `expectError: "NOT_ASSIGNED"` to an action that should be refused. An unexpected error,

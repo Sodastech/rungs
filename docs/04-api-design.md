@@ -171,6 +171,17 @@ Commands:
   (without `allowSelfApproval`), inactive, already holds a task in the step or has a vote in it through a delegate (EC-48), or approved an
   earlier step of the request (EC-49). Delegating to yourself is refused too. The exception is
   the approver the task acts for (`onBehalfOf`): it can always be handed back to them (EC-50).
+
+**Deciding a delegated task.** `approve`, `reject` and `return` accept the task's assignee and also
+the approver it acts for (`onBehalfOf`), who does not need to take it back first (EC-60). Whoever
+decides first closes the task; the other gets `NotAssignedError`. The decision event names everyone:
+`actorId` is who acted, `onBehalfOf` whose vote it was, and `heldBy` the delegate when the owner
+decided. `delegate` stays with the assignee.
+
+**Active users.** Rungs checks whether users are active only while resolving approvers (EC-06). It
+does not check it when someone decides, for an assignee or for the approver a task acts for. The
+host application is responsible for blocking users who are no longer active, for example by
+refusing their sign-in or not offering the action.
 - `{ type: "reassign", requestId, adminId, stepId, toUserIds, comment }`: gives a blocked step to
   users the admin chose. They pass the same checks as resolved approvers; a chosen user who is
   inactive or the requester (without `allowSelfApproval`), or too few users for the step's mode,
@@ -229,8 +240,10 @@ await rungs.preview({
 });
 ```
 
-**`inbox`** lists the pending tasks assigned to the user on active steps, including tasks they hold
-as a delegate (`onBehalfOf`), oldest first. Pass `next` back as `after` for the next page. Without
+**`inbox`** lists the pending tasks on active steps that the user can decide, oldest first: tasks
+assigned to them, tasks they hold as a delegate (with `onBehalfOf`, the approver they act for), and
+tasks a delegate holds on their behalf (with `heldBy`, the delegate). The last kind lets an approver
+who is back from leave see what waits for them and decide it directly (EC-60). Pass `next` back as `after` for the next page. Without
 `tenantId` it returns only requests without a tenant, never other tenants' tasks.
 
 **`preview`** shows the requester the expected approval chain before submitting, without storing
@@ -378,8 +391,9 @@ interface StoreTx {
 }
 ```
 
-`findInbox({ userId, tenantId?, limit, after? })` returns `TaskView`s for pending tasks assigned to
-the user on the active step of pending requests whose `tenantId` matches exactly (none matches
+`findInbox({ userId, tenantId?, limit, after? })` returns `TaskView`s for pending tasks on the active
+step of pending requests that are assigned to the user or held by a delegate on the user's behalf
+(`onBehalfOf`; the service adds `heldBy`) whose `tenantId` matches exactly (none matches
 none), ordered by (`assignedAt`, `taskId`), starting after `after` when given.
 
 Adapters prove they meet this contract by running the shared suites from the private

@@ -158,8 +158,8 @@ function transactionOn(data: Data): StoreTx {
         if (request.status !== "pending" || request.tenantId !== tenantId) continue;
         const step = request.steps.findLast((s) => s.status === "active");
         for (const task of step?.tasks ?? []) {
-          if (step === undefined || task.status !== "pending" || task.assigneeId !== userId)
-            continue;
+          const mine = task.assigneeId === userId || task.onBehalfOf === userId;
+          if (step === undefined || task.status !== "pending" || !mine) continue;
           views.push({
             requestId: request.id,
             ...(request.tenantId === undefined ? {} : { tenantId: request.tenantId }),

@@ -248,6 +248,11 @@ function checkInvariants(
     // Every task belongs to a step that was activated.
     if (instance.tasks.length > 0) expect(instance.activatedAt).toBeDefined();
 
+    // Only the assignee or the approver the task acts for decides it (EC-60).
+    for (const task of instance.tasks) {
+      if (task.decidedBy !== undefined) expect(task.decidedBy).toBe(task.onBehalfOf);
+    }
+
     // One person, one vote per step instance (EC-48).
     const voters = instance.tasks.filter((t) => VOTES.has(t.status)).map((t) => t.assigneeId);
     expect(new Set(voters).size).toBe(voters.length);

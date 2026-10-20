@@ -602,14 +602,29 @@ export function serviceSuite(name: string, makeStore: StoreFactory): void {
         expect(acme.tasks.map((t) => [t.requestId, t.tenantId])).toEqual([["r3", "acme"]]);
       });
 
-      it("inbox shows delegated tasks to the delegate with onBehalfOf", async () => {
+      it("EC-60 inbox shows a delegated task to the delegate and, marked heldBy, to its owner", async () => {
         const { rungs } = await setup();
         await rungs.flows.register(parallel);
         await rungs.submit(submitInput());
         await rungs.delegate({ requestId: "r1", taskId: "r1.t1", actorId: "u_a", toUserId: "u_x" });
-        const inbox = await rungs.inbox({ userId: "u_x" });
-        expect(inbox.tasks).toMatchObject([{ taskId: "r1.t3", onBehalfOf: "u_a" }]);
+        const delegate = await rungs.inbox({ userId: "u_x" });
+        expect(delegate.tasks).toMatchObject([
+          { taskId: "r1.t3", assigneeId: "u_x", onBehalfOf: "u_a" },
+        ]);
+        expect(delegate.tasks[0]).not.toHaveProperty("heldBy");
+        const owner = await rungs.inbox({ userId: "u_a" });
+        expect(owner.tasks).toMatchObject([
+          { taskId: "r1.t3", assigneeId: "u_x", onBehalfOf: "u_a", heldBy: "u_x" },
+        ]);
+
+        await rungs.approve({ requestId: "r1", actorId: "u_a" });
         expect((await rungs.inbox({ userId: "u_a" })).tasks).toEqual([]);
+        expect((await rungs.inbox({ userId: "u_x" })).tasks).toEqual([]);
+        const history = await rungs.history("r1");
+        expect(history.find((e) => e.type === "task.approved")).toMatchObject({
+          actorId: "u_a",
+          data: { taskId: "r1.t3", onBehalfOf: "u_a", heldBy: "u_x" },
+        });
       });
 
       it("inbox refuses a malformed cursor or limit", async () => {

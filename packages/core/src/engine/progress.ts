@@ -7,6 +7,7 @@ import type {
   RemovedApprover,
   SkipReason,
   StepInstance,
+  Task,
 } from "../model/state.js";
 import {
   type Delegated,
@@ -101,6 +102,43 @@ export function resume(
   }
   if (!activate(draft, instance, plan.approvers, plan.removed, plan.resolution)) return null;
   return advance(draft, instance.index + 1);
+}
+
+/**
+ * The pending task `actorId` may decide in the active step: their own, or one a delegate holds on
+ * their behalf (EC-60). One person never has both (EC-48), so the order only matters defensively.
+ */
+export function decidableTask(
+  draft: Draft,
+  actorId: string,
+): { instance: StepInstance; task: Task } | undefined {
+  const instance = activeStep(draft);
+  const pending = instance?.tasks.filter((t) => t.status === "pending") ?? [];
+  const task =
+    pending.find((t) => t.assigneeId === actorId) ?? pending.find((t) => t.onBehalfOf === actorId);
+  return instance && task ? { instance, task } : undefined;
+}
+
+/** Closes the task with the actor's decision and returns the audit data that names everyone. */
+export function decideOn(
+  draft: Draft,
+  instance: StepInstance,
+  task: Task,
+  status: "approved" | "rejected" | "returned",
+  comment: string | undefined,
+): { taskId: string; stepId: string; comment?: string; onBehalfOf?: string; heldBy?: string } {
+  const actorId = draft.actorId as string;
+  task.status = status;
+  task.decidedAt = draft.ctx.now;
+  if (comment !== undefined) task.comment = comment;
+  if (actorId !== task.assigneeId) task.decidedBy = actorId;
+  return {
+    taskId: task.id,
+    stepId: instance.stepId,
+    ...(comment === undefined ? {} : { comment }),
+    ...(task.onBehalfOf === undefined ? {} : { onBehalfOf: task.onBehalfOf }),
+    ...(actorId === task.assigneeId ? {} : { heldBy: task.assigneeId }),
+  };
 }
 
 /** The step currently waiting for decisions or for an admin, if any. */

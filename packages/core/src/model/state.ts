@@ -96,6 +96,8 @@ export interface Task {
   status: TaskStatus;
   assignedAt: string;
   decidedAt?: string;
+  /** Set when the approver the task acts for decided it instead of its assignee (EC-60). */
+  decidedBy?: string;
   comment?: string;
 }
 

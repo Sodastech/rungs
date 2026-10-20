@@ -5,10 +5,11 @@ import { InvalidCommandError, NoApproversError, NotAssignedError } from "../mode
 import type { RequestState } from "../model/state.js";
 import { canonicalJson, clone, type Draft, finish, record, startDraft } from "./draft.js";
 import {
-  activeStep,
   advance,
   cancelOpenStep,
   closeStep,
+  decidableTask,
+  decideOn,
   planStep,
   supersedeOpenTasks,
 } from "./progress.js";
@@ -54,13 +55,11 @@ export function returnRequest(
   ctx: EngineContext,
 ): Decision {
   const draft = startDraft(state, command.actorId, ctx);
-  const instance = activeStep(draft);
-  const task = instance?.tasks.find(
-    (t) => t.status === "pending" && t.assigneeId === command.actorId,
-  );
-  if (instance === undefined || task === undefined) {
+  const found = decidableTask(draft, command.actorId);
+  if (found === undefined) {
     throw new NotAssignedError({ requestId: state.id, actorId: command.actorId });
   }
+  const { instance, task } = found;
   const targetIndex = command.to === "requester" ? null : earlierStep(draft, command.to.stepId);
   if (targetIndex !== null && targetIndex >= instance.index) {
     throw new InvalidCommandError(
@@ -68,16 +67,9 @@ export function returnRequest(
     );
   }
 
-  task.status = "returned";
-  task.decidedAt = ctx.now;
-  if (command.comment !== undefined) task.comment = command.comment;
   const comment = command.comment === undefined ? {} : { comment: command.comment };
-  record(draft, "task.returned", {
-    taskId: task.id,
-    stepId: instance.stepId,
-    to: command.to,
-    ...comment,
-  });
+  const data = decideOn(draft, instance, task, "returned", command.comment);
+  record(draft, "task.returned", { ...data, to: command.to });
   supersedeOpenTasks(draft, instance, task.id);
   closeStep(draft, instance, "returned");
 
