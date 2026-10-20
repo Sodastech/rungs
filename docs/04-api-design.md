@@ -241,21 +241,80 @@ The host must authenticate the actor before calling a command.
 
 ## Store interface (for adapter authors)
 
+Fixed for 1.8. Everything the store returns is plain JSON; the service never shares objects with it.
+
 ```ts
 interface RungsStore {
+  /** Runs `fn` atomically: all writes commit together, or none do when `fn` throws. */
   transaction<T>(fn: (tx: StoreTx) => Promise<T>): Promise<T>;
 }
+
+/** A flow or idempotency key belongs to one tenant, or is global when `tenantId` is omitted. */
+interface FlowRef { key: string; tenantId?: string; version?: number } // no version: the latest
+interface IdempotencyRef { key: string; tenantId?: string }
+interface EventKey { requestId: string; seq: number }
+
+interface OutboxEntry {
+  event: DomainEvent;
+  attempts: number;      // failed deliveries so far
+  nextAttemptAt: string; // ISO 8601 UTC
+  lastError?: string;
+}
+
+interface IdempotentRecord {
+  fingerprint: string;   // canonical form of the command, to refuse a reused key
+  result: RequestState;  // what the first call returned
+  at: string;
+}
+
 interface StoreTx {
-  getFlow(key: string, version?: number): Promise<FlowDefinition | null>;
-  saveFlow(flow: FlowDefinition): Promise<void>;
+  // Flows. Versions are numbered per (tenantId, key). getFlow matches the scope exactly;
+  // the service looks up the tenant's flow first and then the global one.
+  getFlow(ref: FlowRef): Promise<RegisteredFlow | null>;
+  saveFlow(flow: RegisteredFlow): Promise<void>; // flow.tenantId sets the scope
+
+  // Requests. saveRequest is a compare-and-set on `version`: expectedVersion null means
+  // "must not exist yet". A mismatch throws ConflictError (EC-15).
   getRequest(id: string, opts?: { forUpdate?: boolean }): Promise<RequestState | null>;
-  saveRequest(state: RequestState, expectedVersion: number | null): Promise<void>; // throws ConflictError
+  saveRequest(state: RequestState, expectedVersion: number | null): Promise<void>;
   appendAudit(events: AuditEvent[]): Promise<void>;
-  enqueueEvents(events: DomainEvent[]): Promise<void>;
-  findInbox(q: InboxQuery): Promise<TaskView[]>;
-  findDue(now: string, limit: number): Promise<string[]>; // request IDs with due deadlines
-  getIdempotent(key: string): Promise<unknown | null>;
-  putIdempotent(key: string, result: unknown): Promise<void>;
-  // delegation rules ...
+  findDue(now: string, limit: number): Promise<string[]>; // ids with nextDueAt <= now
+
+  // Outbox (see "Event delivery").
+  enqueueEvents(events: DomainEvent[], now: string): Promise<void>; // attempts 0, due now
+  pendingEvents(q: { now: string; limit: number; requestId?: string }): Promise<OutboxEntry[]>;
+  markDispatched(keys: EventKey[]): Promise<void>;
+  markFailed(
+    key: EventKey,
+    failure: { attempts: number; nextAttemptAt: string; error: string },
+  ): Promise<void>;
+
+  // Idempotency (EC-16), written in the same transaction as the command.
+  getIdempotent(ref: IdempotencyRef): Promise<IdempotentRecord | null>;
+  putIdempotent(ref: IdempotencyRef, record: IdempotentRecord): Promise<void>;
+
+  // Delegation rules of these users; the engine filters by time, scope and tenant.
+  findDelegations(fromUserIds: string[], tenantId?: string): Promise<DelegationRule[]>;
 }
 ```
+
+`RegisteredFlow` gains an optional `tenantId`, and a request pinned to a tenant's flow records it
+as `flowTenantId`, so later commands load exactly the pinned flow (EC-37).
+
+### Event delivery
+
+Domain events are written to the outbox in the same transaction as the command and delivered to
+`onEvent` after the commit, in `seq` order, at least once.
+
+- `pendingEvents` returns only entries that are due (`nextAttemptAt <= now`), ordered by
+  `nextAttemptAt`, then `requestId`, then `seq`, and never an entry while an earlier entry of the
+  same request is still undelivered. Order is kept per request, and a failing event holds back only
+  its own request.
+- When `onEvent` throws, the command still succeeds. The service calls
+  `onEventError(error, event, attempts)` and `markFailed` with
+  `nextAttemptAt = now + min(baseDelay * 2^(attempts - 1), maxDelay)`. A failing event therefore
+  sits out its backoff instead of taking a share of every `dispatchPending` call's `limit`.
+- Events are never dropped. `rungs.dispatchPending({ limit })` delivers what is due, for example
+  from a scheduled job or after a crash.
+- `createRungs({ dispatchRetry: { baseDelay: "PT30S", maxDelay: "PT1H" } })` sets the backoff
+  (these are the defaults).
