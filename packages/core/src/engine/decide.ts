@@ -67,9 +67,13 @@ export function decide(state: RequestState | null, command: Command, ctx: Engine
       `Command is for request "${command.requestId}" but state is "${state.id}"`,
     );
   }
-  if (state.flowKey !== ctx.flow.key || state.flowVersion !== ctx.flow.version) {
+  if (
+    state.flowKey !== ctx.flow.key ||
+    state.flowVersion !== ctx.flow.version ||
+    state.flowTenantId !== ctx.flow.tenantId
+  ) {
     throw new InvalidCommandError(
-      `Request is pinned to flow "${state.flowKey}" v${state.flowVersion}, got "${ctx.flow.key}" v${ctx.flow.version}`,
+      `Request is pinned to flow ${flowName(state.flowKey, state.flowVersion, state.flowTenantId)}, got ${flowName(ctx.flow.key, ctx.flow.version, ctx.flow.tenantId)}`,
     );
   }
   if (command.type === "tick") return tickRequest(state, command, ctx);
@@ -104,15 +108,26 @@ export function decide(state: RequestState | null, command: Command, ctx: Engine
   }
 }
 
+function flowName(key: string, version: number, tenantId: string | undefined): string {
+  return `"${key}" v${version}${tenantId === undefined ? "" : ` of tenant "${tenantId}"`}`;
+}
+
 function submit(command: SubmitCommand, ctx: EngineContext): Decision {
   const { flow } = ctx;
   const payload = clone(command.payload);
+  // EC-56: a tenant's own flow only serves requests of that tenant.
+  if (flow.tenantId !== undefined && flow.tenantId !== command.tenantId) {
+    throw new InvalidCommandError(
+      `Flow "${flow.key}" belongs to tenant "${flow.tenantId}" and cannot serve this request`,
+    );
+  }
 
   const state: RequestState = {
     id: command.requestId,
     ...(command.tenantId === undefined ? {} : { tenantId: command.tenantId }),
     flowKey: flow.key,
     flowVersion: flow.version,
+    ...(flow.tenantId === undefined ? {} : { flowTenantId: flow.tenantId }),
     subject: { type: command.subject.type, id: command.subject.id },
     requesterId: command.requesterId,
     payload,

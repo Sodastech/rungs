@@ -187,7 +187,11 @@ importers:
 
   packages/core: {}
 
-  packages/store-memory: {}
+  packages/store-memory:
+    devDependencies:
+      '@rungs/core':
+        specifier: workspace:*
+        version: link:../core
 
 packages:
 

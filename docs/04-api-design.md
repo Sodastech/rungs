@@ -17,17 +17,40 @@ import { postgresStore } from "@rungs/store-postgres";
 
 const rungs = createRungs({
   store: postgresStore({ pool }),
-  clock: () => new Date(),            // injected; tests pass a fake clock
-  ids: () => crypto.randomUUID(),     // injected ID generator
+  clock: () => new Date(),            // required: the core never reads a clock; tests pass a fake
+  ids: () => crypto.randomUUID(),     // required: generates request IDs
   roles: async (role, ctx) => getUserIdsWithRole(role, ctx.tenantId),
   resolvers: {
     // host-defined named resolvers (Pro adds org-aware ones)
     projectOwner: async ({ request }) => [await getProjectOwner(request.subject.id)],
   },
   isActiveUser: async (userId) => isEmployeeActive(userId), // optional
+  calendar,                                                 // optional, synchronous (EC-30)
   onEvent: async (event) => notify(event),                  // notifications, webhooks
+  onEventError: (error, event, attempts) => log(error),     // optional; delivery is retried
+  dispatchRetry: { baseDelay: "PT30S", maxDelay: "PT1H" },  // optional; these are the defaults
 });
 ```
+
+Each command runs in one store transaction: load the request (locked for update), decide,
+resolve what the engine asks for, decide again, then save state, audit and outbox together.
+**Keep `roles`, `resolvers` and `isActiveUser` fast**: in 0.x they run inside that transaction,
+so a slow callback holds the request's lock. A failing callback rolls the whole command back
+(`ResolutionError`, EC-05). The public API does not depend on this choice (see
+`docs/06-architecture.md`).
+
+Every command method returns the new `RequestState` and accepts `idempotencyKey` and
+`expectedVersion` (`submit` accepts only `idempotencyKey`):
+
+- `expectedVersion` refuses the command with `ConflictError` when the request has moved on
+  (EC-15). Commands are never retried automatically, because the actor may have been superseded.
+- `idempotencyKey` is scoped per tenant (EC-57). A repeat with the same command returns the first
+  result without recording anything (EC-16); the same key with a different command is refused with
+  `InvalidCommandError`.
+
+`rungs.tick({ limit })` runs `tick` on every due request, each in its own transaction, and returns
+`{ processed, changed, skipped, failed }`; a request another worker changed meanwhile is skipped
+(EC-27). `rungs.dispatchPending({ limit })` returns `{ delivered, failed }`.
 
 ## Flows
 
@@ -46,8 +69,20 @@ const leave = defineFlow({
   ],
 });
 
-await rungs.flows.register(leave);   // validates; returns { key, version }
+await rungs.flows.register(leave);   // validates; returns { key, version, created }
+await rungs.flows.register(acmeLeave, { tenantId: "acme" }); // a tenant's own flow
+await rungs.flows.get("leave", { tenantId: "acme" });        // what a submit would use
 ```
+
+`flows.register` also checks the flow against the configured callbacks: every named resolver
+(also in `escalateTo` and inside `union`) must exist, and a `role` spec needs the `roles`
+callback. Unknown role names are fine; they resolve to nobody (`NO_APPROVERS`). Registering
+content equal to the latest version returns that version with `created: false` (D23). Versions are
+numbered per tenant and key.
+
+On submit the tenant's own flow is used when it exists, otherwise the global flow; with neither,
+`FlowNotFoundError` (EC-56). The request is pinned to that exact flow (`flowKey`, `flowVersion`
+and `flowTenantId`), so a flow registered later, even the tenant's own, never changes it.
 
 `defineFlow` validates statically (unique step IDs, valid durations, valid conditions, quorum ≤ possible
 for static `users` lists, timeout settings, unknown keys) and returns a deeply frozen `FlowDefinition`
@@ -225,13 +260,13 @@ All extend `RungsError` and expose a stable `code`.
 | Class | Code | When |
 | --- | --- | --- |
 | `FlowDefinitionError` | `FLOW_INVALID` | Invalid flow definition |
-| `FlowNotFoundError` | `FLOW_NOT_FOUND` | Unknown flow key |
+| `FlowNotFoundError` | `FLOW_NOT_FOUND` | No flow with this key (and version) for the tenant or globally (EC-56). Exposes `flowKey`, `version?`, `tenantId?` |
 | `InvalidCommandError` | `COMMAND_INVALID` | Malformed command input (e.g. empty IDs, non-JSON payload, override without a comment). The message names each problem |
 | `FlowNotApplicableError` | `FLOW_NOT_APPLICABLE` | Submit refused because every step was skipped and the flow uses `onAllSkipped: "fail"` (EC-39). Exposes `flowKey`, `skippedStepIds` |
 | `RequestNotFoundError` | `REQUEST_NOT_FOUND` | Unknown request |
 | `NotAssignedError` | `NOT_ASSIGNED` | Actor has no pending task on this request, or is not the requester for `resubmit` / `withdraw` |
 | `InvalidTransitionError` | `INVALID_TRANSITION` | e.g. approving a closed request |
-| `ConflictError` | `VERSION_CONFLICT` | `expectedVersion` mismatch or concurrent write |
+| `ConflictError` | `VERSION_CONFLICT` | `expectedVersion` mismatch or concurrent write (EC-15). Exposes `requestId`, `expectedVersion`, `actualVersion` |
 | `ResolutionError` | `RESOLUTION_FAILED` | A host callback (role lookup, named resolver, `isActiveUser`) threw or returned invalid data (EC-05). Usually transient: nothing changed, so the command can be retried. The original error is in `cause`; exposes `stepId` |
 | `NoApproversError` | `NO_APPROVERS` | Submit refused because a step has no approvers (`onEmptyStep: "fail"`) or cannot reach its quorum (EC-02, EC-04, EC-43, EC-45). A configuration or data problem: retrying will not help. Exposes `stepId`, `reason`, `removed` |
 | `ConditionError` | `CONDITION_INVALID` | A `gt`/`gte`/`lt`/`lte` condition meets a missing field or a type mismatch (EC-40). Exposes `field`, `op`, `expected`, `received` |
@@ -306,10 +341,11 @@ as `flowTenantId`, so later commands load exactly the pinned flow (EC-37).
 Domain events are written to the outbox in the same transaction as the command and delivered to
 `onEvent` after the commit, in `seq` order, at least once.
 
-- `pendingEvents` returns only entries that are due (`nextAttemptAt <= now`), ordered by
-  `nextAttemptAt`, then `requestId`, then `seq`, and never an entry while an earlier entry of the
-  same request is still undelivered. Order is kept per request, and a failing event holds back only
-  its own request.
+- `pendingEvents` returns only entries that are due (`nextAttemptAt <= now`) and never an entry
+  while an earlier entry of the same request is still undelivered: each request contributes its
+  due events in `seq` order, starting with its oldest undelivered one. Requests are ordered by the
+  `nextAttemptAt` of that oldest event, then by `requestId`. Order is kept per request, and a
+  failing event holds back only its own request.
 - When `onEvent` throws, the command still succeeds. The service calls
   `onEventError(error, event, attempts)` and `markFailed` with
   `nextAttemptAt = now + min(baseDelay * 2^(attempts - 1), maxDelay)`. A failing event therefore

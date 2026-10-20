@@ -47,19 +47,35 @@ export async function collectResolution(
     request,
     ...(request.tenantId === undefined ? {} : { tenantId: request.tenantId }),
   };
+  let userIds: string[];
   try {
-    const userIds = [...new Set(await collect(need.spec, hooks, ctx))];
-    const inactiveUserIds: string[] = [];
-    if (hooks.isActiveUser) {
-      const isActive = hooks.isActiveUser;
-      const active = await Promise.all(userIds.map((id) => isActive(id, ctx)));
-      userIds.forEach((id, i) => {
-        if (active[i] !== true) inactiveUserIds.push(id);
-      });
-    }
-    return inactiveUserIds.length > 0 ? { userIds, inactiveUserIds } : { userIds };
+    userIds = [...new Set(await collect(need.spec, hooks, ctx))];
   } catch (cause) {
     throw new ResolutionError({ stepId: need.stepId, cause });
+  }
+  const inactiveUserIds = await inactiveUsers(userIds, hooks, need.stepId, request);
+  return inactiveUserIds.length > 0 ? { userIds, inactiveUserIds } : { userIds };
+}
+
+/** The users `isActiveUser` reports inactive, e.g. delegates; failures become `ResolutionError`. */
+export async function inactiveUsers(
+  userIds: readonly string[],
+  hooks: ResolutionHooks,
+  stepId: string,
+  request: ResolveRequest,
+): Promise<string[]> {
+  const isActive = hooks.isActiveUser;
+  if (isActive === undefined || userIds.length === 0) return [];
+  const ctx: ResolveContext = {
+    stepId,
+    request,
+    ...(request.tenantId === undefined ? {} : { tenantId: request.tenantId }),
+  };
+  try {
+    const active = await Promise.all(userIds.map((id) => isActive(id, ctx)));
+    return userIds.filter((_, i) => active[i] !== true);
+  } catch (cause) {
+    throw new ResolutionError({ stepId, cause });
   }
 }
 

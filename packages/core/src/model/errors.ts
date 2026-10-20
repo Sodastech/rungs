@@ -164,6 +164,49 @@ export class NoApproversError extends RungsError {
   }
 }
 
+/** `expectedVersion` did not match, or another command committed first (EC-15). Re-read and retry. */
+export class ConflictError extends RungsError {
+  readonly code = "VERSION_CONFLICT";
+  readonly requestId: string;
+  /** `null`: the request was expected not to exist yet. */
+  readonly expectedVersion: number | null;
+  /** `null`: the request does not exist. */
+  readonly actualVersion: number | null;
+
+  constructor(details: {
+    requestId: string;
+    expectedVersion: number | null;
+    actualVersion: number | null;
+  }) {
+    super(
+      `Request "${details.requestId}" is at version ${details.actualVersion ?? "none"}, expected ${details.expectedVersion ?? "none"}`,
+    );
+    this.name = "ConflictError";
+    this.requestId = details.requestId;
+    this.expectedVersion = details.expectedVersion;
+    this.actualVersion = details.actualVersion;
+  }
+}
+
+/** No flow with this key (and version) is registered for the tenant or globally (EC-56). */
+export class FlowNotFoundError extends RungsError {
+  readonly code = "FLOW_NOT_FOUND";
+  readonly flowKey: string;
+  readonly version?: number;
+  readonly tenantId?: string;
+
+  constructor(details: { flowKey: string; version?: number; tenantId?: string }) {
+    const version = details.version === undefined ? "" : ` v${details.version}`;
+    const scope =
+      details.tenantId === undefined ? "" : ` for tenant "${details.tenantId}" or globally`;
+    super(`Flow "${details.flowKey}"${version} is not registered${scope}`);
+    this.name = "FlowNotFoundError";
+    this.flowKey = details.flowKey;
+    if (details.version !== undefined) this.version = details.version;
+    if (details.tenantId !== undefined) this.tenantId = details.tenantId;
+  }
+}
+
 /** The flow does not apply to the submitted payload: every step was skipped and `onAllSkipped` is "fail". */
 export class FlowNotApplicableError extends RungsError {
   readonly code = "FLOW_NOT_APPLICABLE";

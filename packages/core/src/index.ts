@@ -31,8 +31,10 @@ export type { DelegationRule, DelegationSkipReason } from "./model/delegation.js
 export type { FlowIssue, ReceivedType } from "./model/errors.js";
 export {
   ConditionError,
+  ConflictError,
   FlowDefinitionError,
   FlowNotApplicableError,
+  FlowNotFoundError,
   InvalidCommandError,
   InvalidTransitionError,
   NoApproversError,
@@ -88,3 +90,28 @@ export type {
   Task,
   TaskStatus,
 } from "./model/state.js";
+export type {
+  EventKey,
+  FlowRef,
+  IdempotencyRef,
+  IdempotentRecord,
+  OutboxEntry,
+  RungsStore,
+  StoreTx,
+} from "./model/store.js";
+export type {
+  ResolutionHooks,
+  ResolveContext,
+  ResolveRequest,
+  ResolverArgs,
+} from "./resolution/collect.js";
+export {
+  type CommandOptions,
+  createRungs,
+  type DispatchSummary,
+  type Rungs,
+  type RungsOptions,
+  type SubmitInput,
+  type TickSummary,
+} from "./service/create-rungs.js";
+export type { FlowRegistration, FlowRegistry } from "./service/flows.js";

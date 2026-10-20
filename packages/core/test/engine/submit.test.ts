@@ -180,6 +180,25 @@ describe("submit", () => {
     expect((error as RequestNotFoundError).code).toBe("REQUEST_NOT_FOUND");
   });
 
+  it("EC-56 pins a tenant's flow by recording flowTenantId, and refuses another scope later", () => {
+    const tenantFlow = { ...expenseFlow, tenantId: "acme" };
+    const { state } = run(null, submitCommand({ tenantId: "acme" }), { flow: tenantFlow });
+    expect(state.flowTenantId).toBe("acme");
+    expect(run(null, submitCommand({ tenantId: "acme" })).state.flowTenantId).toBeUndefined();
+    expect(thrown(() => run(state, approve("u_mgr")))).toBeInstanceOf(InvalidCommandError);
+    expect(run(state, approve("u_mgr"), { flow: tenantFlow }).state.version).toBe(2);
+  });
+
+  it("EC-56 a tenant's flow cannot serve a request of another tenant", () => {
+    const tenantFlow = { ...expenseFlow, tenantId: "acme" };
+    for (const tenantId of ["globex", undefined]) {
+      const command = submitCommand(tenantId ? { tenantId } : {});
+      expect(thrown(() => run(null, command, { flow: tenantFlow }))).toBeInstanceOf(
+        InvalidCommandError,
+      );
+    }
+  });
+
   it("refuses a command addressed to a different request or with a different flow version", () => {
     const { state } = run(null, submitCommand());
     expect(thrown(() => run(state, { ...approve("u_mgr"), requestId: "r2" }))).toBeInstanceOf(

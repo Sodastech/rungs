@@ -73,6 +73,15 @@ function nextDueAt(state: RequestState): string | null {
   return times.reduce((a, b) => (Date.parse(b) < Date.parse(a) ? b : a));
 }
 
+/** JSON with object keys sorted, so key order never counts as a difference (EC-51, D23, EC-16). */
+export function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_, v: unknown) =>
+    v !== null && typeof v === "object" && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+      : v,
+  );
+}
+
 /** Deep copy of plain JSON data. State and payloads are validated to be JSON. */
 export function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;

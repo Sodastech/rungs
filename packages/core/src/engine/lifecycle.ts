@@ -3,7 +3,7 @@ import type { ResubmitCommand, ReturnCommand, WithdrawCommand } from "../model/c
 import type { Decision, EngineContext, ResolutionNeed } from "../model/decision.js";
 import { InvalidCommandError, NoApproversError, NotAssignedError } from "../model/errors.js";
 import type { RequestState } from "../model/state.js";
-import { clone, type Draft, finish, record, startDraft } from "./draft.js";
+import { canonicalJson, clone, type Draft, finish, record, startDraft } from "./draft.js";
 import {
   activeStep,
   advance,
@@ -108,7 +108,7 @@ export function resubmitRequest(
   requireRequester(state, command.actorId);
   const draft = startDraft(state, command.actorId, ctx);
   const payload = command.payload === undefined ? state.payload : clone(command.payload);
-  const payloadChanged = canonical(payload) !== canonical(state.payload);
+  const payloadChanged = canonicalJson(payload) !== canonicalJson(state.payload);
   const returned = draft.state.steps.findLast(
     (s) => s.status === "returned" && s.invalidatedAt === undefined,
   );
@@ -178,13 +178,4 @@ function invalidateFrom(draft: Draft, index: number): void {
       instance.invalidatedAt = draft.ctx.now;
     }
   }
-}
-
-/** JSON with object keys sorted, so key order does not count as a change (EC-51). */
-function canonical(value: unknown): string {
-  return JSON.stringify(value, (_, v: unknown) =>
-    v !== null && typeof v === "object" && !Array.isArray(v)
-      ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
-      : v,
-  );
 }

@@ -11,6 +11,8 @@ export type JsonValue =
 /** A flow definition pinned to the version assigned at registration. */
 export interface RegisteredFlow extends FlowDefinition {
   readonly version: number;
+  /** Set for a tenant's own flow; omitted for a global flow (EC-56). */
+  readonly tenantId?: string;
 }
 
 /** The host record being approved. */
@@ -132,6 +134,8 @@ export interface RequestState {
   tenantId?: string;
   flowKey: string;
   flowVersion: number;
+  /** Set when the pinned flow is a tenant's own flow rather than a global one (EC-56). */
+  flowTenantId?: string;
   subject: Subject;
   requesterId: string;
   /** Snapshot taken at submit; conditions are evaluated against it (EC-36). */

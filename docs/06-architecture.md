@@ -58,6 +58,15 @@ therefore runs a small loop:
 
 This keeps all branching logic in the pure engine, testable without mocks, while I/O stays at the edges.
 
+**Resolution inside the transaction (0.x).** Steps 1 to 4 run in one store transaction, so host
+callbacks run while the request is locked. That is the simplest correct choice, but a slow callback
+holds the lock. The public surface (`createRungs`, `RungsStore`) deliberately does not lock this in:
+nothing in it exposes when resolution happens relative to the transaction. A later version can
+resolve outside the transaction (read without a lock, decide, resolve) and then, inside a short
+transaction, re-read the request, decide again with the collected resolutions and save with the
+compare-and-set on `version`, resolving again only if the engine asks for something new. Because
+`decide` is pure and `saveRequest` already takes `expectedVersion`, this needs no breaking change.
+
 ## Resolution pipeline (per step activation)
 
 ```

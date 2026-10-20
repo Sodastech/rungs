@@ -6,8 +6,10 @@ import * as core from "../src/index.js";
 it("exports exactly the documented runtime API", () => {
   expect(Object.keys(core).sort()).toEqual([
     "ConditionError",
+    "ConflictError",
     "FlowDefinitionError",
     "FlowNotApplicableError",
+    "FlowNotFoundError",
     "InvalidCommandError",
     "InvalidTransitionError",
     "NoApproversError",
@@ -15,6 +17,7 @@ it("exports exactly the documented runtime API", () => {
     "RequestNotFoundError",
     "ResolutionError",
     "RungsError",
+    "createRungs",
     "decide",
     "defineFlow",
   ]);

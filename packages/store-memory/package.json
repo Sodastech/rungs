@@ -26,5 +26,11 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@rungs/core": "workspace:^"
+  },
+  "devDependencies": {
+    "@rungs/core": "workspace:*"
   }
 }
