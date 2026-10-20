@@ -4,10 +4,12 @@
 
 # Rungs
 
+> **Not released yet.** Click **Watch → Custom → Releases** to get notified when 0.1 ships.
+
 **Rungs is an approval workflow engine for TypeScript that gets the hard part right: who approves,
 and what happens when reality gets in the way.**
 
-> **Status: pre-release.** Nothing is published to npm yet and the API can still change.
+> **Status: pre-release.** The API can still change.
 > Feedback is very welcome: open an issue, or tell us which edge case your app gets wrong today.
 
 ## The problem
