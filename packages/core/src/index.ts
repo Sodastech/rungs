@@ -10,8 +10,11 @@ export type {
   ReassignStepCommand,
   ReassignTaskCommand,
   RejectCommand,
+  ResubmitCommand,
   RetryStepCommand,
+  ReturnCommand,
   SubmitCommand,
+  WithdrawCommand,
 } from "./model/command.js";
 export type {
   DecidedResult,

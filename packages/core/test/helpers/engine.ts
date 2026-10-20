@@ -13,9 +13,12 @@ import {
   type RegisteredFlow,
   type RejectCommand,
   type RequestState,
+  type ResubmitCommand,
   type RetryStepCommand,
+  type ReturnCommand,
   type StepResolution,
   type SubmitCommand,
+  type WithdrawCommand,
 } from "../../src/index.js";
 
 export const T0 = "2026-01-05T09:00:00.000Z";
@@ -106,6 +109,27 @@ export function rule(
     endsAt: "2026-02-01T00:00:00.000Z",
     ...overrides,
   };
+}
+
+export function returnTo(
+  actorId: string,
+  to: ReturnCommand["to"],
+  comment?: string,
+): ReturnCommand {
+  return { type: "return", requestId: "r1", actorId, to, ...(comment ? { comment } : {}) };
+}
+
+export function resubmit(payload?: ResubmitCommand["payload"], actorId = "u_req"): ResubmitCommand {
+  return {
+    type: "resubmit",
+    requestId: "r1",
+    actorId,
+    ...(payload === undefined ? {} : { payload }),
+  };
+}
+
+export function withdraw(actorId = "u_req", reason?: string): WithdrawCommand {
+  return { type: "withdraw", requestId: "r1", actorId, ...(reason ? { reason } : {}) };
 }
 
 export function retryStep(stepId: string): RetryStepCommand {

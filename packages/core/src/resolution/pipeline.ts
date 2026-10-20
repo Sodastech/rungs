@@ -54,7 +54,9 @@ export function carriedApprovals(
 ): Map<string, string> {
   const carried = new Map<string, string>();
   if (policy === "none") return carried;
-  const ran = previous.filter((instance) => instance.status !== "skipped");
+  const ran = previous.filter(
+    (instance) => instance.status !== "skipped" && instance.invalidatedAt === undefined,
+  );
   const sources = (policy === "consecutive" ? ran.slice(-1) : ran).filter(
     (instance) => instance.status === "approved",
   );

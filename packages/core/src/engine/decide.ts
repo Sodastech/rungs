@@ -1,4 +1,3 @@
-import { evaluateCondition } from "../flow/condition.js";
 import type {
   ApproveCommand,
   Command,
@@ -12,7 +11,6 @@ import type { Decision, EngineContext, ResolutionNeed } from "../model/decision.
 import {
   InvalidCommandError,
   InvalidTransitionError,
-  NoApproversError,
   NotAssignedError,
   RequestNotFoundError,
 } from "../model/errors.js";
@@ -21,9 +19,11 @@ import type { RequestState, StepInstance } from "../model/state.js";
 import { requiredApprovals } from "../resolution/pipeline.js";
 import { clone, type Draft, finish, jsonIssues, record, startDraft } from "./draft.js";
 import { delegateTask, reassignTask } from "./handover.js";
+import { checkRunnable, resubmitRequest, returnRequest, withdrawRequest } from "./lifecycle.js";
 import {
   activeStep,
   advance,
+  cancelOpenStep,
   closeRejected,
   closeStep,
   openStep,
@@ -71,7 +71,7 @@ export function decide(state: RequestState | null, command: Command, ctx: Engine
       `Request is pinned to flow "${state.flowKey}" v${state.flowVersion}, got "${ctx.flow.key}" v${ctx.flow.version}`,
     );
   }
-  if (state.status !== "pending") {
+  if (!allowedStatuses(command.type).includes(state.status)) {
     throw new InvalidTransitionError({
       requestId: state.id,
       status: state.status,
@@ -83,6 +83,12 @@ export function decide(state: RequestState | null, command: Command, ctx: Engine
     case "approve":
     case "reject":
       return decideTask(state, command, ctx);
+    case "return":
+      return returnRequest(state, command, ctx);
+    case "resubmit":
+      return resubmitRequest(state, command, ctx);
+    case "withdraw":
+      return withdrawRequest(state, command, ctx);
     case "delegate":
       return delegateTask(state, command, ctx);
     case "reassign":
@@ -99,12 +105,6 @@ export function decide(state: RequestState | null, command: Command, ctx: Engine
 function submit(command: SubmitCommand, ctx: EngineContext): Decision {
   const { flow } = ctx;
   const payload = clone(command.payload);
-
-  // EC-41: evaluate every condition now, so an invalid one fails the requester's submit instead
-  // of blocking an approver later. Steps re-evaluate at activation (EC-38).
-  const applicable = flow.steps.filter(
-    (step) => step.when === undefined || evaluateCondition(step.when, payload),
-  );
 
   const state: RequestState = {
     id: command.requestId,
@@ -124,19 +124,10 @@ function submit(command: SubmitCommand, ctx: EngineContext): Decision {
   };
   const draft = startDraft(state, command.requesterId, ctx);
 
-  // EC-43: resolve every applicable step up front, so a step that could never run refuses the
-  // submit instead of blocking the request later. The results are not stored; each step is
-  // resolved again when it activates.
-  const needs = applicable
-    .filter((step) => ctx.resolutions?.[step.id] === undefined)
-    .map((step): ResolutionNeed => ({ key: step.id, stepId: step.id, spec: step.approvers }));
-  if (needs.length > 0) return { kind: "needs-resolution", needs };
-  for (const step of applicable) {
-    const plan = planStep(draft, step, ctx.resolutions?.[step.id] ?? { userIds: [] });
-    if (plan.kind === "block") {
-      throw new NoApproversError({ stepId: step.id, reason: plan.reason, removed: plan.removed });
-    }
-  }
+  // EC-41, EC-43: invalid conditions and steps that could never run refuse the submit instead of
+  // blocking an approver later. Steps re-evaluate and resolve again at activation (EC-38).
+  const pending = checkRunnable(draft, payload, 0);
+  if (pending) return pending;
 
   record(draft, "request.submitted", {
     flowKey: flow.key,
@@ -268,18 +259,7 @@ function overrideRequest(
   ctx: EngineContext,
 ): Decision {
   const draft = startDraft(state, command.adminId, ctx);
-  const instance = openStep(draft);
-  if (instance !== undefined) {
-    for (const task of instance.tasks) {
-      if (task.status !== "pending") continue;
-      task.status = "cancelled";
-      task.decidedAt = ctx.now;
-      record(draft, "task.cancelled", { taskId: task.id, stepId: instance.stepId });
-    }
-    instance.status = "cancelled";
-    instance.closedAt = ctx.now;
-    record(draft, "step.cancelled", { stepId: instance.stepId, stepIndex: instance.index });
-  }
+  cancelOpenStep(draft);
 
   const { state: next } = draft;
   next.status = command.decision === "approve" ? "approved" : "rejected";
@@ -289,6 +269,13 @@ function overrideRequest(
   if (command.decision === "approve") record(draft, "request.approved", data);
   else record(draft, "request.rejected", data);
   return finish(draft);
+}
+
+/** Statuses a command may act on: a returned request can only be resubmitted, withdrawn or overridden. */
+function allowedStatuses(type: Command["type"]): readonly RequestState["status"][] {
+  if (type === "resubmit") return ["returned"];
+  if (type === "withdraw" || type === "override") return ["pending", "returned"];
+  return ["pending"];
 }
 
 function blockedStep(
@@ -335,6 +322,26 @@ function validateCommand(command: Command): void {
       text(command.actorId, "actorId");
       if (command.comment !== undefined && typeof command.comment !== "string") {
         problems.push("comment must be a string");
+      }
+      break;
+    case "return":
+      text(command.requestId, "requestId");
+      text(command.actorId, "actorId");
+      if (command.to !== "requester") text(command.to?.stepId, "to.stepId");
+      if (command.comment !== undefined && typeof command.comment !== "string") {
+        problems.push("comment must be a string");
+      }
+      break;
+    case "resubmit":
+      text(command.requestId, "requestId");
+      text(command.actorId, "actorId");
+      if (command.payload !== undefined) problems.push(...jsonIssues(command.payload, "payload"));
+      break;
+    case "withdraw":
+      text(command.requestId, "requestId");
+      text(command.actorId, "actorId");
+      if (command.reason !== undefined && typeof command.reason !== "string") {
+        problems.push("reason must be a string");
       }
       break;
     case "delegate":

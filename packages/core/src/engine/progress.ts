@@ -142,6 +142,21 @@ export function stepOutcome(
   return "pending";
 }
 
+/** Cancels the open (active or blocked) step and its pending tasks: override and withdraw. */
+export function cancelOpenStep(draft: Draft): void {
+  const instance = openStep(draft);
+  if (instance === undefined) return;
+  for (const task of instance.tasks) {
+    if (task.status !== "pending") continue;
+    task.status = "cancelled";
+    task.decidedAt = draft.ctx.now;
+    record(draft, "task.cancelled", { taskId: task.id, stepId: instance.stepId });
+  }
+  instance.status = "cancelled";
+  instance.closedAt = draft.ctx.now;
+  record(draft, "step.cancelled", { stepId: instance.stepId, stepIndex: instance.index });
+}
+
 export function supersedeOpenTasks(draft: Draft, instance: StepInstance, byTaskId: string): void {
   for (const task of instance.tasks) {
     if (task.status !== "pending") continue;
@@ -154,7 +169,7 @@ export function supersedeOpenTasks(draft: Draft, instance: StepInstance, byTaskI
 export function closeStep(
   draft: Draft,
   instance: StepInstance,
-  outcome: "approved" | "rejected",
+  outcome: "approved" | "rejected" | "returned",
 ): void {
   instance.status = outcome;
   instance.closedAt = draft.ctx.now;
@@ -371,12 +386,11 @@ export function removedData(removed: RemovedApprover[]): { removed?: RemovedAppr
 /** EC-39: a request whose every step was skipped is approved, or refused with `onAllSkipped: "fail"`. */
 function completeApproved(draft: Draft): void {
   const { state, ctx } = draft;
-  const allSkipped = state.steps.every((instance) => instance.status === "skipped");
+  const current = state.steps.filter((instance) => instance.invalidatedAt === undefined);
+  const allSkipped = current.every((instance) => instance.status === "skipped");
+  const skippedStepIds = current.map((s) => s.stepId);
   if (allSkipped && ctx.flow.onAllSkipped === "fail") {
-    throw new FlowNotApplicableError({
-      flowKey: ctx.flow.key,
-      skippedStepIds: state.steps.map((s) => s.stepId),
-    });
+    throw new FlowNotApplicableError({ flowKey: ctx.flow.key, skippedStepIds });
   }
 
   state.status = "approved";
@@ -385,8 +399,6 @@ function completeApproved(draft: Draft): void {
   record(
     draft,
     "request.approved",
-    allSkipped
-      ? { reason: "all-steps-skipped", skippedStepIds: state.steps.map((s) => s.stepId) }
-      : { reason: "steps-approved" },
+    allSkipped ? { reason: "all-steps-skipped", skippedStepIds } : { reason: "steps-approved" },
   );
 }

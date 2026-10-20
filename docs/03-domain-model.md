@@ -109,7 +109,7 @@ Plain JSON. The engine never mutates it; every command returns a new state.
 | `subject` | `{ type: string; id: string }` | The host record being approved |
 | `requesterId` | string | |
 | `payload` | JSON | Snapshot at submit; used by conditions (EC-36). Must be plain JSON: no `undefined`, `NaN`, `Date` or class instances |
-| `status` | `"pending" \| "approved" \| "rejected" \| "returned" \| "withdrawn" \| "cancelled"` | |
+| `status` | `"pending" \| "approved" \| "rejected" \| "returned" \| "withdrawn" \| "cancelled"` | `returned` is open, not closed: the requester can resubmit or withdraw it, and an admin can override it. `closedAt` is set only for approved, rejected and withdrawn |
 | `currentStepIndex` | number \| null | Index of the active step; `null` when none is active |
 | `version` | number | Optimistic concurrency; `1` after submit, incremented by every command |
 | `submittedAt`, `closedAt` | ISO string | UTC |
@@ -132,6 +132,7 @@ activation and stored as a snapshot. A step can have several instances after a r
 | `skipReason` | `{ type: "condition-false"; condition } \| { type: "no-approvers" }`? | Why the step was skipped (EC-38, EC-02, EC-04) |
 | `blockReason` | `{ type: "no-approvers" } \| { type: "quorum-unreachable"; required; available }`? | Why the step is blocked (EC-42, EC-45) |
 | `activatedAt`, `skippedAt`, `blockedAt`, `closedAt` | ISO string? | `blockedAt` stays after the step is unblocked |
+| `invalidatedAt` | ISO string? | Set when the instance stops counting after a return or resubmit, because its step runs again (see below) |
 | `tasks` | Task[] | One per approver; none while blocked |
 | `deadlineAt`, `escalationDepth` | | Planned (1.7) |
 
@@ -167,6 +168,33 @@ A blocked step has no tasks, so nobody can approve or reject it. An admin resolv
 `reassign` (users the admin chooses; they pass the same checks and must satisfy the mode), `retry`
 (resolve the step's spec again; when it still has too few approvers the step stays blocked and only
 `step.retried` is recorded) or `override` (close the whole request).
+
+### Return and resubmit
+
+An approver with a pending task can `return` the request:
+
+- **To the requester** (EC-32). The task becomes `returned`, the other pending tasks of the step are
+  superseded, the step closes with outcome `returned` and the request becomes `returned`.
+- **To an earlier step that ran** (EC-33): `to: { stepId }`, a step with an approved instance that
+  still counts. That step activates again with freshly resolved approvers, and every later step
+  runs again after it. The request stays `pending`.
+
+The requester then `resubmit`s, optionally with a new payload (the flow version stays pinned,
+EC-37). Like submit, resubmit evaluates every condition against the payload and dry-runs the
+resolution of every step that will run (EC-41, EC-43). `returnPolicy` decides where it resumes:
+
+- `restart` (default): from the first step (EC-34).
+- `from-returned-step`: at the step that returned it; earlier approvals stand. This applies only
+  when the payload is unchanged (compared as JSON, ignoring key order). A changed payload restarts
+  from the first step, because earlier conditional steps must be evaluated again; the audit records
+  `applied: "restart"` with `payloadChanged: true` (EC-51).
+
+History is never rewritten. Instances of steps that run again keep their status and get
+`invalidatedAt`: they no longer carry approvals over (dedupe), no longer block delegation (EC-49)
+and are not part of the current run when deciding whether every step was skipped (EC-39).
+
+The requester can `withdraw` a pending or returned request at any time (EC-35): pending tasks and
+the open step become `cancelled` and the request becomes `withdrawn`.
 
 ## Task
 
@@ -237,12 +265,15 @@ Types and data (discriminated union `AuditEvent` in `@rungs/core`):
 | `request.submitted` | `flowKey`, `flowVersion`, `subject` |
 | `request.approved` | `reason: "steps-approved"`, `reason: "all-steps-skipped"` with `skippedStepIds` (EC-39), or `reason: "override"` with `comment` (EC-18) |
 | `request.rejected` | `reason: "step-rejected"` with `stepId`, or `reason: "override"` with `comment` (EC-18) |
+| `request.returned` | `stepId` (the step that returned it), `comment?` (EC-32) |
+| `request.resubmitted` | `returnPolicy`, `applied` (the policy actually used), `payloadChanged` (EC-34, EC-51) |
+| `request.withdrawn` | `comment?` (EC-35) |
 | `step.activated` | `stepId`, `stepIndex`, `approvers`, `removed?` |
 | `step.skipped` | `stepId`, `stepIndex`, `reason` (`condition-false` with the condition, or `no-approvers`), `removed?` |
 | `step.blocked` | `stepId`, `stepIndex`, `reason` (`no-approvers` or `quorum-unreachable`), `removed?` (EC-42) |
 | `step.reassigned` | `stepId`, `stepIndex`, `toUserIds`, `reason` (EC-46) |
 | `step.retried` | `stepId`, `stepIndex`, `result: "unblocked"`, or `result: "still-blocked"` with `reason` and `removed?` (EC-46) |
-| `step.completed` | `stepId`, `stepIndex`, `outcome: "approved" \| "rejected"` |
+| `step.completed` | `stepId`, `stepIndex`, `outcome: "approved" \| "rejected" \| "returned"` |
 | `step.cancelled` | `stepId`, `stepIndex` (override) |
 | `task.assigned` | `taskId`, `stepId`, `assigneeId`, `onBehalfOf?`, `chain?` (the out-of-office hops followed, from the first user to the assignee) |
 | `task.delegated` | `taskId`, `stepId`, `toTaskId`, `toUserId`, `reason?`, `returnedToOriginal?` (EC-25, EC-50) |
@@ -251,6 +282,7 @@ Types and data (discriminated union `AuditEvent` in `@rungs/core`):
 | `delegation.cycle_detected` | `stepId`, `userId` (the original approver), `chain` (EC-22) |
 | `task.deduplicated` | `taskId`, `stepId`, `assigneeId`, `ofTaskId` (the earlier approval that carries over, EC-03) |
 | `task.approved`, `task.rejected` | `taskId`, `stepId`, `comment?` |
+| `task.returned` | `taskId`, `stepId`, `to: "requester" \| { stepId }`, `comment?` (EC-32, EC-33) |
 | `task.superseded` | `taskId`, `stepId`, `byTaskId` |
 | `task.cancelled` | `taskId`, `stepId` (override) |
 

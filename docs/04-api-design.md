@@ -139,8 +139,14 @@ Commands:
 - `{ type: "retry", requestId, adminId, stepId }`: resolves a blocked step's spec again.
 - `{ type: "override", requestId, adminId, decision: "approve" | "reject", reason }`: closes the
   request; open tasks and the open step are cancelled (EC-18).
+- `{ type: "return", requestId, actorId, to: "requester" | { stepId }, comment? }`: the actor
+  needs a pending task; `stepId` must be an earlier step that ran (EC-32, EC-33).
+- `{ type: "resubmit", requestId, actorId, payload? }`: requester only; see `returnPolicy` in
+  `docs/03-domain-model.md` (EC-34, EC-51).
+- `{ type: "withdraw", requestId, actorId, reason? }`: requester only (EC-35).
 
-More commands come in later milestones. `decide` throws a `RungsError` when a command is not
+A returned request accepts only `resubmit`, `withdraw` and `override`; anything else is an
+`InvalidTransitionError`. `tick` comes in a later milestone. `decide` throws a `RungsError` when a command is not
 allowed and never changes its input. Task IDs are derived from the request ID, so the engine needs
 no ID generator. Rungs does not check that `adminId` is an admin; that is the host's job.
 
@@ -182,10 +188,12 @@ Emitted after a command commits (outbox-style; the store persists them in the sa
 
 ```
 request.submitted   request.approved   request.rejected   request.returned   request.withdrawn
+request.resubmitted
 step.activated      step.skipped       step.completed     step.blocked       step.reassigned
 step.retried        step.cancelled
 delegation.skipped  delegation.cycle_detected
-task.assigned       task.decided       task.superseded    task.deduplicated  task.cancelled
+task.assigned       task.decided       task.returned      task.superseded    task.deduplicated
+task.cancelled
 task.delegated      task.reassigned    task.reminder      task.expired
 request.escalated
 ```
@@ -204,7 +212,7 @@ All extend `RungsError` and expose a stable `code`.
 | `InvalidCommandError` | `COMMAND_INVALID` | Malformed command input (e.g. empty IDs, non-JSON payload, override without reason). The message names each problem |
 | `FlowNotApplicableError` | `FLOW_NOT_APPLICABLE` | Submit refused because every step was skipped and the flow uses `onAllSkipped: "fail"` (EC-39). Exposes `flowKey`, `skippedStepIds` |
 | `RequestNotFoundError` | `REQUEST_NOT_FOUND` | Unknown request |
-| `NotAssignedError` | `NOT_ASSIGNED` | Actor has no pending task on this request |
+| `NotAssignedError` | `NOT_ASSIGNED` | Actor has no pending task on this request, or is not the requester for `resubmit` / `withdraw` |
 | `InvalidTransitionError` | `INVALID_TRANSITION` | e.g. approving a closed request |
 | `ConflictError` | `VERSION_CONFLICT` | `expectedVersion` mismatch or concurrent write |
 | `ResolutionError` | `RESOLUTION_FAILED` | A host callback (role lookup, named resolver, `isActiveUser`) threw or returned invalid data (EC-05). Usually transient: nothing changed, so the command can be retried. The original error is in `cause`; exposes `stepId` |

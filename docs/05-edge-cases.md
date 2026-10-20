@@ -70,16 +70,17 @@ Tier: **Core** = MIT `@rungs/core`; **Pro** = `@rungs/org`.
 
 | ID | Situation | Default behavior | Config | Tier |
 | --- | --- | --- | --- | --- |
-| EC-32 | Approver returns the request to the requester | Status `returned`; requester can edit payload and `resubmit` | — | Core |
-| EC-33 | Approver returns to a previous step (not to the requester) | That step re-activates with freshly resolved approvers | — | Core |
-| EC-34 | After resubmit, which steps run again? | `restart`: all steps from the beginning | `returnPolicy: restart \| from-returned-step` | Core |
-| EC-35 | Requester withdraws while pending | Status `withdrawn`; all pending tasks `cancelled`; events emitted | — | Core |
+| EC-32 | Approver returns the request to the requester | Status `returned`; the task is `returned`, other pending tasks of the step are superseded. Only the requester can then `resubmit` (with an edited payload) or `withdraw`; an admin can override | — | Core |
+| EC-33 | Approver returns to a previous step (not to the requester) | That step re-activates with freshly resolved approvers and every later step runs again. The target must be an earlier step that ran; the replaced instances keep their history and get `invalidatedAt`, so their approvals no longer carry over | — | Core |
+| EC-34 | After resubmit, which steps run again? | `restart`: all steps from the beginning. `from-returned-step`: from the step that returned it, earlier approvals stand (only with an unchanged payload, EC-51). Resubmit checks conditions and approvers of every step that will run up front (EC-41, EC-43) | `returnPolicy: restart \| from-returned-step` | Core |
+| EC-35 | Requester withdraws while pending (or returned) | Status `withdrawn`; all pending tasks and the open step `cancelled`; events emitted. Only the requester can withdraw | — | Core |
 | EC-36 | Payload changes after submit outside Rungs | Ignored; conditions use the snapshot. Changing data requires return + resubmit | — | Core |
-| EC-37 | Flow definition changes while requests are in flight | In-flight requests keep their pinned `flowVersion` | — | Core |
+| EC-37 | Flow definition changes while requests are in flight | In-flight requests keep their pinned `flowVersion`, also across resubmit; a command with another version is refused | — | Core |
 | EC-38 | Conditional step (`when`) | Evaluated at step activation against the payload snapshot; false → `step.skipped` with reason | — | Core |
 | EC-39 | Every step is skipped (all conditions false or all empty) | Request is approved automatically; audit explains each skip. With `fail`, the submit is refused with `FlowNotApplicableError` and no request is created | `onAllSkipped: approve \| fail` | Core |
 | EC-40 | A comparison (`gt`, `gte`, `lt`, `lte`) in a condition meets a missing field or a value of the wrong type | Fail closed: `ConditionError` (`CONDITION_INVALID`) naming the field, expected and received type; no state change. `eq`/`neq`/`in`/`nin` on a missing field evaluate against `undefined`. All branches of `all`/`any` are evaluated so an error is never masked | — | Core |
-| EC-41 | A condition would fail with `ConditionError` on a step that activates later | Submit (and resubmit) evaluate every step condition up front, so the requester's command fails and no request is created; the approver of an earlier step is never blocked. Conditions are still evaluated at activation (EC-38) | — | Core |
+| EC-41 | A condition would fail with `ConditionError` on a step that activates later | Submit and resubmit evaluate every step condition up front, so the requester's command fails and nothing changes; the approver of an earlier step is never blocked. Conditions are still evaluated at activation (EC-38) | — | Core |
+| EC-51 | Resubmit under `from-returned-step` with a changed payload | Restarts from the first step instead, because earlier conditional steps must be evaluated again against the new data. The audit (`request.resubmitted`) records `applied: restart` and `payloadChanged: true`. Payloads are compared as JSON, ignoring key order | `returnPolicy` | Core |
 
 ## Adding a new case
 

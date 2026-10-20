@@ -66,6 +66,7 @@ export function followDelegations(start: string, ctx: DelegationContext): Delega
 export function decidedEarlier(previous: readonly StepInstance[]): Map<string, string> {
   const decided = new Map<string, string>();
   for (const instance of previous) {
+    if (instance.invalidatedAt !== undefined) continue;
     for (const task of instance.tasks) {
       if (task.status !== "approved" && task.status !== "skipped-duplicate") continue;
       if (!decided.has(task.assigneeId)) decided.set(task.assigneeId, instance.stepId);

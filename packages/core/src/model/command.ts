@@ -24,6 +24,32 @@ export interface RejectCommand {
   comment?: string;
 }
 
+/** Sends the request back to the requester, or back to an earlier step that ran (EC-32, EC-33). */
+export interface ReturnCommand {
+  type: "return";
+  requestId: string;
+  actorId: string;
+  to: "requester" | { stepId: string };
+  comment?: string;
+}
+
+/** The requester sends a returned request again, optionally with a new payload (EC-34). */
+export interface ResubmitCommand {
+  type: "resubmit";
+  requestId: string;
+  actorId: string;
+  /** Omitted: the payload stays as it was. */
+  payload?: JsonValue;
+}
+
+/** The requester withdraws a pending or returned request (EC-35). */
+export interface WithdrawCommand {
+  type: "withdraw";
+  requestId: string;
+  actorId: string;
+  reason?: string;
+}
+
 /** Hands the actor's pending task to a delegate (EC-25). */
 export interface DelegateCommand {
   type: "delegate";
@@ -77,6 +103,9 @@ export type Command =
   | SubmitCommand
   | ApproveCommand
   | RejectCommand
+  | ReturnCommand
+  | ResubmitCommand
+  | WithdrawCommand
   | DelegateCommand
   | ReassignStepCommand
   | ReassignTaskCommand

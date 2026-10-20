@@ -87,8 +87,13 @@ export class NotAssignedError extends RungsError {
   readonly requestId: string;
   readonly actorId: string;
 
-  constructor(details: { requestId: string; actorId: string }) {
-    super(`"${details.actorId}" has no pending task on request "${details.requestId}"`);
+  /** `role: "requester"` for commands only the requester may send (resubmit, withdraw). */
+  constructor(details: { requestId: string; actorId: string; role?: "requester" }) {
+    super(
+      details.role === "requester"
+        ? `"${details.actorId}" is not the requester of request "${details.requestId}"`
+        : `"${details.actorId}" has no pending task on request "${details.requestId}"`,
+    );
     this.name = "NotAssignedError";
     this.requestId = details.requestId;
     this.actorId = details.actorId;

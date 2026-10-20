@@ -1,4 +1,5 @@
 import type { DelegationSkipReason } from "./delegation.js";
+import type { ReturnPolicy } from "./flow.js";
 import type { ApproverShortfall, RemovedApprover, SkipReason, Subject } from "./state.js";
 
 interface TaskData {
@@ -41,6 +42,13 @@ export type AuditEventBody =
       type: "request.rejected";
       data: { reason: "step-rejected"; stepId: string } | { reason: "override"; comment: string };
     }
+  | { type: "request.returned"; data: { stepId: string; comment?: string } }
+  | {
+      type: "request.resubmitted";
+      /** `applied` differs from `returnPolicy` when a changed payload forced a restart (EC-51). */
+      data: { returnPolicy: ReturnPolicy; applied: ReturnPolicy; payloadChanged: boolean };
+    }
+  | { type: "request.withdrawn"; data: { comment?: string } }
   | { type: "step.activated"; data: StepData & RemovedData & { approvers: string[] } }
   | { type: "step.skipped"; data: StepData & RemovedData & { reason: SkipReason } }
   | { type: "step.blocked"; data: StepData & RemovedData & { reason: ApproverShortfall } }
@@ -53,7 +61,7 @@ export type AuditEventBody =
           | ({ result: "still-blocked"; reason: ApproverShortfall } & RemovedData)
         );
     }
-  | { type: "step.completed"; data: StepData & { outcome: "approved" | "rejected" } }
+  | { type: "step.completed"; data: StepData & { outcome: "approved" | "rejected" | "returned" } }
   | { type: "step.cancelled"; data: StepData }
   | {
       type: "task.assigned";
@@ -70,6 +78,10 @@ export type AuditEventBody =
   | { type: "task.deduplicated"; data: TaskData & { assigneeId: string; ofTaskId: string } }
   | { type: "task.approved"; data: DecisionData }
   | { type: "task.rejected"; data: DecisionData }
+  | {
+      type: "task.returned";
+      data: DecisionData & { to: "requester" | { stepId: string } };
+    }
   | { type: "task.superseded"; data: TaskData & { byTaskId: string } }
   | { type: "task.cancelled"; data: TaskData };
 

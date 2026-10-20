@@ -89,6 +89,11 @@ export interface StepInstance {
   skippedAt?: string;
   blockedAt?: string;
   closedAt?: string;
+  /**
+   * Set when the instance stops counting after a return or a resubmit: its step will run again,
+   * so its approvals no longer carry over (dedupe) or block delegation (EC-33, EC-34).
+   */
+  invalidatedAt?: string;
   skipReason?: SkipReason;
   blockReason?: ApproverShortfall;
   /** Snapshot of the approvers resolved at activation, after removals. */
