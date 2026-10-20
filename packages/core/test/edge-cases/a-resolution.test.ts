@@ -6,6 +6,7 @@ import {
   NoApproversError,
   NotAssignedError,
   type RegisteredFlow,
+  type RequestState,
   ResolutionError,
   type StepInput,
 } from "../../src/index.js";
@@ -34,6 +35,8 @@ const flow = (overrides: Partial<FlowInput> = {}, steps = [managerStep, financeS
   registeredFlow({ key: "expense", steps, ...overrides });
 
 const ok = { manager: ["u_mgr"], finance: ["u_fin"] };
+
+const users = (...ids: string[]) => ({ type: "users" as const, ids });
 
 /** Submits with every step resolvable, then lets `approve("u_mgr")` meet `finance` approvers. */
 function blockFinance(finance: string[], target: RegisteredFlow = flow()) {
@@ -142,10 +145,13 @@ describe("A. Approver resolution", () => {
     ];
 
     it("EC-03 an approver of the previous step is auto-approved as skipped-duplicate", () => {
-      const target = flow({}, steps());
+      const target = flow({}, [
+        steps()[0] as StepInput,
+        { id: "finance", approvers: users("u_mgr") },
+      ]);
       const { state, audit } = runAll([submitCommand(), approve("u_mgr")], { flow: target });
       expect(state.status).toBe("approved");
-      expect(state.steps[1]).toMatchObject({ status: "approved", approvers: ["u_mgr", "u_fin"] });
+      expect(state.steps[1]).toMatchObject({ status: "approved", approvers: ["u_mgr"] });
       expect(state.steps[1]?.tasks.map((t) => [t.id, t.assigneeId, t.status])).toEqual([
         ["r1.t2", "u_mgr", "skipped-duplicate"],
       ]);
@@ -237,6 +243,91 @@ describe("A. Approver resolution", () => {
       expect(state.steps[1]?.tasks.map((t) => [t.assigneeId, t.status])).toEqual([
         ["u_b", "pending"],
       ]);
+    });
+
+    describe("separation of duties", () => {
+      const twoSteps = (finance: StepInput) =>
+        flow({}, [{ id: "manager", approvers: users("u_a", "u_b"), mode: "all" }, finance]);
+      const approved = [submitCommand(), approve("u_a"), approve("u_b")];
+      const statuses = (state: RequestState) =>
+        state.steps[1]?.tasks.map((t) => [t.assigneeId, t.status]);
+
+      it("EC-47 in mode any a carried-over approval does not close the step while others can decide", () => {
+        const target = twoSteps({ id: "finance", approvers: users("u_a", "u_fin") });
+        const { state } = runAll(approved, { flow: target });
+        expect(state.steps[1]?.status).toBe("active");
+        expect(statuses(state)).toEqual([
+          ["u_a", "skipped-duplicate"],
+          ["u_fin", "pending"],
+        ]);
+        expect(runAll([...approved, approve("u_fin")], { flow: target }).state.status).toBe(
+          "approved",
+        );
+        expect(runAll([...approved, reject("u_fin")], { flow: target }).state.status).toBe(
+          "rejected",
+        );
+      });
+
+      it("EC-47 the only approvers left are all carried over: the step is approved at once", () => {
+        const target = twoSteps({ id: "finance", approvers: users("u_a", "u_b"), mode: "all" });
+        const { state } = runAll(approved, { flow: target });
+        expect(state.status).toBe("approved");
+        expect(statuses(state)).toEqual([
+          ["u_a", "skipped-duplicate"],
+          ["u_b", "skipped-duplicate"],
+        ]);
+      });
+
+      it("EC-47 in a quorum step carried-over votes count but one fresh approval is required", () => {
+        const target = twoSteps({
+          id: "finance",
+          approvers: users("u_a", "u_b", "u_c"),
+          mode: { quorum: 2 },
+        });
+        const waiting = runAll(approved, { flow: target });
+        expect(waiting.state.steps[1]?.status).toBe("active");
+        expect(runAll([...approved, approve("u_c")], { flow: target }).state.status).toBe(
+          "approved",
+        );
+        const rejected = runAll([...approved, reject("u_c")], { flow: target });
+        expect(rejected.state.status).toBe("rejected");
+        expect(rejected.state.steps[1]?.status).toBe("rejected");
+      });
+
+      it("EC-47 in a quorum step a carried-over vote is one vote; the rest come from fresh decisions", () => {
+        const target = flow({}, [
+          { id: "manager", approvers: users("u_a") },
+          { id: "finance", approvers: users("u_a", "u_c", "u_d"), mode: { quorum: 3 } },
+        ]);
+        const start = [submitCommand(), approve("u_a"), approve("u_c")];
+        expect(runAll(start, { flow: target }).state.steps[1]?.status).toBe("active");
+        expect(runAll([...start, approve("u_d")], { flow: target }).state.status).toBe("approved");
+      });
+
+      it("EC-47 the same rule applies to users chosen by reassign", () => {
+        const target = flow({}, [
+          { id: "manager", approvers: users("u_mgr") },
+          { id: "finance", approvers: { type: "role", role: "finance" } },
+        ]);
+        const submitted = run(null, submitCommand(), {
+          flow: target,
+          approvers: { finance: ["u_fin"] },
+        });
+        const blocked = run(submitted.state, approve("u_mgr"), {
+          flow: target,
+          approvers: { finance: [] },
+        }).state;
+
+        const withOther = run(blocked, reassignStep("finance", ["u_mgr", "u_x"]), { flow: target });
+        expect(withOther.state.steps[1]?.status).toBe("active");
+        expect(statuses(withOther.state)).toEqual([
+          ["u_mgr", "skipped-duplicate"],
+          ["u_x", "pending"],
+        ]);
+
+        const alone = run(blocked, reassignStep("finance", ["u_mgr"]), { flow: target });
+        expect(alone.state.status).toBe("approved");
+      });
     });
 
     it("EC-44 the same user reached twice through a union gets a single task", async () => {

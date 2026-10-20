@@ -141,9 +141,15 @@ through a `union` gets one task, EC-44), remove inactive users (EC-06), remove t
 `allowSelfApproval` (EC-01), then dedupe against earlier steps (EC-03). With `dedupeApprovers:
 "consecutive"` (default) a user who approved the previous step that ran (skipped steps do not count)
 gets a `skipped-duplicate` task that counts as an approval; `"all"` looks at every earlier step,
-`"none"` turns this off. Only real approvals carry over: a superseded approver is asked again. When
-the carried-over approvals already satisfy the step's mode, the step is approved at once and the
-other approvers get no task.
+`"none"` turns this off. Only real approvals carry over: a superseded approver is asked again.
+
+A carried-over vote never closes a step on its own while the step has other approvers (EC-47). The
+reason is separation of duties (the four-eyes principle): dedupe exists so nobody has to approve the
+same thing twice, not so that one person can push a request through two levels alone. So the other
+approvers always get tasks and at least one of them must approve; in a quorum step each
+carried-over vote counts once and the rest come from fresh decisions. Only when every approver of
+the step is carried over (nobody else could decide) is the step approved at once. The same rule
+applies to users chosen by `reassign`.
 
 The step then needs enough approvers for its mode: at least one, and at least `quorum` for a quorum
 step. When it has too few:

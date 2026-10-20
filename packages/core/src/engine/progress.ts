@@ -105,7 +105,8 @@ export function activeStep(draft: Draft): StepInstance | undefined {
  * EC-12: in mode "any" the first decision, approve or reject, decides the step.
  * EC-13, EC-14: "all" and quorum steps are approved once enough approvals arrive and rejected as
  * soon as the remaining pending tasks can no longer reach the quorum. Carried-over approvals
- * (`skipped-duplicate`, EC-03) count as approvals.
+ * (`skipped-duplicate`, EC-03) count as votes, but while the step has other approvers at least
+ * one of them must approve (EC-47, separation of duties).
  */
 export function stepOutcome(
   draft: Draft,
@@ -120,8 +121,13 @@ export function stepOutcome(
     (t) => t.status === "approved" || t.status === "skipped-duplicate",
   ).length;
   const pending = instance.tasks.filter((t) => t.status === "pending").length;
-  if (approvals >= required) return "approved";
-  if (decision !== undefined && approvals + pending < required) return "rejected";
+  const needsFresh = instance.tasks.some((t) => t.status !== "skipped-duplicate");
+  const fresh = instance.tasks.filter((t) => t.status === "approved").length;
+  if (approvals >= required && (!needsFresh || fresh > 0)) return "approved";
+  if (decision === undefined) return "pending";
+  if (approvals + pending < required || (needsFresh && fresh === 0 && pending === 0)) {
+    return "rejected";
+  }
   return "pending";
 }
 
@@ -163,8 +169,9 @@ function place(draft: Draft, instance: StepInstance): void {
 
 /**
  * Activates the step with its tasks. Approvers who already approved earlier get a
- * `skipped-duplicate` task (EC-03); when those carried-over approvals are enough, the step is
- * approved at once and nobody else is asked. Returns true when the step closed that way.
+ * `skipped-duplicate` task that counts as their vote (EC-03). The step is approved at once only
+ * when every approver is carried over; otherwise someone else must decide (EC-47).
+ * Returns true when the step closed that way.
  */
 function activate(
   draft: Draft,
@@ -188,10 +195,7 @@ function activate(
     ...removedData(removed),
   });
 
-  const duplicates = approvers.filter((id) => carried.has(id));
-  const mode = ctx.flow.steps[instance.index]?.mode ?? "any";
-  const decidedByDuplicates = duplicates.length >= requiredApprovals(mode, approvers.length);
-  for (const assigneeId of decidedByDuplicates ? duplicates : approvers) {
+  for (const assigneeId of approvers) {
     state.lastTaskNumber += 1;
     const taskId = `${state.id}.t${state.lastTaskNumber}`;
     const ofTaskId = carried.get(assigneeId);
@@ -210,7 +214,7 @@ function activate(
     record(draft, "task.deduplicated", { taskId, stepId: instance.stepId, assigneeId, ofTaskId });
   }
 
-  if (!decidedByDuplicates) return false;
+  if (!approvers.every((id) => carried.has(id))) return false;
   closeStep(draft, instance, "approved");
   return true;
 }
