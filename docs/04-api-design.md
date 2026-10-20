@@ -89,6 +89,10 @@ await rungs.delegate({ taskId, actorId: "u_08", toUserId: "u_09", reason: "Trave
 await rungs.reassign({ taskId, adminId: "u_admin", toUserId: "u_11", reason: "Approver left company" });
 await rungs.override({ requestId: req.id, adminId: "u_admin", decision: "approve", reason: "Board decision" });
 
+// A blocked step (EC-42): no approvers were left when it activated
+await rungs.reassign({ requestId: req.id, stepId: "hr", adminId: "u_admin", toUserIds: ["u_12"], reason: "HR lead on leave" });
+await rungs.retry({ requestId: req.id, stepId: "hr", adminId: "u_admin" }); // after fixing org/role data
+
 await rungs.tick();   // process deadlines, reminders, timeouts; safe to run on a schedule
 ```
 
@@ -111,13 +115,31 @@ if (decision.kind === "needs-resolution") {
 }
 ```
 
-Commands: `{ type: "submit", requestId, requesterId, subject, payload, tenantId? }`,
-`{ type: "approve" | "reject", requestId, actorId, comment? }` (more in later milestones).
-`decide` throws a `RungsError` when a command is not allowed and never changes its input. Task IDs
-are derived from the request ID, so the engine needs no ID generator.
+Commands:
+
+- `{ type: "submit", requestId, requesterId, subject, payload, tenantId? }`
+- `{ type: "approve" | "reject", requestId, actorId, comment? }`
+- `{ type: "reassign", requestId, adminId, stepId, toUserIds, reason }`: gives a blocked step to
+  users the admin chose. They pass the same checks as resolved approvers; a chosen user who is
+  inactive or the requester (without `allowSelfApproval`), or too few users for the step's mode,
+  refuses the command with `InvalidCommandError` naming each problem.
+- `{ type: "retry", requestId, adminId, stepId }`: resolves a blocked step's spec again.
+- `{ type: "override", requestId, adminId, decision: "approve" | "reject", reason }`: closes the
+  request; open tasks and the open step are cancelled (EC-18).
+
+More commands come in later milestones. `decide` throws a `RungsError` when a command is not
+allowed and never changes its input. Task IDs are derived from the request ID, so the engine needs
+no ID generator. Rungs does not check that `adminId` is an admin; that is the host's job.
+
+A resolution is `{ userIds, inactiveUserIds? }`: the raw users the spec resolved to, and which of
+them the host's `isActiveUser` reported inactive. The engine removes inactive users and the
+requester itself and records why. The `reassign` need has the key `reassign:<stepId>` and a `users`
+spec with the chosen users, so the service only checks whether they are active.
 
 On submit the engine evaluates every step condition once against the payload, so an invalid
-condition fails the requester's submit instead of blocking an approver later (EC-41).
+condition fails the requester's submit instead of blocking an approver later (EC-41). It then asks
+for the approvers of every applicable step at once and refuses the submit with `NoApproversError`
+when one of them could never run (EC-43). Mid-flow, such a step is blocked instead (EC-42).
 
 ## Queries
 
@@ -144,9 +166,10 @@ Emitted after a command commits (outbox-style; the store persists them in the sa
 
 ```
 request.submitted   request.approved   request.rejected   request.returned   request.withdrawn
-step.activated      step.skipped       step.completed
-task.assigned       task.decided       task.superseded    task.delegated     task.reminder
-task.expired
+step.activated      step.skipped       step.completed     step.blocked       step.reassigned
+step.retried        step.cancelled
+task.assigned       task.decided       task.superseded    task.deduplicated  task.cancelled
+task.delegated      task.reminder      task.expired
 request.escalated
 ```
 
@@ -167,7 +190,8 @@ All extend `RungsError` and expose a stable `code`.
 | `NotAssignedError` | `NOT_ASSIGNED` | Actor has no pending task on this request |
 | `InvalidTransitionError` | `INVALID_TRANSITION` | e.g. approving a closed request |
 | `ConflictError` | `VERSION_CONFLICT` | `expectedVersion` mismatch or concurrent write |
-| `ResolutionError` | `RESOLUTION_FAILED` | Resolver threw, or a step is empty with `onEmptyStep: "fail"` |
+| `ResolutionError` | `RESOLUTION_FAILED` | A host callback (role lookup, named resolver, `isActiveUser`) threw or returned invalid data (EC-05). Usually transient: nothing changed, so the command can be retried. The original error is in `cause`; exposes `stepId` |
+| `NoApproversError` | `NO_APPROVERS` | Submit refused because a step has no approvers (`onEmptyStep: "fail"`) or cannot reach its quorum (EC-02, EC-04, EC-43, EC-45). A configuration or data problem: retrying will not help. Exposes `stepId`, `reason`, `removed` |
 | `ConditionError` | `CONDITION_INVALID` | A `gt`/`gte`/`lt`/`lte` condition meets a missing field or a type mismatch (EC-40). Exposes `field`, `op`, `expected`, `received` |
 
 Note: Rungs checks **workflow routing** (is this actor assigned?), not **authentication**.

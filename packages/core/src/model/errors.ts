@@ -1,4 +1,5 @@
 import type { ComparisonOperator } from "./flow.js";
+import type { ApproverShortfall, RemovedApprover } from "./state.js";
 
 /** Base class for every error thrown by Rungs. `code` is stable and safe to branch on. */
 export abstract class RungsError extends Error {
@@ -112,18 +113,49 @@ export class InvalidTransitionError extends RungsError {
   }
 }
 
-export type ResolutionFailure = "no-approvers";
-
+/**
+ * A host callback (role lookup, named resolver, `isActiveUser`) threw or returned invalid data
+ * (EC-05). Nothing changed, so the command can be retried; the original error is in `cause`.
+ */
 export class ResolutionError extends RungsError {
   readonly code = "RESOLUTION_FAILED";
   readonly stepId: string;
-  readonly reason: ResolutionFailure;
 
-  constructor(details: { stepId: string; reason: ResolutionFailure }) {
-    super(`Step "${details.stepId}" has no approvers and the flow uses onEmptyStep "fail"`);
+  constructor(details: { stepId: string; cause: unknown }) {
+    const detail = details.cause instanceof Error ? details.cause.message : String(details.cause);
+    super(`Resolving the approvers of step "${details.stepId}" failed: ${detail}`, {
+      cause: details.cause,
+    });
     this.name = "ResolutionError";
     this.stepId = details.stepId;
+  }
+}
+
+/**
+ * A step resolved to too few approvers when the request was submitted (EC-02, EC-04, EC-43,
+ * EC-45). This is a configuration or data problem: retrying the same command will not help.
+ */
+export class NoApproversError extends RungsError {
+  readonly code = "NO_APPROVERS";
+  readonly stepId: string;
+  readonly reason: ApproverShortfall;
+  readonly removed: readonly RemovedApprover[];
+
+  constructor(details: {
+    stepId: string;
+    reason: ApproverShortfall;
+    removed: readonly RemovedApprover[];
+  }) {
+    const problem =
+      details.reason.type === "no-approvers"
+        ? "has no approvers"
+        : `needs ${details.reason.required} approvers but resolved to ${details.reason.available}`;
+    const removed = details.removed.map((r) => `"${r.userId}" (${r.reason})`).join(", ");
+    super(`Step "${details.stepId}" ${problem}${removed ? `; removed: ${removed}` : ""}`);
+    this.name = "NoApproversError";
+    this.stepId = details.stepId;
     this.reason = details.reason;
+    this.removed = details.removed;
   }
 }
 

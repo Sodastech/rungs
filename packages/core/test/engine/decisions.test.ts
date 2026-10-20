@@ -60,6 +60,7 @@ describe("sequential approval", () => {
       "request.rejected",
     ]);
     expect(audit[1]?.data).toEqual({ stepId: "finance", stepIndex: 1, outcome: "rejected" });
+    expect(audit[2]?.data).toEqual({ reason: "step-rejected", stepId: "finance" });
     expect(events.map((e) => e.type)).toEqual([
       "task.decided",
       "step.completed",

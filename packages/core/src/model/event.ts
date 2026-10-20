@@ -1,4 +1,4 @@
-import type { SkipReason, Subject } from "./state.js";
+import type { ApproverShortfall, RemovedApprover, SkipReason, Subject } from "./state.js";
 
 interface TaskData {
   taskId: string;
@@ -9,6 +9,16 @@ interface DecisionData extends TaskData {
   comment?: string;
 }
 
+interface StepData {
+  stepId: string;
+  stepIndex: number;
+}
+
+/** Present only when the resolution removed someone (EC-01, EC-06). */
+interface RemovedData {
+  removed?: RemovedApprover[];
+}
+
 /** Type and data of every audit event, discriminated by `type`. */
 export type AuditEventBody =
   | { type: "request.submitted"; data: { flowKey: string; flowVersion: number; subject: Subject } }
@@ -16,19 +26,33 @@ export type AuditEventBody =
       type: "request.approved";
       data:
         | { reason: "steps-approved" }
-        | { reason: "all-steps-skipped"; skippedStepIds: string[] };
+        | { reason: "all-steps-skipped"; skippedStepIds: string[] }
+        | { reason: "override"; comment: string };
     }
-  | { type: "request.rejected"; data: { stepId: string } }
-  | { type: "step.activated"; data: { stepId: string; stepIndex: number; approvers: string[] } }
-  | { type: "step.skipped"; data: { stepId: string; stepIndex: number; reason: SkipReason } }
   | {
-      type: "step.completed";
-      data: { stepId: string; stepIndex: number; outcome: "approved" | "rejected" };
+      type: "request.rejected";
+      data: { reason: "step-rejected"; stepId: string } | { reason: "override"; comment: string };
     }
+  | { type: "step.activated"; data: StepData & RemovedData & { approvers: string[] } }
+  | { type: "step.skipped"; data: StepData & RemovedData & { reason: SkipReason } }
+  | { type: "step.blocked"; data: StepData & RemovedData & { reason: ApproverShortfall } }
+  | { type: "step.reassigned"; data: StepData & { toUserIds: string[]; reason: string } }
+  | {
+      type: "step.retried";
+      data: StepData &
+        (
+          | { result: "unblocked" }
+          | ({ result: "still-blocked"; reason: ApproverShortfall } & RemovedData)
+        );
+    }
+  | { type: "step.completed"; data: StepData & { outcome: "approved" | "rejected" } }
+  | { type: "step.cancelled"; data: StepData }
   | { type: "task.assigned"; data: TaskData & { assigneeId: string } }
+  | { type: "task.deduplicated"; data: TaskData & { assigneeId: string; ofTaskId: string } }
   | { type: "task.approved"; data: DecisionData }
   | { type: "task.rejected"; data: DecisionData }
-  | { type: "task.superseded"; data: TaskData & { byTaskId: string } };
+  | { type: "task.superseded"; data: TaskData & { byTaskId: string } }
+  | { type: "task.cancelled"; data: TaskData };
 
 export type AuditEventType = AuditEventBody["type"];
 

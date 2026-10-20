@@ -26,7 +26,14 @@ export type RequestStatus =
   | "returned"
   | "withdrawn"
   | "cancelled";
-export type StepStatus = "active" | "skipped" | "approved" | "rejected" | "returned" | "cancelled";
+export type StepStatus =
+  | "active"
+  | "blocked"
+  | "skipped"
+  | "approved"
+  | "rejected"
+  | "returned"
+  | "cancelled";
 export type TaskStatus =
   | "pending"
   | "approved"
@@ -42,6 +49,19 @@ export type SkipReason =
   | { type: "condition-false"; condition: Condition }
   | { type: "no-approvers" };
 
+/** Why a resolved user is not an approver of a step (EC-01, EC-06). */
+export type RemovalReason = "inactive" | "requester";
+
+export interface RemovedApprover {
+  userId: string;
+  reason: RemovalReason;
+}
+
+/** Why a step cannot be activated with the approvers it resolved to (EC-02, EC-04, EC-45). */
+export type ApproverShortfall =
+  | { type: "no-approvers" }
+  | { type: "quorum-unreachable"; required: number; available: number };
+
 export interface Task {
   /** Derived from the request id: `${requestId}.t${n}`. */
   id: string;
@@ -55,7 +75,10 @@ export interface Task {
   comment?: string;
 }
 
-/** One activation (or skip) of a step. A step can appear more than once after a return. */
+/**
+ * One activation (or skip) of a step. A step can appear more than once after a return.
+ * A `blocked` step resolved to too few approvers mid-flow and waits for an admin (EC-42).
+ */
 export interface StepInstance {
   stepId: string;
   /** Position of the step in the pinned flow definition. */
@@ -63,10 +86,14 @@ export interface StepInstance {
   status: StepStatus;
   activatedAt?: string;
   skippedAt?: string;
+  blockedAt?: string;
   closedAt?: string;
   skipReason?: SkipReason;
-  /** Snapshot of the approvers resolved at activation. */
+  blockReason?: ApproverShortfall;
+  /** Snapshot of the approvers resolved at activation, after removals. */
   approvers: string[];
+  /** Resolved users who were removed, with the reason. Absent when nobody was removed. */
+  removed?: RemovedApprover[];
   tasks: Task[];
 }
 

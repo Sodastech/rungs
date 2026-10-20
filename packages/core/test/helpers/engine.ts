@@ -5,9 +5,12 @@ import {
   decide,
   defineFlow,
   type FlowInput,
+  type OverrideCommand,
+  type ReassignStepCommand,
   type RegisteredFlow,
   type RejectCommand,
   type RequestState,
+  type RetryStepCommand,
   type StepResolution,
   type SubmitCommand,
 } from "../../src/index.js";
@@ -54,11 +57,32 @@ export function reject(actorId: string, comment?: string): RejectCommand {
   return { type: "reject", requestId: "r1", actorId, ...(comment ? { comment } : {}) };
 }
 
+export function reassignStep(
+  stepId: string,
+  toUserIds: string[],
+  reason = "Approver on leave",
+): ReassignStepCommand {
+  return { type: "reassign", requestId: "r1", adminId: "u_admin", stepId, toUserIds, reason };
+}
+
+export function retryStep(stepId: string): RetryStepCommand {
+  return { type: "retry", requestId: "r1", adminId: "u_admin", stepId };
+}
+
+export function override(
+  decision: "approve" | "reject",
+  reason = "Board decision",
+): OverrideCommand {
+  return { type: "override", requestId: "r1", adminId: "u_admin", decision, reason };
+}
+
 export interface RunOptions {
   flow?: RegisteredFlow;
   now?: string;
-  /** Approvers per step id. Steps with a static `users` spec default to their ids. */
+  /** Approvers per need key (the step id). Static `users` specs default to their ids. */
   approvers?: Record<string, readonly string[]>;
+  /** Users reported inactive by the host. */
+  inactive?: readonly string[];
 }
 
 /**
@@ -77,11 +101,11 @@ export function run(
     if (decision.kind === "decided") return decision;
     for (const need of decision.needs) {
       const userIds =
-        options.approvers?.[need.stepId] ??
-        (need.spec.type === "users" ? need.spec.ids : undefined);
-      if (userIds === undefined)
-        throw new Error(`test gave no approvers for step "${need.stepId}"`);
-      resolutions[need.key] = { userIds };
+        options.approvers?.[need.key] ?? (need.spec.type === "users" ? need.spec.ids : undefined);
+      if (userIds === undefined) throw new Error(`test gave no approvers for need "${need.key}"`);
+      const inactiveUserIds = userIds.filter((id) => options.inactive?.includes(id));
+      resolutions[need.key] =
+        inactiveUserIds.length > 0 ? { userIds, inactiveUserIds } : { userIds };
     }
   }
   throw new Error("resolution loop did not converge");

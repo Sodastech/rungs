@@ -1,15 +1,50 @@
 import { evaluateCondition } from "../flow/condition.js";
-import type { ResolutionNeed } from "../model/decision.js";
-import { FlowNotApplicableError, ResolutionError } from "../model/errors.js";
+import type { ResolutionNeed, StepResolution } from "../model/decision.js";
+import { FlowNotApplicableError } from "../model/errors.js";
 import type { StepDefinition } from "../model/flow.js";
-import type { SkipReason, StepInstance } from "../model/state.js";
+import type {
+  ApproverShortfall,
+  RemovedApprover,
+  SkipReason,
+  StepInstance,
+} from "../model/state.js";
+import {
+  carriedApprovals,
+  eligibleApprovers,
+  requiredApprovals,
+  shortfall,
+} from "../resolution/pipeline.js";
 import { clone, type Draft, record } from "./draft.js";
+
+/** What resolving a step leads to, before anything is recorded. */
+export type StepPlan =
+  | { kind: "activate"; approvers: string[]; removed: RemovedApprover[] }
+  | { kind: "skip"; removed: RemovedApprover[] }
+  | { kind: "block"; reason: ApproverShortfall; removed: RemovedApprover[] };
+
+/**
+ * Runs the pure resolution pipeline for one step. Too few approvers skips the step only when it is
+ * empty and the flow uses `onEmptyStep: "skip"`; otherwise the step cannot run (EC-02, EC-45).
+ */
+export function planStep(draft: Draft, step: StepDefinition, resolution: StepResolution): StepPlan {
+  const { flow } = draft.ctx;
+  const { approvers, removed } = eligibleApprovers(
+    resolution,
+    draft.state.requesterId,
+    flow.allowSelfApproval,
+  );
+  const reason = shortfall(step.mode, approvers.length);
+  if (reason === null) return { kind: "activate", approvers, removed };
+  if (reason.type === "no-approvers" && flow.onEmptyStep === "skip")
+    return { kind: "skip", removed };
+  return { kind: "block", reason, removed };
+}
 
 /**
  * Activates the first step from `fromIndex` that applies: steps whose condition is false (EC-38)
- * or that resolve to nobody under `onEmptyStep: "skip"` (EC-04) are skipped with a reason.
- * Returns a need when approvers have not been resolved yet. Approves the request when no steps
- * remain.
+ * or that resolve to nobody under `onEmptyStep: "skip"` (EC-04) are skipped with a reason, and a
+ * step that cannot run is blocked (EC-42). Returns a need when approvers have not been resolved
+ * yet. Approves the request when no steps remain.
  */
 export function advance(draft: Draft, fromIndex: number): ResolutionNeed | null {
   const { flow, resolutions } = draft.ctx;
@@ -17,32 +52,86 @@ export function advance(draft: Draft, fromIndex: number): ResolutionNeed | null 
     const step = flow.steps[index] as StepDefinition;
 
     if (step.when !== undefined && !evaluateCondition(step.when, draft.state.payload)) {
-      skip(draft, step, index, { type: "condition-false", condition: step.when });
+      skip(draft, newInstance(step, index), { type: "condition-false", condition: step.when }, []);
       continue;
     }
 
     const resolution = resolutions?.[step.id];
     if (resolution === undefined) return { key: step.id, stepId: step.id, spec: step.approvers };
 
-    const approvers = [...new Set(resolution.userIds)];
-    if (approvers.length === 0) {
-      if (flow.onEmptyStep === "fail") {
-        throw new ResolutionError({ stepId: step.id, reason: "no-approvers" });
-      }
-      skip(draft, step, index, { type: "no-approvers" });
+    const instance = newInstance(step, index);
+    const plan = planStep(draft, step, resolution);
+    if (plan.kind === "skip") {
+      skip(draft, instance, { type: "no-approvers" }, plan.removed);
       continue;
     }
-
-    activate(draft, step, index, approvers);
-    return null;
+    if (plan.kind === "block") {
+      block(draft, instance, plan.reason, plan.removed);
+      return null;
+    }
+    if (!activate(draft, instance, plan.approvers, plan.removed)) return null;
   }
 
   completeApproved(draft);
   return null;
 }
 
+/** Continues after a step instance that is already part of the state, e.g. once unblocked. */
+export function resume(
+  draft: Draft,
+  instance: StepInstance,
+  plan: StepPlan,
+): ResolutionNeed | null {
+  if (plan.kind === "block") throw new Error("resume needs a step that can run");
+  if (plan.kind === "skip") {
+    skip(draft, instance, { type: "no-approvers" }, plan.removed);
+    return advance(draft, instance.index + 1);
+  }
+  if (!activate(draft, instance, plan.approvers, plan.removed)) return null;
+  return advance(draft, instance.index + 1);
+}
+
+/** The step currently waiting for decisions or for an admin, if any. */
+export function openStep(draft: Draft): StepInstance | undefined {
+  return draft.state.steps.findLast((s) => s.status === "active" || s.status === "blocked");
+}
+
 export function activeStep(draft: Draft): StepInstance | undefined {
-  return draft.state.steps.findLast((instance) => instance.status === "active");
+  const instance = openStep(draft);
+  return instance?.status === "active" ? instance : undefined;
+}
+
+/**
+ * EC-12: in mode "any" the first decision, approve or reject, decides the step.
+ * EC-13, EC-14: "all" and quorum steps are approved once enough approvals arrive and rejected as
+ * soon as the remaining pending tasks can no longer reach the quorum. Carried-over approvals
+ * (`skipped-duplicate`, EC-03) count as approvals.
+ */
+export function stepOutcome(
+  draft: Draft,
+  instance: StepInstance,
+  decision?: "approved" | "rejected",
+): "approved" | "rejected" | "pending" {
+  const mode = draft.ctx.flow.steps[instance.index]?.mode ?? "any";
+  if (mode === "any" && decision !== undefined) return decision;
+
+  const required = requiredApprovals(mode, instance.approvers.length);
+  const approvals = instance.tasks.filter(
+    (t) => t.status === "approved" || t.status === "skipped-duplicate",
+  ).length;
+  const pending = instance.tasks.filter((t) => t.status === "pending").length;
+  if (approvals >= required) return "approved";
+  if (decision !== undefined && approvals + pending < required) return "rejected";
+  return "pending";
+}
+
+export function supersedeOpenTasks(draft: Draft, instance: StepInstance, byTaskId: string): void {
+  for (const task of instance.tasks) {
+    if (task.status !== "pending") continue;
+    task.status = "superseded";
+    task.decidedAt = draft.ctx.now;
+    record(draft, "task.superseded", { taskId: task.id, stepId: instance.stepId, byTaskId });
+  }
 }
 
 export function closeStep(
@@ -60,42 +149,119 @@ export function closeRejected(draft: Draft, stepId: string): void {
   state.status = "rejected";
   state.closedAt = draft.ctx.now;
   state.currentStepIndex = null;
-  record(draft, "request.rejected", { stepId });
+  record(draft, "request.rejected", { reason: "step-rejected", stepId });
 }
 
-function activate(draft: Draft, step: StepDefinition, index: number, approvers: string[]): void {
-  const { state, ctx } = draft;
-  const instance: StepInstance = {
-    stepId: step.id,
-    index,
-    status: "active",
-    activatedAt: ctx.now,
-    approvers,
-    tasks: [],
-  };
-  state.steps.push(instance);
-  state.currentStepIndex = index;
-  record(draft, "step.activated", { stepId: step.id, stepIndex: index, approvers });
+function newInstance(step: StepDefinition, index: number): StepInstance {
+  return { stepId: step.id, index, status: "active", approvers: [], tasks: [] };
+}
 
-  for (const assigneeId of approvers) {
+/** Adds the instance to the state when it is new; blocked instances are reused in place. */
+function place(draft: Draft, instance: StepInstance): void {
+  if (!draft.state.steps.includes(instance)) draft.state.steps.push(instance);
+}
+
+/**
+ * Activates the step with its tasks. Approvers who already approved earlier get a
+ * `skipped-duplicate` task (EC-03); when those carried-over approvals are enough, the step is
+ * approved at once and nobody else is asked. Returns true when the step closed that way.
+ */
+function activate(
+  draft: Draft,
+  instance: StepInstance,
+  approvers: string[],
+  removed: RemovedApprover[],
+): boolean {
+  const { state, ctx } = draft;
+  const earlier = state.steps.filter((s) => s !== instance);
+  const carried = carriedApprovals(earlier, ctx.flow.dedupeApprovers);
+  place(draft, instance);
+  Object.assign(instance, { status: "active", activatedAt: ctx.now, approvers, tasks: [] });
+  delete instance.blockReason;
+  delete instance.removed;
+  if (removed.length > 0) instance.removed = clone(removed);
+  state.currentStepIndex = instance.index;
+  record(draft, "step.activated", {
+    stepId: instance.stepId,
+    stepIndex: instance.index,
+    approvers,
+    ...removedData(removed),
+  });
+
+  const duplicates = approvers.filter((id) => carried.has(id));
+  const mode = ctx.flow.steps[instance.index]?.mode ?? "any";
+  const decidedByDuplicates = duplicates.length >= requiredApprovals(mode, approvers.length);
+  for (const assigneeId of decidedByDuplicates ? duplicates : approvers) {
     state.lastTaskNumber += 1;
     const taskId = `${state.id}.t${state.lastTaskNumber}`;
-    instance.tasks.push({ id: taskId, assigneeId, status: "pending", assignedAt: ctx.now });
-    record(draft, "task.assigned", { taskId, stepId: step.id, assigneeId });
+    const ofTaskId = carried.get(assigneeId);
+    if (ofTaskId === undefined) {
+      instance.tasks.push({ id: taskId, assigneeId, status: "pending", assignedAt: ctx.now });
+      record(draft, "task.assigned", { taskId, stepId: instance.stepId, assigneeId });
+      continue;
+    }
+    instance.tasks.push({
+      id: taskId,
+      assigneeId,
+      status: "skipped-duplicate",
+      assignedAt: ctx.now,
+      decidedAt: ctx.now,
+    });
+    record(draft, "task.deduplicated", { taskId, stepId: instance.stepId, assigneeId, ofTaskId });
   }
+
+  if (!decidedByDuplicates) return false;
+  closeStep(draft, instance, "approved");
+  return true;
 }
 
-function skip(draft: Draft, step: StepDefinition, index: number, reason: SkipReason): void {
-  draft.state.steps.push({
-    stepId: step.id,
-    index,
+function skip(
+  draft: Draft,
+  instance: StepInstance,
+  reason: SkipReason,
+  removed: RemovedApprover[],
+): void {
+  place(draft, instance);
+  Object.assign(instance, {
     status: "skipped",
     skippedAt: draft.ctx.now,
-    skipReason: clone(reason),
     approvers: [],
     tasks: [],
   });
-  record(draft, "step.skipped", { stepId: step.id, stepIndex: index, reason });
+  instance.skipReason = clone(reason);
+  delete instance.blockReason;
+  delete instance.removed;
+  if (removed.length > 0) instance.removed = clone(removed);
+  record(draft, "step.skipped", {
+    stepId: instance.stepId,
+    stepIndex: instance.index,
+    reason,
+    ...removedData(removed),
+  });
+}
+
+/** EC-42: the step waits for an admin to reassign, retry or override. The command still succeeds. */
+function block(
+  draft: Draft,
+  instance: StepInstance,
+  reason: ApproverShortfall,
+  removed: RemovedApprover[],
+): void {
+  place(draft, instance);
+  Object.assign(instance, { status: "blocked", blockedAt: draft.ctx.now });
+  instance.blockReason = clone(reason);
+  if (removed.length > 0) instance.removed = clone(removed);
+  draft.state.currentStepIndex = instance.index;
+  record(draft, "step.blocked", {
+    stepId: instance.stepId,
+    stepIndex: instance.index,
+    reason,
+    ...removedData(removed),
+  });
+}
+
+export function removedData(removed: RemovedApprover[]): { removed?: RemovedApprover[] } {
+  return removed.length > 0 ? { removed } : {};
 }
 
 /** EC-39: a request whose every step was skipped is approved, or refused with `onAllSkipped: "fail"`. */

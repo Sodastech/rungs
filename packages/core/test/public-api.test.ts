@@ -10,6 +10,7 @@ it("exports exactly the documented runtime API", () => {
     "FlowNotApplicableError",
     "InvalidCommandError",
     "InvalidTransitionError",
+    "NoApproversError",
     "NotAssignedError",
     "RequestNotFoundError",
     "ResolutionError",

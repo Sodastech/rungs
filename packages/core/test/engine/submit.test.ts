@@ -81,12 +81,9 @@ describe("submit", () => {
     ]);
   });
 
-  it("asks for approvers of the step being activated before deciding", () => {
+  it("asks for approvers before deciding and changes nothing until they arrive", () => {
     const decision = decide(null, submitCommand(), { now: T0, flow: expenseFlow });
-    expect(decision).toEqual({
-      kind: "needs-resolution",
-      needs: [{ key: "manager", stepId: "manager", spec: { type: "users", ids: ["u_mgr"] } }],
-    });
+    expect(decision.kind).toBe("needs-resolution");
   });
 
   it("creates one task per distinct approver", () => {

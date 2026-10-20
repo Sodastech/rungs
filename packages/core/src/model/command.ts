@@ -24,4 +24,37 @@ export interface RejectCommand {
   comment?: string;
 }
 
-export type Command = SubmitCommand | ApproveCommand | RejectCommand;
+/** Gives a blocked step to users chosen by an admin (EC-46). */
+export interface ReassignStepCommand {
+  type: "reassign";
+  requestId: string;
+  adminId: string;
+  stepId: string;
+  toUserIds: string[];
+  reason: string;
+}
+
+/** Resolves the approvers of a blocked step again, e.g. after the host fixed its data (EC-46). */
+export interface RetryStepCommand {
+  type: "retry";
+  requestId: string;
+  adminId: string;
+  stepId: string;
+}
+
+/** Closes the whole request with an admin decision; every open task is cancelled (EC-18). */
+export interface OverrideCommand {
+  type: "override";
+  requestId: string;
+  adminId: string;
+  decision: "approve" | "reject";
+  reason: string;
+}
+
+export type Command =
+  | SubmitCommand
+  | ApproveCommand
+  | RejectCommand
+  | ReassignStepCommand
+  | RetryStepCommand
+  | OverrideCommand;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  InvalidCommandError,
   InvalidTransitionError,
   NotAssignedError,
   type RequestState,
@@ -7,6 +8,7 @@ import {
 } from "../../src/index.js";
 import {
   approve,
+  override,
   registeredFlow,
   reject,
   run,
@@ -81,6 +83,49 @@ describe("B. Decisions", () => {
     expect(thrown(() => run(state, approve("u_b"), { flow: parallelAny }))).toBeInstanceOf(
       NotAssignedError,
     );
+  });
+
+  it("EC-18 an admin override approves the request and cancels every open task", () => {
+    const { state, audit, events } = runAll(
+      [submitCommand(), approve("u_a"), override("approve")],
+      { flow: parallel("all") },
+    );
+    expect(state).toMatchObject({ status: "approved", currentStepIndex: null });
+    expect(state.steps[0]?.status).toBe("cancelled");
+    expect(taskStatuses(state)).toEqual([
+      ["u_a", "approved"],
+      ["u_b", "cancelled"],
+      ["u_c", "cancelled"],
+    ]);
+    expect(audit.map((e) => [e.type, e.actorId])).toEqual([
+      ["task.cancelled", "u_admin"],
+      ["task.cancelled", "u_admin"],
+      ["step.cancelled", "u_admin"],
+      ["request.approved", "u_admin"],
+    ]);
+    expect(audit.at(-1)?.data).toEqual({ reason: "override", comment: "Board decision" });
+    expect(events.at(-1)?.type).toBe("request.approved");
+  });
+
+  it("EC-18 an admin override can reject the request", () => {
+    const { state, audit } = runAll([submitCommand(), override("reject", "Fraud")], {
+      flow: parallelAny,
+    });
+    expect(state.status).toBe("rejected");
+    expect(audit.at(-1)).toMatchObject({
+      type: "request.rejected",
+      data: { reason: "override", comment: "Fraud" },
+    });
+  });
+
+  it("EC-18 an override needs a reason and an open request", () => {
+    const { state } = run(null, submitCommand());
+    const error = thrown(() => run(state, override("approve", "  ")));
+    expect(error).toBeInstanceOf(InvalidCommandError);
+    expect((error as Error).message).toContain("reason");
+
+    const closed = runAll([submitCommand(), reject("u_mgr")]).state;
+    expect(thrown(() => run(closed, override("approve")))).toBeInstanceOf(InvalidTransitionError);
   });
 
   it("EC-19 deciding on an approved or rejected request fails with InvalidTransitionError", () => {

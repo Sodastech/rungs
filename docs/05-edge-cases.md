@@ -10,17 +10,22 @@ Tier: **Core** = MIT `@rungs/core`; **Pro** = `@rungs/org`.
 
 | ID | Situation | Default behavior | Config | Tier |
 | --- | --- | --- | --- | --- |
-| EC-01 | Requester is one of the approvers of a step | Requester is removed from that step's approvers; reason recorded | `allowSelfApproval` | Core |
-| EC-02 | After EC-01 removal the step has no approvers | Apply `onEmptyStep`. Default `fail`: the command fails with `ResolutionError` and nothing changes. `skip` must be chosen explicitly; it records `step.skipped` with the reason | `onEmptyStep: fail \| skip` (Pro: `escalate-up`) | Core / Pro |
-| EC-03 | Same person resolves in consecutive steps | Second occurrence auto-approved as `skipped-duplicate`, first decision carries over | `dedupeApprovers` | Core |
+| EC-01 | Requester is one of the approvers of a step | Requester is removed from that step's approvers; `removed` records `{ userId, reason: "requester" }` on the step and in its audit event | `allowSelfApproval` | Core |
+| EC-02 | After EC-01 removal the step has no approvers | Apply `onEmptyStep`. Default `fail`: at submit the submit is refused with `NoApproversError` and nothing is created (EC-43); mid-flow the step is blocked (EC-42). `skip` must be chosen explicitly; it records `step.skipped` with the reason | `onEmptyStep: fail \| skip` (Pro: `escalate-up`) | Core / Pro |
+| EC-03 | Same person resolves in consecutive steps | Second occurrence gets a `skipped-duplicate` task that counts as an approval; the first decision carries over (`task.deduplicated`). Only an actual approval carries over, and skipped steps in between do not break the sequence. If carried-over approvals satisfy the step, nobody else is asked | `dedupeApprovers: consecutive \| all \| none` | Core |
 | EC-04 | Resolver returns an empty list (e.g. vacant position) | Same as EC-02 (default `fail`) | `onEmptyStep` | Core |
-| EC-05 | Resolver throws | Command fails with `ResolutionError`; no state change | — | Core |
-| EC-06 | Resolved approver is inactive (left company) | Treated as absent: removed, reason recorded; may trigger EC-02 | `isActiveUser` hook | Core |
+| EC-05 | Resolver throws | Command fails with `ResolutionError` (`RESOLUTION_FAILED`) carrying the original error as `cause`; no state change, so retrying is safe. Also used for a role lookup or `isActiveUser` that throws, a missing callback, and an invalid result | — | Core |
+| EC-06 | Resolved approver is inactive (left company) | Treated as absent: removed with `reason: "inactive"`; may trigger EC-02 | `isActiveUser` hook | Core |
 | EC-07 | Position is vacant | Walk up the hierarchy to the next filled position | `vacancy: walk-up \| empty` | Pro |
 | EC-08 | Position held by an acting/interim person | Acting holder approves; audit records "acting for position X" | — | Pro |
 | EC-09 | `managerChain(n)` goes beyond the top of the hierarchy (requester is CEO) | Chain is truncated at the root; if empty → EC-02 | `beyondRoot: truncate \| fail` | Pro |
 | EC-10 | Org data contains a reporting cycle | Resolution stops at the first repeat and fails with `ResolutionError` describing the cycle | — | Pro |
 | EC-11 | Requester changes unit while the request is in progress | Already-activated steps keep their snapshot; future steps resolve against the org at activation time | `reorgPolicy: resolve-at-activation \| snapshot-at-submit` | Pro |
+| EC-42 | A step resolves to too few approvers when it activates mid-flow (data changed since submit) | The command that activated it still succeeds. The step becomes `blocked` (no tasks, request stays `pending`) and `step.blocked` is emitted with the reason and removed users. Nobody can approve or reject it until an admin acts (EC-46). With `onEmptyStep: skip` an empty step is skipped instead | `onEmptyStep` | Core |
+| EC-43 | A later step would have no approvers, or could not reach its quorum | Submit resolves every applicable step up front and is refused with `NoApproversError` naming the step; no request is created. The dry run is not stored: each step is resolved again when it activates | — | Core |
+| EC-44 | The same user is reached twice in one step (e.g. through a `union`) | Merged into one approver and one task, always | — | Core |
+| EC-45 | A quorum step resolves to fewer approvers than its quorum | Never lowered silently. At submit: `NoApproversError` with `reason: quorum-unreachable`. Mid-flow: the step is blocked with that reason, even with `onEmptyStep: skip` | — | Core |
+| EC-46 | An admin unblocks a blocked step | `reassign` to chosen users (inactive users, the requester without `allowSelfApproval`, or too few for the mode refuse the command), `retry` (resolve again; if still too few the step stays blocked and only `step.retried` is recorded), or `override` the request (EC-18). All audited with the admin as actor | — | Core |
 
 ## B. Decisions
 
@@ -32,7 +37,7 @@ Tier: **Core** = MIT `@rungs/core`; **Pro** = `@rungs/org`.
 | EC-15 | Two approvers act at the same moment | One commit wins; the other gets `ConflictError` and re-reads state (it may now be superseded) | — | Core |
 | EC-16 | The same command is sent twice (double click, retry) | With the same `idempotencyKey`, the second call returns the first result | `idempotencyKey` | Core |
 | EC-17 | A user who is not assigned tries to decide | `NotAssignedError`; nothing recorded except an optional security audit event | — | Core |
-| EC-18 | Admin forces a decision | Allowed via `override` only, reason required, audited with the admin as actor | — | Core |
+| EC-18 | Admin forces a decision | Allowed via `override` only, reason required, audited with the admin as actor. Closes the request; open tasks and the open (active or blocked) step become `cancelled` | — | Core |
 | EC-19 | Decision on a closed request (approved/rejected/withdrawn) | `InvalidTransitionError` | — | Core |
 
 ## C. Delegation

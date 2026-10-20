@@ -61,15 +61,21 @@ This keeps all branching logic in the pure engine, testable without mocks, while
 
 ```
 ApproverSpec
-  → raw user IDs           (users / role callback / named resolver / union)
-  → remove inactive users  (EC-06)
-  → remove requester       (EC-01, unless allowSelfApproval)
-  → apply delegation rules (EC-20..EC-23)
-  → dedupe                 (EC-03)
-  → empty? → onEmptyStep   (EC-02, EC-04)
+  → raw user IDs           (users / role callback / named resolver / union)   ┐ async, service:
+  → active check           (isActiveUser)                                     ┘ resolution/collect
+  → merge duplicates       (EC-44)                                            ┐
+  → remove inactive users  (EC-06)                                            │
+  → remove requester       (EC-01, unless allowSelfApproval)                  │ pure, engine:
+  → apply delegation rules (EC-20..EC-23, 1.5)                                │ resolution/pipeline
+  → too few for the mode?  → submit: NoApproversError (EC-43, EC-45)          │
+                           → mid-flow: blocked, or skipped by onEmptyStep     │
+  → dedupe                 (EC-03)                                            ┘
 ```
 
-Each stage records a reason entry so the UI and audit can explain why a person is (or is not) an approver.
+The async part turns a need into `{ userIds, inactiveUserIds? }`; a host callback that throws becomes
+`ResolutionError` with the original error as `cause` (EC-05). Each pure stage records why a person
+was removed (`removed` on the step and in its audit event), so the UI and audit can explain why a
+person is (or is not) an approver.
 Pro's `@rungs/org` plugs in as named resolvers plus an extra stage for vacancy and acting holders.
 
 ## Concurrency and idempotency

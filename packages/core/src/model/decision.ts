@@ -5,6 +5,8 @@ import type { RegisteredFlow, RequestState } from "./state.js";
 /** Approvers collected by the service for one need, before the engine filters them. */
 export interface StepResolution {
   readonly userIds: readonly string[];
+  /** Subset of `userIds` the host reports as inactive (EC-06). */
+  readonly inactiveUserIds?: readonly string[];
 }
 
 export interface EngineContext {

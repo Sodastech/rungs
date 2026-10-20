@@ -125,13 +125,41 @@ activation and stored as a snapshot. A step can have several instances after a r
 | --- | --- | --- |
 | `stepId` | string | From the definition |
 | `index` | number | Position of the step in the pinned flow |
-| `status` | `"skipped" \| "active" \| "approved" \| "rejected" \| "returned" \| "cancelled"` | |
-| `approvers` | string[] | Snapshot after self-approval removal, dedupe and delegation; empty when skipped |
+| `status` | `"skipped" \| "active" \| "blocked" \| "approved" \| "rejected" \| "returned" \| "cancelled"` | `blocked`: see below |
+| `approvers` | string[] | Snapshot after removing inactive users and the requester (and, from 1.5, delegation); empty when skipped or blocked |
+| `removed` | `{ userId; reason: "inactive" \| "requester" }[]`? | Resolved users who are not approvers, with the reason (EC-01, EC-06). Absent when nobody was removed |
 | `skipReason` | `{ type: "condition-false"; condition } \| { type: "no-approvers" }`? | Why the step was skipped (EC-38, EC-02, EC-04) |
-| `activatedAt`, `skippedAt`, `closedAt` | ISO string? | |
-| `tasks` | Task[] | One per approver |
-| `resolution` | object | Planned (1.4): why each approver is there (resolver name, delegation, escalation) |
+| `blockReason` | `{ type: "no-approvers" } \| { type: "quorum-unreachable"; required; available }`? | Why the step is blocked (EC-42, EC-45) |
+| `activatedAt`, `skippedAt`, `blockedAt`, `closedAt` | ISO string? | `blockedAt` stays after the step is unblocked |
+| `tasks` | Task[] | One per approver; none while blocked |
 | `deadlineAt`, `escalationDepth` | | Planned (1.7) |
+
+### Resolution pipeline
+
+Approvers are resolved when a step activates, in this order: merge duplicates (a user reached twice
+through a `union` gets one task, EC-44), remove inactive users (EC-06), remove the requester unless
+`allowSelfApproval` (EC-01), then dedupe against earlier steps (EC-03). With `dedupeApprovers:
+"consecutive"` (default) a user who approved the previous step that ran (skipped steps do not count)
+gets a `skipped-duplicate` task that counts as an approval; `"all"` looks at every earlier step,
+`"none"` turns this off. Only real approvals carry over: a superseded approver is asked again. When
+the carried-over approvals already satisfy the step's mode, the step is approved at once and the
+other approvers get no task.
+
+The step then needs enough approvers for its mode: at least one, and at least `quorum` for a quorum
+step. When it has too few:
+
+- **At submit**, every applicable step is resolved up front (a dry run; the results are not stored).
+  A step with no approvers under `onEmptyStep: "fail"`, or whose quorum cannot be reached, refuses
+  the submit with `NoApproversError` and no request is created (EC-43).
+- **Mid-flow**, the command that activates the step still succeeds. The step becomes `blocked`, the
+  request stays `pending`, and `step.blocked` is emitted for an admin (EC-42).
+- An empty step under `onEmptyStep: "skip"` is skipped instead. An unreachable quorum is never
+  skipped.
+
+A blocked step has no tasks, so nobody can approve or reject it. An admin resolves it with
+`reassign` (users the admin chooses; they pass the same checks and must satisfy the mode), `retry`
+(resolve the step's spec again; when it still has too few approvers the step stays blocked and only
+`step.retried` is recorded) or `override` (close the whole request).
 
 ## Task
 
@@ -170,14 +198,20 @@ Types and data (discriminated union `AuditEvent` in `@rungs/core`):
 | Type | Data |
 | --- | --- |
 | `request.submitted` | `flowKey`, `flowVersion`, `subject` |
-| `request.approved` | `reason: "steps-approved"`, or `reason: "all-steps-skipped"` with `skippedStepIds` (EC-39) |
-| `request.rejected` | `stepId` |
-| `step.activated` | `stepId`, `stepIndex`, `approvers` |
-| `step.skipped` | `stepId`, `stepIndex`, `reason` (`condition-false` with the condition, or `no-approvers`) |
+| `request.approved` | `reason: "steps-approved"`, `reason: "all-steps-skipped"` with `skippedStepIds` (EC-39), or `reason: "override"` with `comment` (EC-18) |
+| `request.rejected` | `reason: "step-rejected"` with `stepId`, or `reason: "override"` with `comment` (EC-18) |
+| `step.activated` | `stepId`, `stepIndex`, `approvers`, `removed?` |
+| `step.skipped` | `stepId`, `stepIndex`, `reason` (`condition-false` with the condition, or `no-approvers`), `removed?` |
+| `step.blocked` | `stepId`, `stepIndex`, `reason` (`no-approvers` or `quorum-unreachable`), `removed?` (EC-42) |
+| `step.reassigned` | `stepId`, `stepIndex`, `toUserIds`, `reason` (EC-46) |
+| `step.retried` | `stepId`, `stepIndex`, `result: "unblocked"`, or `result: "still-blocked"` with `reason` and `removed?` (EC-46) |
 | `step.completed` | `stepId`, `stepIndex`, `outcome: "approved" \| "rejected"` |
+| `step.cancelled` | `stepId`, `stepIndex` (override) |
 | `task.assigned` | `taskId`, `stepId`, `assigneeId` |
+| `task.deduplicated` | `taskId`, `stepId`, `assigneeId`, `ofTaskId` (the earlier approval that carries over, EC-03) |
 | `task.approved`, `task.rejected` | `taskId`, `stepId`, `comment?` |
 | `task.superseded` | `taskId`, `stepId`, `byTaskId` |
+| `task.cancelled` | `taskId`, `stepId` (override) |
 
 Audit events are the source of truth for "what happened and why". Domain events emitted to the host for
 notifications are derived from them one to one, except that `task.approved` and `task.rejected`

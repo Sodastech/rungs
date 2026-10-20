@@ -2,7 +2,15 @@
 
 export { decide } from "./engine/decide.js";
 export { defineFlow } from "./flow/define-flow.js";
-export type { ApproveCommand, Command, RejectCommand, SubmitCommand } from "./model/command.js";
+export type {
+  ApproveCommand,
+  Command,
+  OverrideCommand,
+  ReassignStepCommand,
+  RejectCommand,
+  RetryStepCommand,
+  SubmitCommand,
+} from "./model/command.js";
 export type {
   DecidedResult,
   Decision,
@@ -11,13 +19,14 @@ export type {
   ResolutionNeed,
   StepResolution,
 } from "./model/decision.js";
-export type { FlowIssue, ReceivedType, ResolutionFailure } from "./model/errors.js";
+export type { FlowIssue, ReceivedType } from "./model/errors.js";
 export {
   ConditionError,
   FlowDefinitionError,
   FlowNotApplicableError,
   InvalidCommandError,
   InvalidTransitionError,
+  NoApproversError,
   NotAssignedError,
   RequestNotFoundError,
   ResolutionError,
@@ -52,8 +61,11 @@ export type {
   TimeoutAction,
 } from "./model/flow.js";
 export type {
+  ApproverShortfall,
   JsonValue,
   RegisteredFlow,
+  RemovalReason,
+  RemovedApprover,
   RequestState,
   RequestStatus,
   SkipReason,
