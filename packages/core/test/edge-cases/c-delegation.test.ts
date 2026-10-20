@@ -237,6 +237,25 @@ describe("C. Delegation", () => {
       });
     });
 
+    it("EC-48 someone whose vote is already in the step cannot receive another one", () => {
+      const target = flow({}, [single("u_a", "u_d")]);
+      const delegations = [rule("u_a", "u_c")];
+      const state = run(null, submitCommand(), { flow: target, delegations }).state;
+      expect(tasks(state)).toEqual([
+        ["u_c", "pending", "u_a"],
+        ["u_d", "pending", null],
+      ]);
+      // u_a holds no task, but u_a's vote is in the step (u_c acts for u_a).
+      for (const command of [delegate("u_d", "r1.t2", "u_a"), reassignTask("r1.t2", "u_a")]) {
+        const error = thrown(() => run(state, command, { flow: target, delegations }));
+        expect(error).toBeInstanceOf(InvalidCommandError);
+        expect((error as Error).message).toContain('"u_a" already has a vote in step "manager"');
+      }
+      // Handing u_a's own vote back stays allowed (EC-50).
+      const back = run(state, reassignTask("r1.t1", "u_a"), { flow: target, delegations }).state;
+      expect(tasks(back)?.at(-1)).toEqual(["u_a", "pending", null]);
+    });
+
     it("EC-49 a delegation to someone who approved an earlier step is skipped", () => {
       const target = flow({}, [
         { id: "manager", approvers: users("u_m") },

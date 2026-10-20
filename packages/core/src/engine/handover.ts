@@ -67,6 +67,9 @@ export function reassignTask(
   });
 }
 
+/** Task statuses that still carry a vote in the step. */
+const VOTES = new Set(["pending", "approved", "rejected", "returned", "skipped-duplicate"]);
+
 interface Found {
   readonly instance: StepInstance;
   readonly task: Task;
@@ -113,13 +116,19 @@ function handOver(
     };
   }
 
-  const holders = new Set(instance.tasks.map((t) => t.assigneeId));
+  // Everyone who held a task in the step, and everyone whose vote is in it through a delegate.
+  const owners = new Set(
+    instance.tasks.filter((t) => VOTES.has(t.status)).map((t) => t.onBehalfOf ?? t.assigneeId),
+  );
+  const holders = new Set([...instance.tasks.map((t) => t.assigneeId), ...owners]);
   const earlier = state.steps.filter((s) => s !== instance);
   const delegation = delegationContext(draft, earlier, resolution, holders);
   const returning = toUserId === task.onBehalfOf;
   const problems: string[] = [];
-  if (holders.has(toUserId) && !returning) {
+  if (!returning && instance.tasks.some((t) => t.assigneeId === toUserId)) {
     problems.push(`"${toUserId}" already holds a task in step "${instance.stepId}"`);
+  } else if (!returning && owners.has(toUserId)) {
+    problems.push(`"${toUserId}" already has a vote in step "${instance.stepId}"`);
   }
   if (toUserId === state.requesterId && !ctx.flow.allowSelfApproval) {
     problems.push(`"${toUserId}" is the requester and the flow does not allow self-approval`);

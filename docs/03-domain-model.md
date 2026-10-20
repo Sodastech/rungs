@@ -280,7 +280,8 @@ approvals must get them from two people, and a person who approved one level mus
 next level on someone else's behalf. Because no two slots ever end up with the same person, the
 number of votes in a step never shrinks through delegation and `onBehalfOf` names exactly one
 approver. A manual delegation (EC-25) or an admin reassign of a task is refused outright for a
-user who already holds a task in the step or approved an earlier step, instead of being passed
+user who already holds a task in the step, whose own vote is in the step through a delegate, or
+who approved an earlier step, instead of being passed
 over, because someone chose that user explicitly.
 
 The one exception is handing a task back to the approver it acts for (EC-50), for example when

@@ -168,7 +168,7 @@ Commands:
   task. The old task becomes `reassigned`; the new one has no `onBehalfOf`.
 
   Both refuse, with `InvalidCommandError` naming each problem, a target who is the requester
-  (without `allowSelfApproval`), inactive, already holds a task in the step (EC-48) or approved an
+  (without `allowSelfApproval`), inactive, already holds a task in the step or has a vote in it through a delegate (EC-48), or approved an
   earlier step of the request (EC-49). Delegating to yourself is refused too. The exception is
   the approver the task acts for (`onBehalfOf`): it can always be handed back to them (EC-50).
 - `{ type: "reassign", requestId, adminId, stepId, toUserIds, comment }`: gives a blocked step to

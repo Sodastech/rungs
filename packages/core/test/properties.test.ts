@@ -258,14 +258,17 @@ function checkInvariants(
     }
 
     // Four-eyes: carried-over votes alone never approve a step others could decide (EC-03, EC-47).
-    if (instance.status === "approved" && !instance.tasks.some((t) => t.status === "approved")) {
-      const autoApproved = flow.steps[instance.index]?.onTimeout === "auto-approve";
+    // A step closed by `onTimeout: "auto-approve"` is a separate, explicit opt-in (EC-26).
+    const autoApproved =
+      instance.deadline?.timedOutAt !== undefined &&
+      flow.steps[instance.index]?.onTimeout === "auto-approve";
+    if (
+      instance.status === "approved" &&
+      !autoApproved &&
+      !instance.tasks.some((t) => t.status === "approved")
+    ) {
       for (const task of instance.tasks) {
-        const allowed =
-          task.status === "skipped-duplicate" ||
-          RETIRED.has(task.status) ||
-          (autoApproved && task.status === "expired");
-        expect(allowed).toBe(true);
+        expect(task.status === "skipped-duplicate" || RETIRED.has(task.status)).toBe(true);
       }
     }
   }
