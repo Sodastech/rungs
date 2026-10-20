@@ -1,3 +1,4 @@
+import { jsonIssues } from "../engine/draft.js";
 import { type PreviewInput, type PreviewResult, previewRequest } from "../engine/preview.js";
 import type { Calendar, StepResolution } from "../model/decision.js";
 import type { DelegationRule } from "../model/delegation.js";
@@ -101,13 +102,17 @@ export function queries(
 
     async preview(input) {
       const { flow: flowKey, ...request } = input;
+      const problems = previewProblems(input);
+      if (problems.length > 0) {
+        throw new InvalidCommandError(`Invalid preview: ${problems.join("; ")}`);
+      }
       const at = now();
       return store.transaction(async (tx) => {
         const flow = await findFlow(tx, flowKey, request.tenantId);
         const resolutions: Record<string, StepResolution> = {};
         const resolveRequest = {
           requesterId: request.requesterId,
-          subject: request.subject ?? { type: "preview", id: "preview" },
+          subject: { type: request.subject.type, id: request.subject.id },
           payload: request.payload,
           flowKey: flow.key,
           ...(request.tenantId === undefined ? {} : { tenantId: request.tenantId }),
@@ -164,6 +169,23 @@ export function queries(
       },
     },
   };
+}
+
+/** Same rules as a submit: a resolver that looks data up by subject must never get a stand-in. */
+function previewProblems(input: PreviewRequestInput): string[] {
+  const problems: string[] = [];
+  const text = (value: unknown, name: string) => {
+    if (typeof value !== "string" || value.length === 0) {
+      problems.push(`${name} must be a non-empty string`);
+    }
+  };
+  text(input.flow, "flow");
+  text(input.requesterId, "requesterId");
+  text(input.subject?.type, "subject.type");
+  text(input.subject?.id, "subject.id");
+  if (input.tenantId !== undefined) text(input.tenantId, "tenantId");
+  problems.push(...jsonIssues(input.payload, "payload"));
+  return problems;
 }
 
 function delegationProblems(input: DelegationInput): string[] {

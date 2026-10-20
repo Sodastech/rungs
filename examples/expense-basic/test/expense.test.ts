@@ -19,6 +19,7 @@ describe("expense approval, end to end", () => {
     const preview = await rungs.preview({
       flow: "expense",
       requesterId: "u_alice",
+      subject: { type: "expense", id: "EXP-1042" },
       payload: { amount: 5000 },
     });
     expect(preview.submittable).toBe(true);
@@ -124,6 +125,7 @@ describe("expense approval, end to end", () => {
     const preview = await rungs.preview({
       flow: "expense",
       requesterId: "u_carol",
+      subject: { type: "expense", id: "EXP-1043" },
       payload: { amount: 10 },
     });
     expect(preview.submittable).toBe(false);

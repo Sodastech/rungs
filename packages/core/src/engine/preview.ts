@@ -15,7 +15,8 @@ export interface PreviewInput {
   readonly requesterId: string;
   readonly payload: JsonValue;
   readonly tenantId?: string;
-  readonly subject?: Subject;
+  /** Required, as on submit: resolvers may look up data by subject. */
+  readonly subject: Subject;
 }
 
 export interface PreviewStep {

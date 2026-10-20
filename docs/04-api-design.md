@@ -223,7 +223,10 @@ await rungs.history(requestId);    // audit events, ordered by seq ([] when unkn
 await rungs.inbox({ userId: "u_08", tenantId: "acme", limit: 50, after });
 // { tasks: [{ requestId, tenantId?, flowKey, flowVersion, subject, requesterId, stepId,
 //             taskId, assigneeId, onBehalfOf?, assignedAt, deadlineAt?, overdue }], next? }
-await rungs.preview({ flow: "leave", requesterId: "u_17", payload: { days: 5 }, tenantId: "acme" });
+await rungs.preview({
+  flow: "leave", requesterId: "u_17", subject: { type: "leave_request", id: "LR-1042" },
+  payload: { days: 5 }, tenantId: "acme",
+});
 ```
 
 **`inbox`** lists the pending tasks assigned to the user on active steps, including tasks they hold
@@ -236,6 +239,10 @@ with `shortfall`), the `approvers` who would get a task after removals and deleg
 with reasons, and `delegations` (who would act for whom). `submittable` is false when a submit would
 be refused now (a step cannot run, or every step is skipped under `onAllSkipped: "fail"`). An
 invalid payload throws `ConditionError`, as a submit would.
+
+The input is validated like a submit's: `subject` is required, because resolvers may look data up
+by subject (`InvalidCommandError` when it is missing or empty). Rungs never passes resolvers a
+stand-in subject, which could silently produce the wrong approvers.
 
 - The preview reflects the moment it runs. The actual approvers can differ if the org data, roles
   or delegation rules change before a step activates; each step is resolved again then. Dedupe is

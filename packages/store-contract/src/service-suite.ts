@@ -653,6 +653,7 @@ export function serviceSuite(name: string, makeStore: StoreFactory): void {
         const preview = await rungs.preview({
           flow: "purchase",
           requesterId: "u_req",
+          subject: { type: "purchase", id: "PO-7" },
           payload: { amount: 50 },
         });
         expect(preview).toEqual({
@@ -701,6 +702,7 @@ export function serviceSuite(name: string, makeStore: StoreFactory): void {
         const preview = await rungs.preview({
           flow: "expense",
           requesterId: "u_req",
+          subject: { type: "expense", id: "EXP-1" },
           payload: { amount: 5000 },
         });
         expect(preview.submittable).toBe(true);
@@ -708,11 +710,46 @@ export function serviceSuite(name: string, makeStore: StoreFactory): void {
         expect(state.steps[0]?.approvers).toEqual(preview.steps[0]?.approvers);
       });
 
+      it("the subject is required and reaches the resolvers, like on submit", async () => {
+        const seen: string[] = [];
+        const { rungs } = await setup({
+          resolvers: {
+            projectOwner: async ({ request }) => {
+              seen.push(`${request.subject.type}:${request.subject.id}`);
+              return ["u_po"];
+            },
+          },
+        });
+        await rungs.flows.register({
+          key: "project",
+          steps: [{ id: "owner", approvers: { type: "resolver", name: "projectOwner" } }],
+        });
+        const missing = { flow: "project", requesterId: "u_req", payload: {} };
+        await expect(rungs.preview(missing as never)).rejects.toThrow(
+          "subject.type must be a non-empty string",
+        );
+        await expect(
+          rungs.preview({ ...missing, subject: { type: "project", id: "" } }),
+        ).rejects.toBeInstanceOf(InvalidCommandError);
+        expect(seen).toEqual([]);
+        const preview = await rungs.preview({
+          ...missing,
+          subject: { type: "project", id: "P-9" },
+        });
+        expect(preview.steps[0]?.approvers).toEqual(["u_po"]);
+        expect(seen).toEqual(["project:P-9"]);
+      });
+
       it("an invalid payload fails the preview like a submit", async () => {
         const { rungs } = await setup();
         await rungs.flows.register(purchase);
         await expect(
-          rungs.preview({ flow: "purchase", requesterId: "u_req", payload: { amount: "x" } }),
+          rungs.preview({
+            flow: "purchase",
+            requesterId: "u_req",
+            subject: { type: "purchase", id: "PO-7" },
+            payload: { amount: "x" },
+          }),
         ).rejects.toThrow("Condition cannot be evaluated");
       });
     });
