@@ -42,6 +42,7 @@ decide(state: RequestState | null, command: Command, ctx: EngineContext): Decisi
 // Decision =
 //   | { kind: "needs-resolution"; needs: ResolutionNeed[] }
 //   | { kind: "decided"; state: RequestState; audit: AuditEvent[]; events: DomainEvent[] }
+//   | { kind: "unchanged" }   // a tick with nothing due
 ```
 
 Approver resolution is async (it calls host code), but the engine must stay pure. The service layer

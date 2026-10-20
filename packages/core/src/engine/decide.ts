@@ -33,6 +33,7 @@ import {
   stepOutcome,
   supersedeOpenTasks,
 } from "./progress.js";
+import { tickRequest } from "./tick.js";
 
 const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
 
@@ -71,6 +72,7 @@ export function decide(state: RequestState | null, command: Command, ctx: Engine
       `Request is pinned to flow "${state.flowKey}" v${state.flowVersion}, got "${ctx.flow.key}" v${ctx.flow.version}`,
     );
   }
+  if (command.type === "tick") return tickRequest(state, command, ctx);
   if (!allowedStatuses(command.type).includes(state.status)) {
     throw new InvalidTransitionError({
       requestId: state.id,
@@ -121,6 +123,7 @@ function submit(command: SubmitCommand, ctx: EngineContext): Decision {
     steps: [],
     lastAuditSeq: 0,
     lastTaskNumber: 0,
+    nextDueAt: null,
   };
   const draft = startDraft(state, command.requesterId, ctx);
 
@@ -260,6 +263,7 @@ function overrideRequest(
 ): Decision {
   const draft = startDraft(state, command.adminId, ctx);
   cancelOpenStep(draft);
+  delete draft.state.resubmit;
 
   const { state: next } = draft;
   next.status = command.decision === "approve" ? "approved" : "rejected";
@@ -369,6 +373,9 @@ function validateCommand(command: Command): void {
           for (const [i, id] of command.toUserIds.entries()) text(id, `toUserIds[${i}]`);
         }
       }
+      break;
+    case "tick":
+      text(command.requestId, "requestId");
       break;
     case "retry":
       text(command.requestId, "requestId");

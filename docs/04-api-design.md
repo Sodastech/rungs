@@ -108,11 +108,14 @@ const decision = decide(state /* RequestState | null */, command, {
   now: "2026-01-05T09:00:00.000Z", // ISO 8601 UTC, injected
   flow,                            // RegisteredFlow: defineFlow(...) plus its version
   resolutions,                     // answers to earlier needs, keyed by need.key
+  calendar,                        // optional: { addDuration, subtractDuration }, sync (EC-30)
 });
 
 if (decision.kind === "needs-resolution") {
-  // decision.needs: [{ key, stepId, spec }] — collect approvers, then call decide again
-  // with the same state and command plus resolutions: { [need.key]: { userIds } }.
+  // decision.needs: [{ key, stepId, spec, escalationDepth? }] — collect approvers, then call
+  // decide again with the same state and command plus resolutions: { [need.key]: { userIds } }.
+} else if (decision.kind === "unchanged") {
+  // a tick found nothing due: nothing to store
 } else {
   // decision.state, decision.audit, decision.events
 }
@@ -146,8 +149,16 @@ Commands:
 - `{ type: "withdraw", requestId, actorId, comment? }`: requester only (EC-35).
 
 Free text is always `comment` (required for `override` and `reassign`); `reason` is reserved
-for machine-readable causes. A returned request accepts only `resubmit`, `withdraw` and `override`; anything else is an
-`InvalidTransitionError`. `tick` comes in a later milestone. `decide` throws a `RungsError` when a command is not
+for machine-readable causes. `{ type: "tick", requestId }` applies whatever is due at `now` as a system action (EC-26): it
+returns `unchanged` when nothing is due or the request is closed, so concurrent or repeated ticks
+are harmless (EC-27). Due requests are found by `nextDueAt`. An escalation asks for its targets
+with the key `escalate:<stepId>`.
+
+A calendar is synchronous so the engine stays pure: a host that needs holidays loads them first.
+Both functions must return ISO 8601 UTC timestamps; anything else is an `InvalidCommandError`.
+
+A returned request accepts only `resubmit`, `withdraw` and `override`; anything else is an
+`InvalidTransitionError`. `decide` throws a `RungsError` when a command is not
 allowed and never changes its input. Task IDs are derived from the request ID, so the engine needs
 no ID generator. Rungs does not check that `adminId` is an admin; that is the host's job.
 
@@ -196,7 +207,8 @@ delegation.skipped  delegation.cycle_detected
 task.assigned       task.decided       task.returned      task.superseded    task.deduplicated
 task.cancelled
 task.delegated      task.reassigned    task.reminder      task.expired
-request.escalated
+request.escalated   request.escalation_failed   request.resubmit_overdue
+step.timed_out      step.still_blocked
 ```
 
 Each event carries `requestId`, `tenantId`, `at`, and event-specific data (for example the assignee for

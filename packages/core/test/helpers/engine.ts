@@ -1,5 +1,6 @@
 import {
   type ApproveCommand,
+  type Calendar,
   type Command,
   type DecidedResult,
   type DelegateCommand,
@@ -18,6 +19,8 @@ import {
   type ReturnCommand,
   type StepResolution,
   type SubmitCommand,
+  type TickCommand,
+  type Unchanged,
   type WithdrawCommand,
 } from "../../src/index.js";
 
@@ -152,6 +155,7 @@ export interface RunOptions {
   inactive?: readonly string[];
   /** Out-of-office rules the service would load; passed with every resolution. */
   delegations?: readonly DelegationRule[];
+  calendar?: Calendar;
 }
 
 /**
@@ -163,11 +167,38 @@ export function run(
   command: Command,
   options: RunOptions = {},
 ): DecidedResult {
+  const result = resolveAll(state, command, options);
+  if (result.kind === "unchanged") throw new Error("expected the command to change the request");
+  return result;
+}
+
+/** Runs one tick at `now`; `unchanged` when nothing was due. */
+export function tick(
+  state: RequestState,
+  now: string,
+  options: RunOptions = {},
+): DecidedResult | Unchanged {
+  return resolveAll(state, { type: "tick", requestId: state.id } satisfies TickCommand, {
+    ...options,
+    now,
+  });
+}
+
+function resolveAll(
+  state: RequestState | null,
+  command: Command,
+  options: RunOptions,
+): DecidedResult | Unchanged {
   const flow = options.flow ?? expenseFlow;
   const resolutions: Record<string, StepResolution> = {};
   for (let attempt = 0; attempt <= flow.steps.length + 1; attempt++) {
-    const decision = decide(state, command, { now: options.now ?? T0, flow, resolutions });
-    if (decision.kind === "decided") return decision;
+    const decision = decide(state, command, {
+      now: options.now ?? T0,
+      flow,
+      resolutions,
+      ...(options.calendar ? { calendar: options.calendar } : {}),
+    });
+    if (decision.kind !== "needs-resolution") return decision;
     for (const need of decision.needs) {
       const userIds =
         options.approvers?.[need.key] ?? (need.spec.type === "users" ? need.spec.ids : undefined);

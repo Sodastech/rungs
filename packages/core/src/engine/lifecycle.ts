@@ -12,6 +12,7 @@ import {
   planStep,
   supersedeOpenTasks,
 } from "./progress.js";
+import { addDuration } from "./timers.js";
 
 /**
  * EC-41, EC-43: evaluates every step condition against `payload` (so an invalid one fails the
@@ -83,6 +84,8 @@ export function returnRequest(
   if (targetIndex === null) {
     draft.state.status = "returned";
     draft.state.currentStepIndex = null;
+    const limit = ctx.flow.resubmitDeadline;
+    if (limit !== undefined) draft.state.resubmit = { dueAt: addDuration(draft, ctx.now, limit) };
     record(draft, "request.returned", { stepId: instance.stepId, ...comment });
     return finish(draft);
   }
@@ -122,6 +125,7 @@ export function resubmitRequest(
 
   invalidateFrom(draft, fromIndex);
   draft.state.status = "pending";
+  delete draft.state.resubmit;
   record(draft, "request.resubmitted", { returnPolicy: policy, applied, payloadChanged });
   const need = advance(draft, fromIndex);
   return need ? { kind: "needs-resolution", needs: [need] } : finish(draft);
@@ -136,6 +140,7 @@ export function withdrawRequest(
   requireRequester(state, command.actorId);
   const draft = startDraft(state, command.actorId, ctx);
   cancelOpenStep(draft);
+  delete draft.state.resubmit;
   draft.state.status = "withdrawn";
   draft.state.closedAt = ctx.now;
   draft.state.currentStepIndex = null;

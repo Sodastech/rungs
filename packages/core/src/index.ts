@@ -14,15 +14,18 @@ export type {
   RetryStepCommand,
   ReturnCommand,
   SubmitCommand,
+  TickCommand,
   WithdrawCommand,
 } from "./model/command.js";
 export type {
+  Calendar,
   DecidedResult,
   Decision,
   EngineContext,
   NeedsResolution,
   ResolutionNeed,
   StepResolution,
+  Unchanged,
 } from "./model/decision.js";
 export type { DelegationRule, DelegationSkipReason } from "./model/delegation.js";
 export type { FlowIssue, ReceivedType } from "./model/errors.js";
@@ -60,6 +63,8 @@ export type {
   FlowInput,
   MembershipOperator,
   Primitive,
+  ReminderInterval,
+  ResubmitTimeoutAction,
   ReturnPolicy,
   StepDefinition,
   StepInput,
@@ -68,6 +73,7 @@ export type {
 } from "./model/flow.js";
 export type {
   ApproverShortfall,
+  BlockedReminder,
   JsonValue,
   RegisteredFlow,
   RemovalReason,
@@ -75,6 +81,7 @@ export type {
   RequestState,
   RequestStatus,
   SkipReason,
+  StepDeadline,
   StepInstance,
   StepStatus,
   Subject,

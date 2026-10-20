@@ -13,6 +13,10 @@ const FLOW_KEYS = [
   "onAllSkipped",
   "maxEscalationDepth",
   "maxDelegationDepth",
+  "resubmitDeadline",
+  "onResubmitTimeout",
+  "remindBlockedEvery",
+  "remindOverdueEvery",
 ];
 const STEP_KEYS = [
   "id",
@@ -66,6 +70,7 @@ export function validateFlow(input: unknown): FlowIssue[] {
   if (input.maxDelegationDepth !== undefined && !isPositiveInteger(input.maxDelegationDepth)) {
     issues.push({ path: "maxDelegationDepth", message: "must be a positive integer" });
   }
+  validateFlowTimers(input, issues);
   rejectUnknownKeys(input, FLOW_KEYS, "", issues);
   return issues;
 }
@@ -221,6 +226,30 @@ function staticApprovers(spec: unknown): Set<string> | null {
     return all;
   }
   return null;
+}
+
+/** EC-52, EC-53, EC-55: resubmit deadline and reminder intervals. */
+function validateFlowTimers(input: Record<string, unknown>, issues: FlowIssue[]): void {
+  if (input.resubmitDeadline !== undefined) {
+    const parsed = parseDuration(input.resubmitDeadline);
+    if (!parsed.ok) issues.push({ path: "resubmitDeadline", message: parsed.reason });
+  }
+  if (input.onResubmitTimeout !== undefined) {
+    const actions = ["remind", "auto-withdraw"];
+    if (!actions.includes(input.onResubmitTimeout as string)) {
+      issues.push({ path: "onResubmitTimeout", message: `must be one of ${quoted(actions)}` });
+    } else if (input.resubmitDeadline === undefined) {
+      issues.push({ path: "onResubmitTimeout", message: "requires a resubmitDeadline" });
+    }
+  }
+  for (const key of ["remindBlockedEvery", "remindOverdueEvery"]) {
+    const value = input[key];
+    if (value === undefined || value === "never") continue;
+    const parsed = parseDuration(value);
+    if (!parsed.ok) {
+      issues.push({ path: key, message: `must be "never" or a duration: ${parsed.reason}` });
+    }
+  }
 }
 
 function isNonEmptyString(value: unknown): value is string {

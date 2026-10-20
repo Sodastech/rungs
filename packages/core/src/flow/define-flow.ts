@@ -19,6 +19,14 @@ export function defineFlow(input: FlowInput): FlowDefinition {
     onAllSkipped: input.onAllSkipped ?? "approve",
     maxEscalationDepth: input.maxEscalationDepth ?? 3,
     maxDelegationDepth: input.maxDelegationDepth ?? 3,
+    ...(input.resubmitDeadline === undefined
+      ? {}
+      : {
+          resubmitDeadline: input.resubmitDeadline,
+          onResubmitTimeout: input.onResubmitTimeout ?? "remind",
+        }),
+    remindBlockedEvery: input.remindBlockedEvery ?? "P1D",
+    remindOverdueEvery: input.remindOverdueEvery ?? "P1D",
     steps: input.steps.map(normalizeStep),
   });
 }

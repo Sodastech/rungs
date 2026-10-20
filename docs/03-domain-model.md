@@ -34,6 +34,10 @@ Defaults fail closed: nothing silently bypasses an approval step.
 | `onAllSkipped` | `"approve" \| "fail"` | When every step is skipped (EC-39). Default `"approve"` |
 | `maxEscalationDepth` | number | Positive integer. Default `3` (EC-28) |
 | `maxDelegationDepth` | number | Positive integer. Default `3`. Most out-of-office hops followed from one approver (EC-21). A flow setting so each flow can be stricter |
+| `resubmitDeadline` | Duration? | How long a returned request waits for the requester (EC-52). Default: no limit, so nothing is closed silently |
+| `onResubmitTimeout` | `"remind" \| "auto-withdraw"` | Requires `resubmitDeadline`; present exactly when it is set (default `"remind"`) |
+| `remindBlockedEvery` | Duration \| `"never"` | Repeats `step.still_blocked` while a step is blocked (EC-53). Default `"P1D"` |
+| `remindOverdueEvery` | Duration \| `"never"` | Repeats `task.reminder` while a task is overdue (EC-55). Default `"P1D"` |
 
 Unknown keys are rejected so a typo cannot silently disable a setting.
 
@@ -47,7 +51,7 @@ Unknown keys are rejected so a typo cannot silently disable a setting.
 | `mode` | `"any" \| "all" \| { quorum: number }` | Default `"any"`: the first decision, approve or reject, decides the step and supersedes the other tasks (EC-12). `all` and quorum: approved once enough approvals arrive, rejected as soon as approval can no longer be reached (EC-13, EC-14). A quorum larger than a static `users` list is rejected |
 | `when` | Condition? | Step runs only if true; evaluated on the payload snapshot |
 | `deadline` | Duration? | e.g. `"P2D"`, `"PT8H"` |
-| `remindBefore` | Duration? | Emit a reminder event before the deadline. Requires `deadline`; must be shorter |
+| `remindBefore` | Duration? | Emit one reminder per pending task before the deadline. Requires `deadline`; must be shorter |
 | `onTimeout` | `"remind" \| "escalate" \| "auto-approve" \| "auto-reject"` | Requires `deadline`; present exactly when `deadline` is set (default `"remind"`) |
 | `escalateTo` | ApproverSpec? | Required for `"escalate"`, not allowed otherwise (Pro allows org-relative targets) |
 
@@ -116,6 +120,8 @@ Plain JSON. The engine never mutates it; every command returns a new state.
 | `steps` | StepInstance[] | Every activation or skip, in order |
 | `lastAuditSeq` | number | Highest audit `seq` written for this request |
 | `lastTaskNumber` | number | Counter for deriving task IDs |
+| `resubmit` | `{ dueAt; remindedAt? }`? | While returned with a `resubmitDeadline` (EC-52) |
+| `nextDueAt` | ISO string \| null | Earliest moment `tick` has something to do; lets a store find due requests |
 
 ## StepInstance
 
@@ -128,13 +134,14 @@ activation and stored as a snapshot. A step can have several instances after a r
 | `index` | number | Position of the step in the pinned flow |
 | `status` | `"skipped" \| "active" \| "blocked" \| "approved" \| "rejected" \| "returned" \| "cancelled"` | `blocked`: see below |
 | `approvers` | string[] | Snapshot of the users holding the step's tasks at activation: after removing inactive users and the requester, and after delegation. Empty when skipped or blocked |
-| `removed` | `{ userId; reason: "inactive" \| "requester" }[]`? | Resolved users who are not approvers, with the reason (EC-01, EC-06). Absent when nobody was removed |
+| `removed` | `{ userId; reason: "inactive" \| "requester" \| "already-voted" }[]`? | Resolved users who are not approvers, with the reason (EC-01, EC-06, EC-54). Absent when nobody was removed |
 | `skipReason` | `{ type: "condition-false"; condition } \| { type: "no-approvers" }`? | Why the step was skipped (EC-38, EC-02, EC-04) |
 | `blockReason` | `{ type: "no-approvers" } \| { type: "quorum-unreachable"; required; available }`? | Why the step is blocked (EC-42, EC-45) |
 | `activatedAt`, `skippedAt`, `blockedAt`, `closedAt` | ISO string? | `blockedAt` stays after the step is unblocked |
 | `invalidatedAt` | ISO string? | Set when the instance stops counting after a return or resubmit, because its step runs again (see below) |
 | `tasks` | Task[] | One per approver; none while blocked |
-| `deadlineAt`, `escalationDepth` | | Planned (1.7) |
+| `deadline` | `{ deadlineAt; remindAt?; remindedAt?; timedOutAt?; escalationDepth; reminders; nextReminderAt? }`? | Set when a step with a `deadline` activates (not while blocked). The markers make `tick` idempotent (EC-27) |
+| `blockedReminder` | `{ nextAt; count }`? | While blocked, unless `remindBlockedEvery: "never"` (EC-53) |
 
 ### Resolution pipeline
 
@@ -195,6 +202,36 @@ and are not part of the current run when deciding whether every step was skipped
 
 The requester can `withdraw` a pending or returned request at any time (EC-35): pending tasks and
 the open step become `cancelled` and the request becomes `withdrawn`.
+
+### Time: deadlines, reminders and escalation
+
+Time only moves when the host calls `tick` with an injected `now`; Rungs never reads a clock. A
+`tick` is a system action (`actorId: null`) and applies each due action once (EC-27); when nothing
+is due it returns `unchanged`. Durations are absolute UTC time unless a `calendar` is injected
+(EC-30, EC-31).
+
+- **Reminders (D22, updated).** With `remindBefore`, every pending task gets one `task.reminder`
+  (`overdue: false`) before the deadline; a tick that arrives after the deadline skips it. At the
+  deadline, `onTimeout` applies. With `remind` (default) every pending task gets `task.reminder`
+  with `overdue: true, count: 1`, and then again every `remindOverdueEvery` (default `P1D`, EC-55)
+  with an increasing `count`, so an overdue task is never forgotten. A late tick sends one
+  reminder, not one per missed interval, and the schedule resumes from the missed slot.
+- **`auto-approve` / `auto-reject`.** Pending tasks become `expired`, `step.timed_out` is recorded
+  and the step closes. These are explicit opt-ins and count as nobody's vote: nothing carries over
+  by dedupe. An auto-rejected request records `request.rejected` with `reason: "timeout"`.
+- **`escalate` (EC-28, EC-54).** `escalateTo` is resolved afresh (the need carries
+  `escalationDepth`, so a resolver can walk up). Targets pass the usual pipeline (inactive,
+  requester, delegation) and anyone who already voted in this step or approved an earlier step is
+  removed with `reason: "already-voted"`: nobody votes twice. There is no dedupe, so an escalation
+  never closes a step by itself. The targets replace the pending tasks (which become `expired`) and
+  must be enough for the votes still needed; the step gets a new deadline of the same length. After
+  `maxEscalationDepth` escalations, or with too few targets, the current tasks stay pending,
+  `request.escalation_failed` alerts and overdue reminders continue (fail-safe).
+- **Blocked steps (EC-53).** A blocked step has no deadline. Instead `step.still_blocked` repeats
+  every `remindBlockedEvery` (default `P1D`) until an admin acts. `"never"` turns it off.
+- **Returned requests (EC-52).** By default they wait without a time limit. With
+  `resubmitDeadline`, `remind` sends `request.resubmit_overdue` once; `auto-withdraw` withdraws
+  the request as a system action with `reason: "resubmit-timeout"`.
 
 ## Task
 
@@ -269,10 +306,15 @@ Types and data (discriminated union `AuditEvent` in `@rungs/core`):
 | --- | --- |
 | `request.submitted` | `flowKey`, `flowVersion`, `subject` |
 | `request.approved` | `reason: "steps-approved"`, `reason: "all-steps-skipped"` with `skippedStepIds` (EC-39), or `reason: "override"` with `comment` (EC-18) |
-| `request.rejected` | `reason: "step-rejected"` with `stepId`, or `reason: "override"` with `comment` (EC-18) |
+| `request.rejected` | `reason: "step-rejected"` or `reason: "timeout"` with `stepId`, or `reason: "override"` with `comment` (EC-18, EC-26) |
 | `request.returned` | `stepId` (the step that returned it), `comment?` (EC-32) |
 | `request.resubmitted` | `returnPolicy`, `applied` (the policy actually used), `payloadChanged` (EC-34, EC-51) |
-| `request.withdrawn` | `comment?` (EC-35) |
+| `request.withdrawn` | `comment?` (EC-35), or `reason: "resubmit-timeout"` from a tick (EC-52) |
+| `request.resubmit_overdue` | `stepId` (that returned it), `dueAt` (EC-52) |
+| `request.escalated` | `stepId`, `stepIndex`, `depth`, `toUserIds`, `removed?` (EC-28, EC-54) |
+| `request.escalation_failed` | `stepId`, `stepIndex`, `depth`, `reason: "max-depth"`, or `reason: "too-few-targets"` with `required`, `available`, `removed?` (EC-28) |
+| `step.timed_out` | `stepId`, `stepIndex`, `action: "auto-approve" \| "auto-reject"` (EC-26) |
+| `step.still_blocked` | `stepId`, `stepIndex`, `blockedSince`, `reason`, `count` (EC-53) |
 | `step.activated` | `stepId`, `stepIndex`, `approvers`, `removed?` |
 | `step.skipped` | `stepId`, `stepIndex`, `reason` (`condition-false` with the condition, or `no-approvers`), `removed?` |
 | `step.blocked` | `stepId`, `stepIndex`, `reason` (`no-approvers` or `quorum-unreachable`), `removed?` (EC-42) |
@@ -289,7 +331,9 @@ Types and data (discriminated union `AuditEvent` in `@rungs/core`):
 | `task.approved`, `task.rejected` | `taskId`, `stepId`, `comment?` |
 | `task.returned` | `taskId`, `stepId`, `to: "requester" \| { stepId }`, `comment?` (EC-32, EC-33) |
 | `task.superseded` | `taskId`, `stepId`, `byTaskId` |
-| `task.cancelled` | `taskId`, `stepId` (override) |
+| `task.cancelled` | `taskId`, `stepId` (override, withdraw) |
+| `task.reminder` | `taskId`, `stepId`, `assigneeId`, `deadlineAt`, `overdue: false`, or `overdue: true` with `count` (EC-26, EC-55) |
+| `task.expired` | `taskId`, `stepId` (timeout or escalation) |
 
 Audit events are the source of truth for "what happened and why". Domain events emitted to the host for
 notifications are derived from them one to one, except that `task.approved` and `task.rejected`

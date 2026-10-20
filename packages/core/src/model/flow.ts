@@ -36,6 +36,9 @@ export type EmptyStepPolicy = "fail" | "skip";
 export type DedupePolicy = "none" | "consecutive" | "all";
 export type ReturnPolicy = "restart" | "from-returned-step";
 export type AllSkippedPolicy = "approve" | "fail";
+export type ResubmitTimeoutAction = "remind" | "auto-withdraw";
+/** How often a reminder repeats, or `"never"`. */
+export type ReminderInterval = Duration | "never";
 
 export interface StepInput {
   readonly id: string;
@@ -69,6 +72,14 @@ export interface FlowInput {
   readonly maxEscalationDepth?: number;
   /** Most out-of-office hops followed from one approver (EC-21). Default `3`. */
   readonly maxDelegationDepth?: number;
+  /** How long a returned request waits for the requester (EC-52). Default: no limit. */
+  readonly resubmitDeadline?: Duration;
+  /** Default `"remind"`. Requires `resubmitDeadline`. */
+  readonly onResubmitTimeout?: ResubmitTimeoutAction;
+  /** Repeats `step.still_blocked` while a step is blocked (EC-53). Default `"P1D"`. */
+  readonly remindBlockedEvery?: ReminderInterval;
+  /** Repeats `task.reminder` while a task is overdue (EC-55). Default `"P1D"`. */
+  readonly remindOverdueEvery?: ReminderInterval;
 }
 
 export interface StepDefinition {
@@ -95,4 +106,9 @@ export interface FlowDefinition {
   readonly onAllSkipped: AllSkippedPolicy;
   readonly maxEscalationDepth: number;
   readonly maxDelegationDepth: number;
+  readonly resubmitDeadline?: Duration;
+  /** Present exactly when `resubmitDeadline` is set. */
+  readonly onResubmitTimeout?: ResubmitTimeoutAction;
+  readonly remindBlockedEvery: ReminderInterval;
+  readonly remindOverdueEvery: ReminderInterval;
 }

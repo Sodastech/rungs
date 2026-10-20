@@ -59,12 +59,16 @@ Tier: **Core** = MIT `@rungs/core`; **Pro** = `@rungs/org`.
 
 | ID | Situation | Default behavior | Config | Tier |
 | --- | --- | --- | --- | --- |
-| EC-26 | Deadline passes | On next `tick(now)`, apply `onTimeout` (default `remind`) | `onTimeout` | Core |
-| EC-27 | `tick` runs twice for the same moment, or concurrently | Idempotent: each deadline action is applied once | — | Core |
-| EC-28 | Escalation target is also absent / empty | Escalate again up to `maxEscalationDepth` (default 3); then `fail-safe` (keep pending + alert event) | `maxEscalationDepth` | Core |
+| EC-26 | Deadline passes | On next `tick(now)`, apply `onTimeout` (default `remind`: `task.reminder` with `overdue: true`, then EC-55). `auto-approve` / `auto-reject` expire the tasks and count as nobody's vote; `escalate` see EC-28. An earlier `remindBefore` reminder is sent once | `onTimeout`, `remindBefore` | Core |
+| EC-27 | `tick` runs twice for the same moment, or concurrently | Idempotent: each deadline action is applied once (markers in the state); a tick with nothing due returns `unchanged`. Concurrent writers are separated by the store's version check | — | Core |
+| EC-28 | Escalation target is also absent / empty | Escalate again (fresh resolution, `escalationDepth` passed to the resolver) up to `maxEscalationDepth` (default 3); then fail-safe: the tasks stay pending, `request.escalation_failed` alerts, overdue reminders continue. Too few targets fails safe the same way | `maxEscalationDepth` | Core |
 | EC-29 | Escalation should follow the org chart ("manager's manager") | Org-relative `escalateTo` | — | Pro |
-| EC-30 | Deadlines should count business days only | Calendar interface injected by the host; default counts calendar time | `calendar` | Core (interface) |
+| EC-30 | Deadlines should count business days only | Synchronous calendar interface (`addDuration`, `subtractDuration`) injected by the host; default counts absolute time. Results must be ISO 8601 UTC | `calendar` | Core (interface) |
 | EC-31 | Users in different time zones | All persisted times UTC; durations are absolute unless a calendar is supplied | — | Core |
+| EC-52 | A returned request is never resubmitted | Default: waits without a time limit, so nothing is closed silently. With `resubmitDeadline`: `remind` sends `request.resubmit_overdue` once; `auto-withdraw` withdraws it as a system action with `reason: "resubmit-timeout"` | `resubmitDeadline`, `onResubmitTimeout: remind \| auto-withdraw` | Core |
+| EC-53 | A blocked step is forgotten | `step.still_blocked` (with `blockedSince`, `reason`, `count`) repeats every `remindBlockedEvery` until an admin acts. A late tick sends one reminder and resumes the schedule. Unblocking stops it | `remindBlockedEvery` (default `P1D`, or `never`) | Core |
+| EC-54 | An escalation target already voted (in this step, or approved an earlier step) | Removed with `reason: "already-voted"`, like the requester and inactive users; delegation still applies. Nobody votes twice in a step, and escalation has no dedupe, so it never closes a step by itself. The targets must cover the votes still needed, otherwise EC-28 fail-safe | — | Core |
+| EC-55 | A task stays overdue under `onTimeout: remind` | After the reminder at the deadline (D22), `task.reminder` with `overdue: true` and an increasing `count` repeats every `remindOverdueEvery`, also after a failed escalation. A late tick sends one reminder, not one per missed interval | `remindOverdueEvery` (default `P1D`, or `never`) | Core |
 
 ## E. Lifecycle
 

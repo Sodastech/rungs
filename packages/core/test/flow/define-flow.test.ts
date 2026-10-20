@@ -29,6 +29,8 @@ describe("defineFlow", () => {
       onAllSkipped: "approve",
       maxEscalationDepth: 3,
       maxDelegationDepth: 3,
+      remindBlockedEvery: "P1D",
+      remindOverdueEvery: "P1D",
       steps: [
         {
           id: "manager",
@@ -156,6 +158,50 @@ describe("defineFlow", () => {
         "maxEscalationDepth",
         /positive integer/,
       );
+    });
+
+    it("adds onResubmitTimeout remind only when a resubmitDeadline is set", () => {
+      expect(defineFlow(flowInput())).not.toHaveProperty("resubmitDeadline");
+      expect(defineFlow(flowInput())).not.toHaveProperty("onResubmitTimeout");
+      const flow = defineFlow(flowInput({ resubmitDeadline: "P5D" }));
+      expect(flow).toMatchObject({ resubmitDeadline: "P5D", onResubmitTimeout: "remind" });
+      const withdraw = defineFlow(
+        flowInput({ resubmitDeadline: "P5D", onResubmitTimeout: "auto-withdraw" }),
+      );
+      expect(withdraw.onResubmitTimeout).toBe("auto-withdraw");
+      expect(defineFlow(withdraw)).toEqual(withdraw);
+    });
+
+    it("accepts never or a duration for the reminder intervals", () => {
+      const flow = defineFlow(
+        flowInput({ remindBlockedEvery: "never", remindOverdueEvery: "PT4H" }),
+      );
+      expect(flow).toMatchObject({ remindBlockedEvery: "never", remindOverdueEvery: "PT4H" });
+    });
+
+    it.each<[string, unknown, string, RegExp]>([
+      ["resubmitDeadline", { resubmitDeadline: "P1M" }, "resubmitDeadline", /years and months/],
+      [
+        "onResubmitTimeout without deadline",
+        { onResubmitTimeout: "remind" },
+        "onResubmitTimeout",
+        /requires a resubmitDeadline/,
+      ],
+      [
+        "onResubmitTimeout value",
+        { resubmitDeadline: "P1D", onResubmitTimeout: "auto-approve" },
+        "onResubmitTimeout",
+        /must be one of/,
+      ],
+      ["remindBlockedEvery", { remindBlockedEvery: "sometimes" }, "remindBlockedEvery", /never/],
+      [
+        "remindOverdueEvery",
+        { remindOverdueEvery: "PT0S" },
+        "remindOverdueEvery",
+        /greater than zero/,
+      ],
+    ])("rejects an invalid %s", (_, overrides, path, message) => {
+      expectIssue({ ...flowInput(), ...(overrides as object) }, path, message);
     });
 
     it.each([0, -1, 1.5])("rejects maxDelegationDepth %s", (value) => {

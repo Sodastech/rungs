@@ -50,6 +50,12 @@ export interface WithdrawCommand {
   comment?: string;
 }
 
+/** Applies whatever is due at `ctx.now`: reminders, timeouts, escalation (EC-26). A system action. */
+export interface TickCommand {
+  type: "tick";
+  requestId: string;
+}
+
 /** Hands the actor's pending task to a delegate (EC-25). */
 export interface DelegateCommand {
   type: "delegate";
@@ -106,6 +112,7 @@ export type Command =
   | ReturnCommand
   | ResubmitCommand
   | WithdrawCommand
+  | TickCommand
   | DelegateCommand
   | ReassignStepCommand
   | ReassignTaskCommand

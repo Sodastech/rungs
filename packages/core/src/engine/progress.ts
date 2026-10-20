@@ -21,6 +21,7 @@ import {
   shortfall,
 } from "../resolution/pipeline.js";
 import { clone, type Draft, record } from "./draft.js";
+import { startBlockedReminder, startDeadline } from "./timers.js";
 
 /** What resolving a step leads to, before anything is recorded. */
 export type StepPlan =
@@ -176,12 +177,16 @@ export function closeStep(
   record(draft, "step.completed", { stepId: instance.stepId, stepIndex: instance.index, outcome });
 }
 
-export function closeRejected(draft: Draft, stepId: string): void {
+export function closeRejected(
+  draft: Draft,
+  stepId: string,
+  reason: "step-rejected" | "timeout" = "step-rejected",
+): void {
   const { state } = draft;
   state.status = "rejected";
   state.closedAt = draft.ctx.now;
   state.currentStepIndex = null;
-  record(draft, "request.rejected", { reason: "step-rejected", stepId });
+  record(draft, "request.rejected", { reason, stepId });
 }
 
 function newInstance(step: StepDefinition, index: number): StepInstance {
@@ -229,6 +234,7 @@ function activate(
     tasks: [],
   });
   delete instance.blockReason;
+  delete instance.blockedReminder;
   delete instance.removed;
   if (removed.length > 0) instance.removed = clone(removed);
   state.currentStepIndex = instance.index;
@@ -260,7 +266,10 @@ function activate(
     });
   }
 
-  if (!approvers.every((id) => carried.has(id))) return false;
+  if (!approvers.every((id) => carried.has(id))) {
+    startDeadline(draft, instance, ctx.flow.steps[instance.index] as StepDefinition);
+    return false;
+  }
   closeStep(draft, instance, "approved");
   return true;
 }
@@ -349,6 +358,7 @@ function skip(
   });
   instance.skipReason = clone(reason);
   delete instance.blockReason;
+  delete instance.blockedReminder;
   delete instance.removed;
   if (removed.length > 0) instance.removed = clone(removed);
   record(draft, "step.skipped", {
@@ -370,6 +380,7 @@ function block(
   Object.assign(instance, { status: "blocked", blockedAt: draft.ctx.now });
   instance.blockReason = clone(reason);
   if (removed.length > 0) instance.removed = clone(removed);
+  startBlockedReminder(draft, instance);
   draft.state.currentStepIndex = instance.index;
   record(draft, "step.blocked", {
     stepId: instance.stepId,

@@ -51,7 +51,7 @@ export type SkipReason =
   | { type: "no-approvers" };
 
 /** Why a resolved user is not an approver of a step (EC-01, EC-06). */
-export type RemovalReason = "inactive" | "requester";
+export type RemovalReason = "inactive" | "requester" | "already-voted";
 
 export interface RemovedApprover {
   userId: string;
@@ -62,6 +62,27 @@ export interface RemovedApprover {
 export type ApproverShortfall =
   | { type: "no-approvers" }
   | { type: "quorum-unreachable"; required: number; available: number };
+
+/** Timers of an active step with a deadline. Markers make `tick` idempotent (EC-27). */
+export interface StepDeadline {
+  deadlineAt: string;
+  /** From `remindBefore`. */
+  remindAt?: string;
+  remindedAt?: string;
+  /** When `onTimeout` was applied to this deadline. */
+  timedOutAt?: string;
+  /** Escalations so far (EC-28). */
+  escalationDepth: number;
+  /** Overdue reminders sent (EC-55). */
+  reminders: number;
+  nextReminderAt?: string;
+}
+
+/** Repeating reminder while a step is blocked (EC-53). */
+export interface BlockedReminder {
+  nextAt: string;
+  count: number;
+}
 
 export interface Task {
   /** Derived from the request id: `${requestId}.t${n}`. */
@@ -96,6 +117,8 @@ export interface StepInstance {
   invalidatedAt?: string;
   skipReason?: SkipReason;
   blockReason?: ApproverShortfall;
+  deadline?: StepDeadline;
+  blockedReminder?: BlockedReminder;
   /** Snapshot of the approvers resolved at activation, after removals. */
   approvers: string[];
   /** Resolved users who were removed, with the reason. Absent when nobody was removed. */
@@ -125,4 +148,8 @@ export interface RequestState {
   lastAuditSeq: number;
   /** Counter used to derive task ids. */
   lastTaskNumber: number;
+  /** While returned, when the requester is due to resubmit (EC-52). */
+  resubmit?: { dueAt: string; remindedAt?: string };
+  /** Earliest moment `tick` has something to do, or null. Lets a store find due requests. */
+  nextDueAt: string | null;
 }

@@ -40,7 +40,10 @@ export type AuditEventBody =
     }
   | {
       type: "request.rejected";
-      data: { reason: "step-rejected"; stepId: string } | { reason: "override"; comment: string };
+      data:
+        | { reason: "step-rejected"; stepId: string }
+        | { reason: "timeout"; stepId: string }
+        | { reason: "override"; comment: string };
     }
   | { type: "request.returned"; data: { stepId: string; comment?: string } }
   | {
@@ -48,7 +51,35 @@ export type AuditEventBody =
       /** `applied` differs from `returnPolicy` when a changed payload forced a restart (EC-51). */
       data: { returnPolicy: ReturnPolicy; applied: ReturnPolicy; payloadChanged: boolean };
     }
-  | { type: "request.withdrawn"; data: { comment?: string } }
+  | {
+      type: "request.withdrawn";
+      data: { comment?: string } | { reason: "resubmit-timeout" };
+    }
+  | { type: "request.resubmit_overdue"; data: { stepId: string; dueAt: string } }
+  | {
+      type: "request.escalated";
+      data: StepData & RemovedData & { depth: number; toUserIds: string[] };
+    }
+  | {
+      type: "request.escalation_failed";
+      data: StepData & { depth: number } & (
+          | { reason: "max-depth" }
+          | ({ reason: "too-few-targets"; required: number; available: number } & RemovedData)
+        );
+    }
+  | { type: "step.timed_out"; data: StepData & { action: "auto-approve" | "auto-reject" } }
+  | {
+      type: "step.still_blocked";
+      data: StepData & { blockedSince: string; reason: ApproverShortfall; count: number };
+    }
+  | {
+      type: "task.reminder";
+      data: TaskData & { assigneeId: string; deadlineAt: string } & (
+          | { overdue: false }
+          | { overdue: true; count: number }
+        );
+    }
+  | { type: "task.expired"; data: TaskData }
   | { type: "step.activated"; data: StepData & RemovedData & { approvers: string[] } }
   | { type: "step.skipped"; data: StepData & RemovedData & { reason: SkipReason } }
   | { type: "step.blocked"; data: StepData & RemovedData & { reason: ApproverShortfall } }

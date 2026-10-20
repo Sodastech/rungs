@@ -446,6 +446,7 @@ describe("A. Approver resolution", () => {
         status: "blocked",
         blockedAt: T1,
         blockReason: { type: "no-approvers" },
+        blockedReminder: { nextAt: "2026-01-06T10:00:00.000Z", count: 0 },
         approvers: [],
         tasks: [],
       });

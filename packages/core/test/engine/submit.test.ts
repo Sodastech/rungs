@@ -33,6 +33,7 @@ describe("submit", () => {
       submittedAt: T0,
       lastAuditSeq: 3,
       lastTaskNumber: 1,
+      nextDueAt: null,
       steps: [
         {
           stepId: "manager",

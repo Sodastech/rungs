@@ -32,6 +32,7 @@ export function record<T extends AuditEventBody["type"]>(
 
 export function finish(draft: Draft): DecidedResult {
   draft.state.version += 1;
+  draft.state.nextDueAt = nextDueAt(draft.state);
   const tenant = draft.state.tenantId === undefined ? {} : { tenantId: draft.state.tenantId };
   const events = draft.audit.map((event): DomainEvent => {
     const base = {
@@ -48,6 +49,28 @@ export function finish(draft: Draft): DecidedResult {
     return { ...base, type: event.type, data: clone(event.data) } as DomainEvent;
   });
   return { kind: "decided", state: draft.state, audit: draft.audit, events };
+}
+
+/** The earliest pending timer of the request, so a store can find what `tick` must process. */
+function nextDueAt(state: RequestState): string | null {
+  const times: string[] = [];
+  if (state.status === "returned" && state.resubmit && state.resubmit.remindedAt === undefined) {
+    times.push(state.resubmit.dueAt);
+  }
+  if (state.status === "pending") {
+    const open = state.steps.findLast((s) => s.status === "active" || s.status === "blocked");
+    if (open?.status === "blocked" && open.blockedReminder) times.push(open.blockedReminder.nextAt);
+    const deadline = open?.status === "active" ? open.deadline : undefined;
+    if (deadline) {
+      if (deadline.remindAt !== undefined && deadline.remindedAt === undefined) {
+        times.push(deadline.remindAt);
+      }
+      if (deadline.timedOutAt === undefined) times.push(deadline.deadlineAt);
+      else if (deadline.nextReminderAt !== undefined) times.push(deadline.nextReminderAt);
+    }
+  }
+  if (times.length === 0) return null;
+  return times.reduce((a, b) => (Date.parse(b) < Date.parse(a) ? b : a));
 }
 
 /** Deep copy of plain JSON data. State and payloads are validated to be JSON. */
