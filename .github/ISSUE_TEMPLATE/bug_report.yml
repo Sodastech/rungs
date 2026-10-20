@@ -1,0 +1,40 @@
+name: Bug report
+description: Something behaves differently from the docs or the edge case catalog.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Approval bugs are easiest to fix with a small, exact reproduction.
+        Please do not paste real names, emails or other personal data; use IDs like `u_a`.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+      placeholder: |
+        Given a flow with ..., after submit and approve by u_a, I expected step "finance" to ...
+        but it ...
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: The flow definition, the commands in order, and the result (state or error).
+      render: ts
+    validations:
+      required: true
+  - type: input
+    id: edge-case
+    attributes:
+      label: Related edge case
+      description: An ID from docs/05-edge-cases.md, if one applies (e.g. EC-03).
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Rungs package versions, Node.js version and store adapter.
+      placeholder: "@rungsjs/core 0.1.0, Node 22.x, @rungsjs/store-memory"
+    validations:
+      required: true

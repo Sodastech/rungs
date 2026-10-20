@@ -1,0 +1,25 @@
+{
+  "name": "rungs",
+  "version": "0.0.1",
+  "description": "Rungs: org-aware approval workflows for TypeScript. Coming soon.",
+  "license": "MIT",
+  "author": "Sodastech",
+  "homepage": "https://github.com/Sodastech/rungs#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sodastech/rungs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Sodastech/rungs/issues"
+  },
+  "keywords": [
+    "approval",
+    "approval-workflow",
+    "workflow-engine",
+    "typescript"
+  ],
+  "files": [
+    "README.md",
+    "LICENSE"
+  ]
+}

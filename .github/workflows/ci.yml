@@ -35,6 +35,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm check:ec
+      - run: pnpm check:readme
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm test

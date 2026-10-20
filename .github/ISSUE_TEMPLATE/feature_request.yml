@@ -1,0 +1,33 @@
+name: Feature request
+description: A workflow your app needs that Rungs does not support yet.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Real approval scenarios help most. Describe the situation in your organization rather than
+        the API you have in mind; there may be an edge case behind it.
+  - type: textarea
+    id: scenario
+    attributes:
+      label: Scenario
+      description: Who requests, who should approve, and what should happen.
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What happens today
+      description: How Rungs behaves now, or how you work around it.
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal (optional)
+      description: A possible API or configuration, and the default you would expect.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I checked docs/05-edge-cases.md for an existing case.
+          required: true
