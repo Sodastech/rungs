@@ -50,10 +50,6 @@ the host application.
 
 - Free packages: MIT, public GitHub repo, published to npm under the `@rungsjs` scope (the `@rungs`
   scope was taken).
-- With the first release (`0.1.0`) we also publish the unscoped package `rungs`, a thin MIT package
-  that only re-exports `@rungsjs/core` (`export * from "@rungsjs/core"`) and depends on it at the
-  same version. It gives users the short name `npm install rungs`; it never contains code of its own
-  and never re-exports Pro packages.
 - Pro packages: commercial license (per company, unlimited developers, includes 12 months of updates),
   source delivered through private GitHub repo access granted automatically after purchase via Polar.
 - Pricing is decided at Phase 4 based on Phase 3 signals. Do not hard-code prices in the docs.

@@ -9,7 +9,9 @@ rethink before investing in the next phase.
 - pnpm + Turborepo monorepo, TypeScript strict, Biome, Vitest, tsup, Changesets
 - GitHub repo, CI (lint, typecheck, test on Node 22 and 24)
 - Empty packages: `core`, `store-memory`
-- Reserve names: npm `rungs` and the `@rungsjs` scope (`@rungs` was taken), GitHub org, domain
+- Reserve names: the `@rungsjs` npm scope, GitHub org, domain. The `@rungs` scope was taken, and npm
+  rejected the unscoped name `rungs` as too similar to the existing package `runjs`; do not try it
+  again. The official install name is `@rungsjs/core`.
 
 **Gate:** `pnpm build && pnpm test` passes in CI.
 
@@ -42,8 +44,6 @@ rethink before investing in the next phase.
 
 - Publish `0.1.0` to npm (`@rungsjs/core`, `@rungsjs/store-memory`, `@rungsjs/store-postgres`),
   with all changesets combined into one "Initial release" note; README with a short demo GIF
-- Also publish the unscoped `rungs` package as a re-export of `@rungsjs/core` at the same version
-  (see `docs/02-free-vs-pro.md`)
 - Launch posts: Show HN, r/node, r/typescript, r/nextjs, dev.to article on approval edge cases
 - Free Claude Code skill that teaches agents how to add flows with Rungs
 

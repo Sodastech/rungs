@@ -3,6 +3,9 @@
 Thanks for your interest! Rungs is pre-release and maintained on limited time, so small, focused
 issues and pull requests are the easiest to review.
 
+Everyone taking part agrees to the [Code of Conduct](CODE_OF_CONDUCT.md); report problems to
+info@sodastech.com.
+
 ## Before you start
 
 - **Bugs and edge cases:** open an issue first. A failing case described as "given this flow and

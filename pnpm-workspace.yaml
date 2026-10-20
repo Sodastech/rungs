@@ -1,7 +1,5 @@
 packages:
   - "packages/*"
-  # The npm name placeholder is published by hand and never built with the workspace.
-  - "!packages/rungs-placeholder"
   - "examples/*"
 allowBuilds:
   esbuild: true
