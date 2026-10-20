@@ -152,7 +152,11 @@ Free text is always `comment` (required for `override` and `reassign`); `reason`
 for machine-readable causes. `{ type: "tick", requestId }` applies whatever is due at `now` as a system action (EC-26): it
 returns `unchanged` when nothing is due or the request is closed, so concurrent or repeated ticks
 are harmless (EC-27). Due requests are found by `nextDueAt`. An escalation asks for its targets
-with the key `escalate:<stepId>`.
+with the key `escalate:<stepId>`. Escalation targets must cover every vote the step still needs: in an
+`all` or quorum step that still needs more than one vote, escalating to a single person ends in
+`request.escalation_failed`, by design, because one person must not replace several votes
+(separation of duties). For example, an `all` step with A, B and C where only A approved needs
+two targets. Letting one escalation target decide the whole step is not supported yet.
 
 A calendar is synchronous so the engine stays pure: a host that needs holidays loads them first.
 Both functions must return ISO 8601 UTC timestamps; anything else is an `InvalidCommandError`.

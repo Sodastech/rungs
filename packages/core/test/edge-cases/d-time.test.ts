@@ -340,6 +340,37 @@ describe("D. Time", () => {
       expect(y.steps[0]?.status).toBe("approved");
     });
 
+    it("EC-54 one person can never replace several votes: escalating to one target fails safe", () => {
+      const cases: [StepInput["mode"], number][] = [
+        ["all", 3],
+        [{ quorum: 2 }, 2],
+      ];
+      for (const [mode, required] of cases) {
+        const flow = escalating({ approvers: users("u_a", "u_b", "u_c"), mode });
+        const result = decided(
+          tick(submitted(flow), day(1), { flow, approvers: { "escalate:manager": ["u_lead"] } }),
+        );
+        expect(result.audit.map((e) => [e.type, e.data])).toEqual([
+          [
+            "request.escalation_failed",
+            {
+              stepId: "manager",
+              stepIndex: 0,
+              depth: 0,
+              reason: "too-few-targets",
+              required,
+              available: 1,
+            },
+          ],
+        ]);
+        expect(result.state.steps[0]?.tasks.map((t) => t.status)).toEqual([
+          "pending",
+          "pending",
+          "pending",
+        ]);
+      }
+    });
+
     it("EC-54 a target who approved an earlier step is removed", () => {
       const flow = registeredFlow({
         key: "expense",

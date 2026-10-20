@@ -224,7 +224,9 @@ is due it returns `unchanged`. Durations are absolute UTC time unless a `calenda
   requester, delegation) and anyone who already voted in this step or approved an earlier step is
   removed with `reason: "already-voted"`: nobody votes twice. There is no dedupe, so an escalation
   never closes a step by itself. The targets replace the pending tasks (which become `expired`) and
-  must be enough for the votes still needed; the step gets a new deadline of the same length. After
+  must be enough for the votes still needed (one person never replaces several votes, so a single
+target cannot carry an `all` or quorum step that still needs two or more; deciding the whole step
+by escalation is not supported yet); the step gets a new deadline of the same length. After
   `maxEscalationDepth` escalations, or with too few targets, the current tasks stay pending,
   `request.escalation_failed` alerts and overdue reminders continue (fail-safe).
 - **Blocked steps (EC-53).** A blocked step has no deadline. Instead `step.still_blocked` repeats
