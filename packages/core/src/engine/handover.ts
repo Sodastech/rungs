@@ -29,13 +29,12 @@ export function delegateTask(
   if (command.toUserId === command.actorId) {
     throw new InvalidCommandError(`Task "${task.id}": cannot delegate a task to its own assignee`);
   }
-  return handOver(draft, found, command.toUserId, `delegate:${task.id}`, (toTaskId, toUserId) => {
+  return handOver(draft, found, command.toUserId, `delegate:${task.id}`, (handover) => {
     task.status = "delegated";
     record(draft, "task.delegated", {
       taskId: task.id,
       stepId: instance.stepId,
-      toTaskId,
-      toUserId,
+      ...handover,
       ...(command.reason === undefined ? {} : { reason: command.reason }),
     });
     return task.onBehalfOf ?? task.assigneeId;
@@ -56,13 +55,12 @@ export function reassignTask(
       `Cannot reassign task "${task.id}" of request "${state.id}": it is not pending (${task.status})`,
     );
   }
-  return handOver(draft, found, command.toUserId, `reassign:${task.id}`, (toTaskId, toUserId) => {
+  return handOver(draft, found, command.toUserId, `reassign:${task.id}`, (handover) => {
     task.status = "reassigned";
     record(draft, "task.reassigned", {
       taskId: task.id,
       stepId: instance.stepId,
-      toTaskId,
-      toUserId,
+      ...handover,
       reason: command.reason,
     });
     return undefined;
@@ -82,10 +80,21 @@ function findTask(draft: Draft, taskId: string): Found {
   throw new InvalidCommandError(`Task "${taskId}" does not exist on request "${draft.state.id}"`);
 }
 
+interface Handover {
+  readonly toTaskId: string;
+  readonly toUserId: string;
+  readonly returnedToOriginal?: true;
+}
+
 /**
  * Shared by delegate and reassign. The chosen user must be eligible: not the requester (unless
  * self-approval is allowed), active, not already holding a task in the step (EC-48) and not an
  * approver of an earlier step (EC-49). Their out-of-office rules then apply as usual.
+ *
+ * EC-50: the approver a task acts for (`onBehalfOf`) may always take it back, e.g. after returning
+ * early. That is not a merge: the vote is theirs. The new task has no `onBehalfOf` and no rules are
+ * followed; the requester and inactive checks still apply.
+ *
  * `close` retires the old task, records its event and returns the vote the new task carries.
  */
 function handOver(
@@ -93,7 +102,7 @@ function handOver(
   { instance, task }: Found,
   toUserId: string,
   key: string,
-  close: (toTaskId: string, toUserId: string) => string | undefined,
+  close: (handover: Handover) => string | undefined,
 ): Decision {
   const { state, ctx } = draft;
   const resolution = ctx.resolutions?.[key];
@@ -107,15 +116,16 @@ function handOver(
   const holders = new Set(instance.tasks.map((t) => t.assigneeId));
   const earlier = state.steps.filter((s) => s !== instance);
   const delegation = delegationContext(draft, earlier, resolution, holders);
+  const returning = toUserId === task.onBehalfOf;
   const problems: string[] = [];
-  if (holders.has(toUserId)) {
+  if (holders.has(toUserId) && !returning) {
     problems.push(`"${toUserId}" already holds a task in step "${instance.stepId}"`);
   }
   if (toUserId === state.requesterId && !ctx.flow.allowSelfApproval) {
     problems.push(`"${toUserId}" is the requester and the flow does not allow self-approval`);
   }
   if (delegation.inactive.has(toUserId)) problems.push(`"${toUserId}" is inactive`);
-  const decidedStep = delegation.decided.get(toUserId);
+  const decidedStep = returning ? undefined : delegation.decided.get(toUserId);
   if (decidedStep !== undefined) {
     problems.push(`"${toUserId}" already approved step "${decidedStep}" of this request`);
   }
@@ -124,12 +134,17 @@ function handOver(
   }
 
   task.decidedAt = ctx.now;
+  const toTaskId = `${state.id}.t${state.lastTaskNumber + 1}`;
+  if (returning) {
+    close({ toTaskId, toUserId, returnedToOriginal: true });
+    assignTask(draft, instance, { assigneeId: toUserId, chain: [toUserId], notes: [] }, undefined);
+    return finish(draft);
+  }
   const delegated = followDelegations(toUserId, {
     ...delegation,
     holders: new Set([...holders, toUserId]),
   });
-  const toTaskId = `${state.id}.t${state.lastTaskNumber + 1}`;
-  const vote = close(toTaskId, toUserId);
+  const vote = close({ toTaskId, toUserId });
   const onBehalfOf = vote ?? (delegated.assigneeId === toUserId ? undefined : toUserId);
   assignTask(draft, instance, delegated, onBehalfOf);
   return finish(draft);

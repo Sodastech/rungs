@@ -130,7 +130,8 @@ Commands:
 
   Both refuse, with `InvalidCommandError` naming each problem, a target who is the requester
   (without `allowSelfApproval`), inactive, already holds a task in the step (EC-48) or approved an
-  earlier step of the request (EC-49). Delegating to yourself is refused too.
+  earlier step of the request (EC-49). Delegating to yourself is refused too. The exception is
+  the approver the task acts for (`onBehalfOf`): it can always be handed back to them (EC-50).
 - `{ type: "reassign", requestId, adminId, stepId, toUserIds, reason }`: gives a blocked step to
   users the admin chose. They pass the same checks as resolved approvers; a chosen user who is
   inactive or the requester (without `allowSelfApproval`), or too few users for the step's mode,

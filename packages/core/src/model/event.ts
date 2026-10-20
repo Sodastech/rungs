@@ -15,6 +15,13 @@ interface StepData {
   stepIndex: number;
 }
 
+/** `returnedToOriginal`: the task went back to the approver it acted for (EC-50). */
+interface HandoverData extends TaskData {
+  toTaskId: string;
+  toUserId: string;
+  returnedToOriginal?: true;
+}
+
 /** Present only when the resolution removed someone (EC-01, EC-06). */
 interface RemovedData {
   removed?: RemovedApprover[];
@@ -53,14 +60,8 @@ export type AuditEventBody =
       /** `chain`: the out-of-office hops followed, from the first user to the assignee. */
       data: TaskData & { assigneeId: string; onBehalfOf?: string; chain?: string[] };
     }
-  | {
-      type: "task.delegated";
-      data: TaskData & { toTaskId: string; toUserId: string; reason?: string };
-    }
-  | {
-      type: "task.reassigned";
-      data: TaskData & { toTaskId: string; toUserId: string; reason: string };
-    }
+  | { type: "task.delegated"; data: HandoverData & { reason?: string } }
+  | { type: "task.reassigned"; data: HandoverData & { reason: string } }
   | {
       type: "delegation.skipped";
       data: { stepId: string; userId: string; toUserId: string; reason: DelegationSkipReason };

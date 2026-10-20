@@ -213,6 +213,12 @@ approver. A manual delegation (EC-25) or an admin reassign of a task is refused 
 user who already holds a task in the step or approved an earlier step, instead of being passed
 over, because someone chose that user explicitly.
 
+The one exception is handing a task back to the approver it acts for (EC-50), for example when
+they return early: the vote is theirs, so nothing is merged. The new task has no `onBehalfOf`, no
+out-of-office rules are followed, and `task.delegated` / `task.reassigned` carry
+`returnedToOriginal: true`. Anyone else who held a task in the step stays refused, so a task cannot
+bounce back and forth.
+
 ## AuditEvent (append-only)
 
 | Field | Type | Notes |
@@ -239,8 +245,8 @@ Types and data (discriminated union `AuditEvent` in `@rungs/core`):
 | `step.completed` | `stepId`, `stepIndex`, `outcome: "approved" \| "rejected"` |
 | `step.cancelled` | `stepId`, `stepIndex` (override) |
 | `task.assigned` | `taskId`, `stepId`, `assigneeId`, `onBehalfOf?`, `chain?` (the out-of-office hops followed, from the first user to the assignee) |
-| `task.delegated` | `taskId`, `stepId`, `toTaskId`, `toUserId`, `reason?` (EC-25) |
-| `task.reassigned` | `taskId`, `stepId`, `toTaskId`, `toUserId`, `reason` |
+| `task.delegated` | `taskId`, `stepId`, `toTaskId`, `toUserId`, `reason?`, `returnedToOriginal?` (EC-25, EC-50) |
+| `task.reassigned` | `taskId`, `stepId`, `toTaskId`, `toUserId`, `reason`, `returnedToOriginal?` (EC-50) |
 | `delegation.skipped` | `stepId`, `userId` (whose rule), `toUserId`, `reason: "requester" \| "inactive" \| "target-already-approver" \| "target-already-decided"` (EC-23, EC-48, EC-49) |
 | `delegation.cycle_detected` | `stepId`, `userId` (the original approver), `chain` (EC-22) |
 | `task.deduplicated` | `taskId`, `stepId`, `assigneeId`, `ofTaskId` (the earlier approval that carries over, EC-03) |

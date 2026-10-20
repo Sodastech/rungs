@@ -361,6 +361,78 @@ describe("C. Delegation", () => {
     });
   });
 
+  describe("returning a vote to its owner", () => {
+    const parallel = flow({}, [{ ...single("u_a", "u_c"), mode: "all" }]);
+    /** u_a is away: their task r1.t1 went to u_b by hand (r1.t3, on behalf of u_a). */
+    const delegated = () => {
+      const submitted = run(null, submitCommand(), { flow: parallel }).state;
+      return run(submitted, delegate("u_a", "r1.t1", "u_b"), { flow: parallel }).state;
+    };
+
+    it("EC-50 a delegate can hand the task back to the approver it represents", () => {
+      const { state, audit } = run(delegated(), delegate("u_b", "r1.t3", "u_a"), {
+        flow: parallel,
+        now: T1,
+      });
+      expect(tasks(state)).toEqual([
+        ["u_a", "delegated", null],
+        ["u_c", "pending", null],
+        ["u_b", "delegated", "u_a"],
+        ["u_a", "pending", null],
+      ]);
+      expect(audit.map((e) => [e.type, e.data])).toEqual([
+        [
+          "task.delegated",
+          {
+            taskId: "r1.t3",
+            stepId: "manager",
+            toTaskId: "r1.t4",
+            toUserId: "u_a",
+            returnedToOriginal: true,
+          },
+        ],
+        ["task.assigned", { taskId: "r1.t4", stepId: "manager", assigneeId: "u_a" }],
+      ]);
+      const after = run(state, approve("u_a"), { flow: parallel }).state;
+      expect(after.steps[0]?.tasks.at(-1)?.status).toBe("approved");
+    });
+
+    it("EC-50 an admin can reassign a delegated task back to the approver it represents", () => {
+      const { state, audit } = run(delegated(), reassignTask("r1.t3", "u_a", "Back early"), {
+        flow: parallel,
+      });
+      expect(tasks(state)?.at(-2)).toEqual(["u_b", "reassigned", "u_a"]);
+      expect(tasks(state)?.at(-1)).toEqual(["u_a", "pending", null]);
+      expect(audit[0]?.data).toMatchObject({ toUserId: "u_a", returnedToOriginal: true });
+    });
+
+    it("EC-50 also works for a task delegated by an out-of-office rule", () => {
+      const delegations = [rule("u_a", "u_b")];
+      const byRule = run(null, submitCommand(), { flow: flow(), delegations }).state;
+      const { state } = run(byRule, delegate("u_b", "r1.t1", "u_a"), {
+        flow: flow(),
+        delegations,
+      });
+      expect(tasks(state)).toEqual([
+        ["u_b", "delegated", "u_a"],
+        ["u_a", "pending", null],
+      ]);
+    });
+
+    it("EC-50 the owner must still be active and the vote never goes back to anyone else", () => {
+      const inactive = thrown(() =>
+        run(delegated(), delegate("u_b", "r1.t3", "u_a"), { flow: parallel, inactive: ["u_a"] }),
+      );
+      expect((inactive as Error).message).toContain('"u_a" is inactive');
+
+      const returned = run(delegated(), delegate("u_b", "r1.t3", "u_a"), { flow: parallel }).state;
+      const pingPong = thrown(() =>
+        run(returned, delegate("u_a", "r1.t4", "u_b"), { flow: parallel }),
+      );
+      expect((pingPong as Error).message).toContain('"u_b" already holds a task');
+    });
+  });
+
   describe("reassigning a task", () => {
     const parallel = flow({}, [{ ...single("u_a", "u_c"), mode: "all" }]);
     const start = () => run(null, submitCommand(), { flow: parallel }).state;
@@ -387,6 +459,37 @@ describe("C. Delegation", () => {
         toUserId: "u_x",
         reason: "Approver left",
       });
+    });
+
+    it("EC-48 the out-of-office delegate of the chosen user is checked; the task stays with that user", () => {
+      const holder = run(start(), reassignTask("r1.t1", "u_x"), {
+        flow: parallel,
+        delegations: [rule("u_x", "u_c")],
+      });
+      expect(tasks(holder.state)?.at(-1)).toEqual(["u_x", "pending", null]);
+      expect(holder.audit.find((e) => e.type === "delegation.skipped")?.data).toMatchObject({
+        reason: "target-already-approver",
+      });
+
+      const target = flow({}, [
+        { id: "manager", approvers: users("u_m") },
+        { id: "finance", approvers: users("u_a") },
+      ]);
+      const { state } = runAll([submitCommand(), approve("u_m")], { flow: target });
+      const decided = run(state, reassignTask("r1.t2", "u_x"), {
+        flow: target,
+        delegations: [rule("u_x", "u_m")],
+      });
+      expect(tasks(decided.state, 1)?.at(-1)).toEqual(["u_x", "pending", null]);
+      expect(decided.audit.find((e) => e.type === "delegation.skipped")?.data).toMatchObject({
+        reason: "target-already-decided",
+      });
+
+      const away = run(start(), reassignTask("r1.t1", "u_x"), {
+        flow: parallel,
+        delegations: [rule("u_x", "u_y")],
+      });
+      expect(tasks(away.state)?.at(-1)).toEqual(["u_y", "pending", "u_x"]);
     });
 
     it("a reassigned delegated task no longer acts on behalf of anyone", () => {
