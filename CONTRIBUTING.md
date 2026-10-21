@@ -46,7 +46,12 @@ pnpm build && pnpm typecheck && pnpm test
 - **Fail closed.** When in doubt, a request must stop and ask for a human, never slip through an
   approval step.
 - **Public API changes are deliberate.** Anything exported from a package entry point is public.
-  Update [docs/04-api-design.md](docs/04-api-design.md) and add a changeset (`pnpm changeset`).
+  Update [docs/04-api-design.md](docs/04-api-design.md), the pages of the documentation site that
+  describe it (`site/src/content/docs`), and add a changeset (`pnpm changeset`).
+- **Code samples are tested.** Samples on the documentation site and in the README live in
+  `examples/docs-snippets`, whose tests run them; pages show a region of those files. The edge
+  case catalog page is rendered from `docs/05-edge-cases.md`, and the API reference is generated
+  from the types, so neither is edited by hand.
 - **Store adapters** run the shared suites in `packages/store-contract` (`storeContract` and
   `serviceSuite`) from their own tests.
 - **Property tests** run with a fixed seed in CI and with random seeds every day. A failure from a

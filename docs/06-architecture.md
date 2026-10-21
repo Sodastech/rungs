@@ -28,7 +28,9 @@ rungs/
 ├── examples/
 │   ├── expense-basic/     # private: the Phase 1 gate, three steps on the memory store
 │   ├── playground/        # private: scenario files played as a readable timeline (pnpm playground)
-│   └── nextjs-expense/    # private: Next.js demo app on PGlite or PostgreSQL (pnpm demo)
+│   ├── nextjs-expense/    # private: Next.js demo app on PGlite or PostgreSQL (pnpm demo)
+│   └── docs-snippets/     # private: every code sample of the site and README, run by its tests
+├── site/                  # private: the documentation site (Astro Starlight, GitHub Pages)
 └── skills/
     └── rungs/SKILL.md     # Claude Code skill (Phase 3)
 ```
@@ -127,6 +129,11 @@ Rungs does not enforce tenant isolation beyond that; the host remains responsibl
   workflow `property-random.yml` runs them daily with a random seed and many more runs.
 - `examples/expense-basic` runs a three-step expense approval end to end on the memory store
   (preview, delegation, return and resubmit, reminders, inbox, history): the Phase 1 gate.
+- Documentation is tested too. Every code sample of the site and the README quick start is a region
+  of a file in `examples/docs-snippets`, whose tests run it and check what its comments claim
+  (`pnpm check:readme` compares the README). The site renders the edge case catalog from
+  `docs/05-edge-cases.md` and the errors table and store interface from `docs/04-api-design.md`,
+  generates the API reference from the types, and fails its build on a broken internal link.
 
 ## Non-goals (for now)
 
