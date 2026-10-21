@@ -37,6 +37,7 @@ rethink before investing in the next phase.
 - 2.1 `store-postgres` with SQL migrations (done)
 - 2.2 Example Next.js app: submit a request, approval inbox, timeline, approve/reject, delegation,
   admin tools and a demo clock; PGlite by default, so it runs without a database (done)
+- 2.1b List queries: `rungs.requests()` and `rungs.blocked()` (done)
 - 2.2b Online demo (planned, after the 2.2 results are reviewed; see below)
 - 2.3 Documentation site (getting started, concepts, recipes, edge cases)
 
@@ -92,3 +93,12 @@ If there is no pull, do not build Pro yet; fix positioning or distribution first
 - Drizzle and Prisma store adapters
 - Business-day calendars with holiday sets
 - Hosted version
+
+Engine candidates, noted while building the examples:
+
+- **Richer domain events.** Events carry `requesterId` and `subject`, so an `onEvent` handler can
+  notify people or find the host record without calling `rungs.get`.
+- **Commands inside the host's transaction.** When Rungs and the host share a database, run a
+  command in a transaction the host already opened, so that saving a host record and submitting
+  its request commit or roll back together. Today the example saves the record first and removes
+  it again if the submit is refused.
