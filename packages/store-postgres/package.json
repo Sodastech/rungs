@@ -1,6 +1,6 @@
 {
   "name": "@rungsjs/store-postgres",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "PostgreSQL store for Rungs. Bring your own driver: node-postgres, postgres.js or PGlite.",
   "keywords": [
     "approval",
