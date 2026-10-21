@@ -104,6 +104,11 @@ everything needed to replay it: `maxEscalationDepth` and `maxDelegationDepth` (b
 
 Every command accepts an optional `idempotencyKey` and `expectedVersion`.
 
+Each method's input has a named type, for handlers and wrappers in the host: `SubmitInput`,
+`ApproveInput`, `RejectInput`, `ReturnInput`, `ResubmitInput`, `WithdrawInput`, `DelegateInput`,
+`ReassignInput` (a blocked step or a single task), `RetryInput` and `OverrideInput`. `tick` takes
+`TickOptions` and `dispatchPending` takes `DispatchOptions` (`{ limit? }`).
+
 **The payload is not where your business data lives.** Keep the record itself (an expense with its
 lines and receipts, a leave request, a purchase order) in your own tables, and point Rungs at it with
 `subject: { type, id }`. Put in the payload only what the flow's conditions read (for example
@@ -284,6 +289,9 @@ tenant, never other tenants' requests (EC-62). `limit` defaults to 50; for `requ
 it is at most 200. Pass `next` back as `after` for the next page; paging never repeats or skips an
 item when new requests arrive in between. An invalid `limit`, `status`, `subject` or `after` is an
 `InvalidCommandError`.
+
+Results are read-only: list pages, `history`, `delegations.list`, `preview` and the `tick` summary
+are typed with `readonly` arrays. Copy one (`[...page.requests]`) to sort or change it.
 
 **Who may see a list is the host's decision.** Rungs does not check it, and every item carries the
 request payload, which can contain personal data. Show a requester only their own requests, an

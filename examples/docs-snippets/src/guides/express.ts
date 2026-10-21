@@ -1,4 +1,5 @@
 import {
+  type ApproveInput,
   ConflictError,
   createRungs,
   InvalidCommandError,
@@ -23,6 +24,19 @@ await rungs.flows.register({
 // Stands in for your authentication: in a real app, a session or a verified token.
 const userId = (req: Request): string => String(req.header("x-user") ?? "");
 
+// #region input
+// Each command method has a named input type (`ApproveInput`, `RejectInput`, ...), so the code
+// that turns an HTTP request into a command can be typed and tested on its own.
+function approveInput(req: Request): ApproveInput {
+  return {
+    requestId: String(req.params.id),
+    actorId: userId(req),
+    expectedVersion: req.body.version, // the version the approver was looking at
+    comment: req.body.comment,
+  };
+}
+// #endregion input
+
 // #region routes
 const app = express();
 app.use(express.json());
@@ -44,13 +58,7 @@ app.post("/expenses/:id/submit", async (req, res, next) => {
 
 app.post("/requests/:id/approve", async (req, res, next) => {
   try {
-    const request = await rungs.approve({
-      requestId: req.params.id,
-      actorId: userId(req),
-      expectedVersion: req.body.version, // the version the approver was looking at
-      comment: req.body.comment,
-    });
-    res.json(request);
+    res.json(await rungs.approve(approveInput(req)));
   } catch (error) {
     next(error);
   }

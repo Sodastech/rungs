@@ -28,17 +28,17 @@ export interface PreviewStep {
   readonly skipReason?: SkipReason;
   readonly shortfall?: ApproverShortfall;
   /** Who would get a task, after removals and delegation. */
-  readonly approvers: string[];
-  readonly removed: RemovedApprover[];
+  readonly approvers: readonly string[];
+  readonly removed: readonly RemovedApprover[];
   /** Out-of-office rules that would apply: the approver and who would act for them. */
-  readonly delegations: { userId: string; toUserId: string }[];
+  readonly delegations: readonly { readonly userId: string; readonly toUserId: string }[];
 }
 
 export interface PreviewResult {
   readonly flowKey: string;
   readonly flowVersion: number;
   readonly flowTenantId?: string;
-  readonly steps: PreviewStep[];
+  readonly steps: readonly PreviewStep[];
   /** False when a submit would be refused now (a step cannot run, or EC-39 with `fail`). */
   readonly submittable: boolean;
 }

@@ -24,7 +24,7 @@ export interface InboxEntry extends TaskView {
 }
 
 export interface InboxPage {
-  readonly tasks: InboxEntry[];
+  readonly tasks: readonly InboxEntry[];
   /** Pass as `after` for the next page; absent on the last page. */
   readonly next?: string;
 }
@@ -54,7 +54,7 @@ export interface RequestsInput {
 
 export interface RequestsPage {
   /** Newest first. */
-  readonly requests: RequestSummary[];
+  readonly requests: readonly RequestSummary[];
   /** Pass as `after` for the next page; absent on the last page. */
   readonly next?: string;
 }
@@ -69,7 +69,7 @@ export interface BlockedInput {
 
 export interface BlockedPage {
   /** Blocked longest first. */
-  readonly steps: BlockedStepView[];
+  readonly steps: readonly BlockedStepView[];
   /** Pass as `after` for the next page; absent on the last page. */
   readonly next?: string;
 }
@@ -89,12 +89,15 @@ export interface Delegations {
   /** Adds an out-of-office rule. Rungs does not check who may do this; the host must. */
   set(input: DelegationInput): Promise<DelegationRule>;
   /** Rules from or to the user. */
-  list(query: { userId: string; tenantId?: string }): Promise<DelegationRule[]>;
+  list(query: {
+    readonly userId: string;
+    readonly tenantId?: string;
+  }): Promise<readonly DelegationRule[]>;
   /**
    * Ends a rule now. A rule that has not started is cancelled (`cancelledAt`) instead, so
    * `endsAt` never precedes `startsAt`. Tasks already delegated stay with the delegate (EC-24).
    */
-  end(query: { id: string }): Promise<DelegationRule>;
+  end(query: { readonly id: string }): Promise<DelegationRule>;
 }
 
 export interface Queries {
@@ -104,7 +107,7 @@ export interface Queries {
   requests(input?: RequestsInput): Promise<RequestsPage>;
   /** Blocked steps waiting for an admin (EC-42), blocked longest first. */
   blocked(input?: BlockedInput): Promise<BlockedPage>;
-  history(requestId: string): Promise<AuditEvent[]>;
+  history(requestId: string): Promise<readonly AuditEvent[]>;
   preview(input: PreviewRequestInput): Promise<PreviewResult>;
   readonly delegations: Delegations;
 }

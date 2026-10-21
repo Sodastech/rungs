@@ -61,18 +61,39 @@ export interface CommandOptions {
 
 type Input<C extends Command> = Omit<C, "type"> & CommandOptions;
 
+export type ApproveInput = Input<ApproveCommand>;
+export type RejectInput = Input<RejectCommand>;
+export type ReturnInput = Input<ReturnCommand>;
+export type ResubmitInput = Input<ResubmitCommand>;
+export type WithdrawInput = Input<WithdrawCommand>;
+export type DelegateInput = Input<DelegateCommand>;
+/** A whole blocked step (`stepId` and `toUserIds`) or a single task (`taskId` and `toUserId`). */
+export type ReassignInput = Input<ReassignStepCommand> | Input<ReassignTaskCommand>;
+export type RetryInput = Input<RetryStepCommand>;
+export type OverrideInput = Input<OverrideCommand>;
+
 export type SubmitInput = Omit<SubmitCommand, "type" | "requestId"> & {
   /** Flow key; the tenant's own flow is used first, then the global one (EC-56). */
   readonly flow: string;
   readonly idempotencyKey?: string;
 };
 
+export interface TickOptions {
+  /** Most due requests to process in this call. */
+  readonly limit?: number;
+}
+
 export interface TickSummary {
   readonly processed: number;
-  readonly changed: string[];
+  readonly changed: readonly string[];
   /** Changed by another worker meanwhile (EC-27). */
-  readonly skipped: string[];
-  readonly failed: { requestId: string; error: unknown }[];
+  readonly skipped: readonly string[];
+  readonly failed: readonly { readonly requestId: string; readonly error: unknown }[];
+}
+
+export interface DispatchOptions {
+  /** Most events to deliver in this call. */
+  readonly limit?: number;
 }
 
 export interface DispatchSummary {
@@ -83,19 +104,19 @@ export interface DispatchSummary {
 export interface Rungs extends Queries {
   readonly flows: FlowRegistry;
   submit(input: SubmitInput): Promise<RequestState>;
-  approve(input: Input<ApproveCommand>): Promise<RequestState>;
-  reject(input: Input<RejectCommand>): Promise<RequestState>;
-  return(input: Input<ReturnCommand>): Promise<RequestState>;
-  resubmit(input: Input<ResubmitCommand>): Promise<RequestState>;
-  withdraw(input: Input<WithdrawCommand>): Promise<RequestState>;
-  delegate(input: Input<DelegateCommand>): Promise<RequestState>;
-  reassign(input: Input<ReassignStepCommand> | Input<ReassignTaskCommand>): Promise<RequestState>;
-  retry(input: Input<RetryStepCommand>): Promise<RequestState>;
-  override(input: Input<OverrideCommand>): Promise<RequestState>;
+  approve(input: ApproveInput): Promise<RequestState>;
+  reject(input: RejectInput): Promise<RequestState>;
+  return(input: ReturnInput): Promise<RequestState>;
+  resubmit(input: ResubmitInput): Promise<RequestState>;
+  withdraw(input: WithdrawInput): Promise<RequestState>;
+  delegate(input: DelegateInput): Promise<RequestState>;
+  reassign(input: ReassignInput): Promise<RequestState>;
+  retry(input: RetryInput): Promise<RequestState>;
+  override(input: OverrideInput): Promise<RequestState>;
   /** Applies what is due on every due request, each in its own transaction (EC-26, EC-27). */
-  tick(options?: { limit?: number }): Promise<TickSummary>;
+  tick(options?: TickOptions): Promise<TickSummary>;
   /** Delivers outbox events that are due, e.g. from a scheduled job or after a crash. */
-  dispatchPending(options?: { limit?: number }): Promise<DispatchSummary>;
+  dispatchPending(options?: DispatchOptions): Promise<DispatchSummary>;
 }
 
 interface Outcome {

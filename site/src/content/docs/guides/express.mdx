@@ -18,6 +18,14 @@ Routes call one Rungs command each. This code runs against a real Express server
 - **`idempotencyKey`** from the `Idempotency-Key` header makes a retried POST create one request
   ([EC-16](/rungs/edge-cases/#ec-16)).
 
+Every command method has a named input type, so the code that builds a command from an HTTP
+request can be typed on its own:
+
+<Snippet file="guides/express.ts" region="input" />
+
+The others are `SubmitInput`, `RejectInput`, `ReturnInput`, `ResubmitInput`, `WithdrawInput`,
+`DelegateInput`, `ReassignInput`, `RetryInput` and `OverrideInput`.
+
 ## Errors
 
 Every Rungs error extends `RungsError` and has a stable `code`. Map them once:

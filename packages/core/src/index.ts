@@ -123,13 +123,24 @@ export type {
   ResolverArgs,
 } from "./resolution/collect.js";
 export {
+  type ApproveInput,
   type CommandOptions,
   createRungs,
+  type DelegateInput,
+  type DispatchOptions,
   type DispatchSummary,
+  type OverrideInput,
+  type ReassignInput,
+  type RejectInput,
+  type ResubmitInput,
+  type RetryInput,
+  type ReturnInput,
   type Rungs,
   type RungsOptions,
   type SubmitInput,
+  type TickOptions,
   type TickSummary,
+  type WithdrawInput,
 } from "./service/create-rungs.js";
 export type { FlowRegistration, FlowRegistry } from "./service/flows.js";
 export type {
