@@ -14,6 +14,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Sea
   const user = await requireUser();
   const { after } = await searchParams;
   const { db, rungs, clock } = await getDemo();
+  // #region list
   // The approval status comes from Rungs, newest first; the details from the app's own table.
   const page = await rungs.requests({
     requesterId: user.id,
@@ -24,6 +25,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Sea
     db,
     page.requests.map((r) => r.subject.id),
   );
+  // #endregion list
   const now = clock.now();
 
   return (

@@ -1,0 +1,27 @@
+---
+title: Express
+description: Expose submit, decisions and the inbox over HTTP, with errors mapped to status codes.
+sidebar:
+  order: 2
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+Routes call one Rungs command each. This code runs against a real Express server in CI.
+
+<Snippet file="guides/express.ts" region="routes" />
+
+- **The actor comes from authentication**, here a header that stands in for your session or
+  token. Never accept an `actorId` from the request body.
+- **`expectedVersion`** carries the version the user saw, so a decision on stale data is refused
+  ([EC-15](/rungs/edge-cases/#ec-15)).
+- **`idempotencyKey`** from the `Idempotency-Key` header makes a retried POST create one request
+  ([EC-16](/rungs/edge-cases/#ec-16)).
+
+## Errors
+
+Every Rungs error extends `RungsError` and has a stable `code`. Map them once:
+
+<Snippet file="guides/express.ts" region="errors" />
+
+The [errors reference](/rungs/reference/errors/) lists every code.

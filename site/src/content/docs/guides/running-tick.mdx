@@ -1,0 +1,24 @@
+---
+title: Running tick
+description: Deadlines, reminders and escalation happen when your worker calls tick.
+sidebar:
+  order: 6
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+Rungs has no background thread. Deadlines, reminders, escalations, timeouts and the reminders of
+blocked steps are applied when you call `rungs.tick()`, at the time your `clock` returns. Run it
+on a schedule:
+
+<Snippet file="guides/tick.ts" region="worker" />
+
+- **How often:** every minute is plenty for deadlines measured in hours or days.
+- **Several workers:** safe. Each due action is applied once, and the PostgreSQL store hands
+  different requests to different workers ([EC-27](/rungs/edge-cases/#ec-27)).
+- **Missed runs:** a late tick catches up with one reminder, not one per missed interval.
+- **Failures:** one failing request does not stop the others; it is reported in `failed` and
+  tried again next time.
+
+On serverless platforms, call the same two functions from a scheduled function or cron route
+instead of `setInterval`.

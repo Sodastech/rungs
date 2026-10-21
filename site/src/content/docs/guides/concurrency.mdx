@@ -1,0 +1,28 @@
+---
+title: Concurrency and idempotency
+description: Two approvers at once, double clicks and retried requests.
+sidebar:
+  order: 8
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+## Retries and double clicks
+
+Every command accepts an `idempotencyKey`. A repeat with the same key returns the first result
+without doing anything again ([EC-16](/rungs/edge-cases/#ec-16)):
+
+<Snippet file="guides/concurrency.ts" region="idempotency" />
+
+Generate the key when you render the form or start the client request, not when you handle it.
+
+## Two people, one request
+
+Every request has a `version` that each change increments. Send the version the user saw as
+`expectedVersion`; if the request has moved on, the command is refused with `ConflictError`
+([EC-15](/rungs/edge-cases/#ec-15)):
+
+<Snippet file="guides/concurrency.ts" region="expected-version" />
+
+Rungs never retries a refused command for you: the person may no longer be the one who should
+decide. Show them the latest state and let them act again.

@@ -1,0 +1,21 @@
+---
+title: Errors
+description: Every error Rungs throws, its stable code, and when it happens.
+sidebar:
+  order: 2
+---
+
+import DesignDoc from "../../../components/DesignDoc.astro";
+
+Every error extends `RungsError` and has a stable `code`. Branch on the class or the code, never on
+the message, which may become more helpful over time.
+
+<DesignDoc section="Errors" show="table" />
+
+Rungs checks workflow routing (is this actor assigned to a task?), not authentication or
+permissions. Your application signs people in and decides, for example, who is an administrator,
+before it calls a command.
+
+`ResolutionError` is usually worth retrying: a callback failed and nothing changed.
+`NoApproversError` is not: a step has nobody who can approve it until your data or the flow
+changes.

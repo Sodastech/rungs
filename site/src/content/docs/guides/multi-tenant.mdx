@@ -1,0 +1,28 @@
+---
+title: Multi-tenant
+description: Serve several organizations from one database, each with its own flows.
+sidebar:
+  order: 4
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+Pass `tenantId` and Rungs keeps tenants apart: requests, inboxes, lists, flows, delegation rules
+and idempotency keys. A tenant can have its own version of a flow; tenants without one use the
+global flow ([EC-56](/rungs/edge-cases/#ec-56)).
+
+<Snippet file="guides/multi-tenant.ts" region="flows" />
+
+<Snippet file="guides/multi-tenant.ts" region="submit" />
+
+Every list matches the tenant exactly, so a missing `tenantId` never shows another tenant's data
+([EC-62](/rungs/edge-cases/#ec-62)):
+
+<Snippet file="guides/multi-tenant.ts" region="lists" />
+
+Callbacks receive the tenant too (`ctx.tenantId` in `roles`, `request.tenantId` in resolvers), so
+roles and org data can be looked up per tenant. Idempotency keys are scoped per tenant
+([EC-57](/rungs/edge-cases/#ec-57)).
+
+Rungs does not decide which tenant a user belongs to: derive `tenantId` from the signed-in user,
+never from a request parameter. PostgreSQL row level security is not used.

@@ -1,0 +1,33 @@
+---
+title: Store contract
+description: What a storage adapter must do, for writing a store for another database.
+sidebar:
+  order: 3
+---
+
+import DesignDoc from "../../../components/DesignDoc.astro";
+
+Rungs ships a memory store and a PostgreSQL store. Another database needs an adapter that
+implements `RungsStore`: one method that runs a function in a transaction, and the reads and
+writes the service needs inside it. Everything passed in and out is plain JSON.
+
+<DesignDoc section="Store interface (for adapter authors)" show="code" />
+
+Rules every adapter keeps:
+
+- **Atomic transactions.** All writes of a transaction commit together, or none do when the
+  function throws.
+- **Compare-and-set.** `saveRequest` writes only when the stored version is the expected one, and
+  throws `ConflictError` otherwise ([EC-15](/rungs/edge-cases/#ec-15)).
+- **Exact tenant matching** in every list ([EC-62](/rungs/edge-cases/#ec-62)).
+- **The same views.** Build inbox, request and blocked-step items with the exported
+  `taskViews`, `requestSummary` and `blockedStepView`.
+- **Plain JSON.** Never hand the service an object it could mutate later, and never keep one it
+  passed in.
+
+## Prove it with the shared suites
+
+The repository's private `@rungsjs/store-contract` package holds the tests both shipped stores
+pass: `storeContract(name, makeStore)` for the store itself and `serviceSuite(name, makeStore)` for
+`createRungs` on top of it. Run both from your adapter's tests; each test gets a fresh store from
+`makeStore`.

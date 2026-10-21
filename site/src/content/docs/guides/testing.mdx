@@ -1,0 +1,29 @@
+---
+title: Testing your flows
+description: Test approval flows in milliseconds, with the memory store and a clock you control.
+sidebar:
+  order: 9
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+Because Rungs takes its time, IDs and approvers from you, a flow is easy to test: use the memory
+store, a clock you move, and predictable IDs.
+
+<Snippet file="guides/testing.ts" region="test" />
+
+## The playground
+
+To explore a flow by hand, write a scenario for the
+[playground](https://github.com/Sodastech/rungs/tree/main/examples/playground). It prints every
+step, approver and decision as a readable timeline:
+
+```sh
+pnpm playground scenarios/02-manager-on-leave.ts
+```
+
+## Testing a store adapter
+
+If you write your own `RungsStore`, the repository's `@rungsjs/store-contract` suites check it
+against the same behavior the memory and PostgreSQL stores pass; see the
+[store contract](/rungs/reference/store-contract/).

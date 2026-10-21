@@ -111,6 +111,7 @@ export async function resubmitAction(
 
 // ---------- Approver ----------
 
+// #region decide-action
 export async function decideAction(
   requestId: string,
   version: number,
@@ -134,6 +135,7 @@ export async function decideAction(
       return { error: "Choose approve, reject or return." };
   }
 }
+// #endregion decide-action
 
 export async function delegateAction(
   requestId: string,

@@ -1,32 +1,46 @@
 ---
-// Shows a region of a file in examples/docs-snippets/src. Those files are run by the snippet
-// tests in CI, so every sample on the site is code that works.
+// Shows a region of a tested file: by default from examples/docs-snippets/src, whose tests run
+// every snippet in CI, or with `from="nextjs"` from the Next.js example app, which CI builds and
+// tests. Every sample on the site is code that works.
 import { Code } from "@astrojs/starlight/components";
 import { region } from "../../../examples/docs-snippets/src/regions";
 import { repository } from "../release";
 
 interface Props {
-  /** Path inside examples/docs-snippets/src, e.g. "concepts/flows.ts". */
+  /** Path inside the source folder, e.g. "concepts/flows.ts" or "rungs/demo.ts". */
   file: string;
   region: string;
+  from?: "snippets" | "nextjs";
   title?: string;
 }
 
-const sources = import.meta.glob<string>("../../../examples/docs-snippets/src/**/*.ts", {
+const snippets = import.meta.glob<string>("../../../examples/docs-snippets/src/**/*.ts", {
   query: "?raw",
   import: "default",
   eager: true,
 });
-const { file, title } = Astro.props;
-const source = sources[`../../../examples/docs-snippets/src/${file}`];
-if (source === undefined) throw new Error(`Snippet file not found: ${file}`);
+const nextjs = import.meta.glob<string>(
+  "../../../examples/nextjs-expense/{app,rungs}/**/*.{ts,tsx}",
+  { query: "?raw", import: "default", eager: true },
+);
+const folders = {
+  snippets: { files: snippets, path: "examples/docs-snippets/src" },
+  nextjs: { files: nextjs, path: "examples/nextjs-expense" },
+};
+
+const { file, title, from = "snippets" } = Astro.props;
+const folder = folders[from];
+const source = folder.files[`../../../${folder.path}/${file}`];
+if (source === undefined) throw new Error(`Snippet file not found: ${folder.path}/${file}`);
 const code = region(source, Astro.props.region);
-const href = `${repository}/blob/main/examples/docs-snippets/src/${file}`;
+const href = `${repository}/blob/main/${folder.path}/${file}`;
+const lang = file.endsWith(".tsx") ? "tsx" : "ts";
 ---
 
-<Code code={code} lang="ts" title={title} />
+<Code code={code} lang={lang} title={title ?? (from === "nextjs" ? file : undefined)} />
 <p class="snippet-source">
-  Runs in CI: <a href={href}>{`examples/docs-snippets/src/${file}`}</a>
+  {from === "nextjs" ? "From the example app" : "Runs in CI"}:
+  <a href={href}>{`${folder.path}/${file}`}</a>
 </p>
 
 <style>

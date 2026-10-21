@@ -19,6 +19,7 @@ export interface Demo {
 /** Short random ids such as `r_3f9c2a1b`; easier to read in a URL than a full UUID. */
 export const newId = (prefix: string) => `${prefix}_${randomUUID().slice(0, 8)}`;
 
+// #region create-rungs
 /** One Rungs instance for the app. `clock` is injectable so the seed can replay the past. */
 export function rungsFor(db: PgClient, inactive: Set<string>, clock: () => Date): Rungs {
   const rungs: Rungs = createRungs({
@@ -34,6 +35,7 @@ export function rungsFor(db: PgClient, inactive: Set<string>, clock: () => Date)
   });
   return rungs;
 }
+// #endregion create-rungs
 
 export async function createDemo(db: PgClient): Promise<Demo> {
   await prepareSchema(db);
@@ -108,6 +110,7 @@ export async function resetDemo(): Promise<void> {
   state.demo = undefined;
 }
 
+// #region singleton
 // One instance per server process. Kept on globalThis so hot reload in `next dev` does not open
 // the PGlite database a second time.
 const state = globalThis as unknown as {
@@ -129,3 +132,4 @@ export function getDemo(): Promise<Demo> {
   });
   return state.demo;
 }
+// #endregion singleton

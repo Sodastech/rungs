@@ -1,0 +1,28 @@
+---
+title: Notifications
+description: Send emails or chat messages from events, reliably and without duplicates.
+sidebar:
+  order: 5
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+Rungs never sends anything itself. It records **domain events** in an outbox, in the same
+transaction as each change, and delivers them to your `onEvent` handler.
+
+<Snippet file="guides/notifications.ts" region="handler" />
+
+## Where to deliver
+
+With `onEvent`, Rungs delivers right after each command. You can also leave delivery to a
+separate worker, so that a slow mail server never slows down a request:
+
+<Snippet file="guides/notifications.ts" region="processes" />
+
+Delivery is at least once and in order per request. A failing event is retried with backoff
+(`dispatchRetry`, default from 30 seconds up to an hour) and holds back only the later events of
+the same request. `onEventError` tells you about each failure. If nothing ever consumes events,
+pass `events: "discard"` so the outbox does not grow.
+
+Delivered events stay in the PostgreSQL outbox until you remove them with
+`purgeDispatchedEvents`; see [Data retention](/rungs/guides/data-retention/).

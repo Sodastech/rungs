@@ -1,0 +1,42 @@
+---
+// Renders a table or code block from a section of docs/04-api-design.md, the design record of
+// the public API, so the reference never drifts from it.
+import { Code } from "@astrojs/starlight/components";
+import api from "../../../docs/04-api-design.md?raw";
+import { sectionCode, sectionTable } from "../lib/design-doc";
+import { inlineMarkdown } from "../lib/edge-cases";
+
+interface Props {
+  section: string;
+  show: "table" | "code";
+}
+
+const { section, show } = Astro.props;
+const ecBase = `${import.meta.env.BASE_URL}edge-cases/`;
+const table = show === "table" ? sectionTable(api, section) : undefined;
+const code = show === "code" ? sectionCode(api, section) : undefined;
+---
+
+{
+  table && (
+    <table>
+      <thead>
+        <tr>
+          {table.header.map((h) => (
+            <th set:html={inlineMarkdown(h, ecBase)} />
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {table.rows.map((row) => (
+          <tr>
+            {row.map((cell) => (
+              <td set:html={inlineMarkdown(cell, ecBase)} />
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+{code && <Code code={code.code} lang={code.lang} />}

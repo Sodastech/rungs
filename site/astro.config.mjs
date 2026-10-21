@@ -42,7 +42,9 @@ export default defineConfig({
       sidebar: [
         { label: "Getting started", link: "/getting-started/" },
         { label: "Concepts", items: [{ autogenerate: { directory: "concepts" } }] },
+        { label: "Guides", items: [{ autogenerate: { directory: "guides" } }] },
         { label: "Edge cases", link: "/edge-cases/" },
+        { label: "Reference", items: [{ autogenerate: { directory: "reference" } }] },
       ],
     }),
   ],

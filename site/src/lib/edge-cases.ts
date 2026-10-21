@@ -16,7 +16,7 @@ export interface EdgeCaseSection {
 }
 
 /** Splits a table row on pipes that are not escaped (`\|` stays inside a cell). */
-function cells(line: string): string[] {
+export function cells(line: string): string[] {
   return line
     .trim()
     .replace(/^\|/, "")
@@ -58,10 +58,10 @@ const escapeHtml = (text: string) =>
   text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
 /**
- * The inline Markdown the catalog uses: `code`, **bold** and *emphasis*. A mention of another
- * case (EC-43) becomes a link to it.
+ * The inline Markdown the docs use: `code`, **bold** and *emphasis*. A mention of a case (EC-43)
+ * becomes a link to it: `ecBase` is "" on the catalog page, the catalog's path elsewhere.
  */
-export function inlineMarkdown(text: string): string {
+export function inlineMarkdown(text: string, ecBase = ""): string {
   return text
     .split(/(`[^`]*`)/)
     .map((part) =>
@@ -70,7 +70,7 @@ export function inlineMarkdown(text: string): string {
         : escapeHtml(part)
             .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
             .replace(/\*([^*]+)\*/g, "<em>$1</em>")
-            .replace(/\bEC-(\d+)\b/g, '<a href="#ec-$1">EC-$1</a>'),
+            .replace(/\bEC-(\d+)\b/g, `<a href="${ecBase}#ec-$1">EC-$1</a>`),
     )
     .join("");
 }

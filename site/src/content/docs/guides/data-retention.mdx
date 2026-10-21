@@ -1,0 +1,31 @@
+---
+title: Data retention
+description: Delete closed requests on your schedule, for a retention policy or an erasure request.
+sidebar:
+  order: 7
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+Rungs never deletes data on its own. How long you keep approvals, and how you honor requests to
+erase personal data (for example under GDPR or Indonesia's UU PDP), is your policy; the PostgreSQL
+store gives you the functions to carry it out ([EC-61](/rungs/edge-cases/#ec-61)).
+
+<Snippet file="guides/retention.ts" region="policy" />
+
+`purgeRequests` deletes closed requests (approved, rejected or withdrawn) with their audit trail,
+outbox events, inbox rows and idempotency records, in one transaction, at most `limit` (default
+1,000) per call. The tenant scope is always explicit: a forgotten option never deletes another
+tenant's data.
+
+<Snippet file="guides/retention.ts" region="erase" />
+
+## Housekeeping
+
+<Snippet file="guides/retention.ts" region="housekeeping" />
+
+After `purgeIdempotency`, repeating one of those commands runs it again, so keep keys at least as
+long as clients may retry. `purgeDispatchedEvents` never touches undelivered events.
+
+Outside these functions, audit rows cannot be updated or deleted: a database trigger refuses it.
+Data your application copied elsewhere (emails, logs, your own tables) is yours to delete.

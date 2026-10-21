@@ -1,0 +1,48 @@
+---
+title: PostgreSQL and migrations
+description: Store requests in PostgreSQL 15+, with node-postgres, postgres.js or PGlite.
+sidebar:
+  order: 3
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+`@rungsjs/store-postgres` keeps requests, the audit trail, the outbox and the inbox in PostgreSQL
+15 or newer. It has no dependencies of its own: you pass the driver you already use.
+
+<Snippet file="guides/postgres.ts" region="connect" />
+
+| Driver | Adapter |
+| --- | --- |
+| node-postgres (`pg`) | `fromPg(pool)` |
+| postgres.js | `fromPostgresJs(sql)` |
+| PGlite (in-process, for tests and demos) | `fromPglite(db)` |
+
+The pool needs more than one connection: callbacks such as `roles` run while a command holds its
+connection. A single-connection database such as PGlite works when callbacks do not query it.
+
+## Migrations
+
+`migrate(db)` applies missing migrations in one transaction under an advisory lock, so several
+processes can start at once. Migrations only go forward. A store refuses to work on an older
+schema and tells you to run `migrate()`, so a forgotten migration fails loudly.
+
+Tables live in schema `public` with prefix `rungs_` by default:
+
+<Snippet file="guides/postgres.ts" region="schema" />
+
+If your migrations run through another tool, generate the SQL instead. Each migration records its
+version, so `migrate()` and the version check keep working afterwards:
+
+<Snippet file="guides/postgres.ts" region="own-tool" />
+
+The same scripts ship in the package as `migrations/0001_init.sql`, `0002_list_queries.sql` and
+so on.
+
+## Concurrency
+
+Commands lock the request row and save with a compare-and-set on its version. `tick` and event
+delivery claim rows with `FOR UPDATE SKIP LOCKED`, so several workers can run side by side without
+doing the same work; correctness never depends on that lease
+([EC-27](/rungs/edge-cases/#ec-27)). The store is tested against PostgreSQL 15, 16, 17 and 18 with
+both node-postgres and postgres.js.

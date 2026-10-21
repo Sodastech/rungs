@@ -1,0 +1,47 @@
+---
+title: Next.js
+description: Use Rungs from Server Components and Server Actions in a Next.js App Router app.
+sidebar:
+  order: 1
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+The [example app](https://github.com/Sodastech/rungs/tree/main/examples/nextjs-expense) is a
+complete Next.js integration: an inbox, a timeline, delegation, admin tools and a demo clock. The
+code on this page comes from it. Run it with `pnpm demo` from a clone of the repository.
+
+## One instance per server process
+
+Create Rungs once and share it. In development, Next.js reloads modules, so keep the instance on
+`globalThis`:
+
+<Snippet from="nextjs" file="rungs/demo.ts" region="singleton" />
+
+<Snippet from="nextjs" file="rungs/demo.ts" region="create-rungs" />
+
+Rungs runs in the Node.js runtime only: it needs a database connection. Do not import it in
+Client Components or in the Edge runtime.
+
+## Lists in Server Components
+
+Ask Rungs for the approval status and load your own records for the page in one query:
+
+<Snippet from="nextjs" file="app/expenses/page.tsx" region="list" />
+
+## Commands in Server Actions
+
+Each Server Action runs one command. Take the actor from the session, never from form fields,
+and send back the version the form was rendered with, so that a stale form gets a conflict
+message instead of overwriting someone else's decision:
+
+<Snippet from="nextjs" file="app/actions.ts" region="decide-action" />
+
+The example's `attempt` helper turns a `RungsError` into a message for the form and revalidates
+the page. Rungs does not check permissions such as who is an administrator; check them in the
+action, as the example does with `requireAdmin()`.
+
+## Time-based work
+
+Server Actions and pages do not run on a schedule. Run `tick` and event delivery in a separate
+worker, a cron job or a scheduled route; see [Running tick](/rungs/guides/running-tick/).
