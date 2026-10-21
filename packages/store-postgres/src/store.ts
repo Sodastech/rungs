@@ -1,4 +1,6 @@
 import {
+  type BlockedStepView,
+  blockedStepView,
   ConfigurationError,
   ConflictError,
   type DelegationRule,
@@ -7,8 +9,10 @@ import {
   type RegisteredFlow,
   type RequestState,
   type RungsStore,
+  requestSummary,
   type StoreTx,
   type TaskView,
+  taskViews,
 } from "@rungsjs/core";
 import type { PgClient, PgQueryable } from "./client.js";
 import { SCHEMA_VERSION } from "./migrations.js";
@@ -23,8 +27,8 @@ const json = (value: unknown) => JSON.stringify(value);
 
 /**
  * A `RungsStore` on PostgreSQL 15+. Run `migrate()` first; the store refuses an older schema.
- * Request state is stored as JSONB; the columns and tables that `findDue`, `findInbox` and
- * `pendingEvents` need are written in the same transaction.
+ * Request state is stored as JSONB; the columns and tables that `findDue`, `findInbox`,
+ * `findRequests`, `findBlocked` and `pendingEvents` need are written in the same transaction.
  */
 export function postgresStore(client: PgClient, options: PostgresStoreOptions = {}): RungsStore {
   const n = names(options);
@@ -102,20 +106,30 @@ function transactionOn(q: PgQueryable, n: Names, leaseMs: number): StoreTx {
         state.closedAt ?? null,
         state.nextDueAt,
         json(state),
+        state.requesterId,
+        state.subject.type,
+        state.subject.id,
+        state.flowKey,
+        state.submittedAt,
+        blockedStepView(state)?.blockedAt ?? null,
       ];
       const result =
         expectedVersion === null
           ? await q.query(
-              `INSERT INTO ${t.requests} (id, tenant, status, version, closed_at, next_due_at, state)
-               VALUES ($1, $2, $3, $4, $5::timestamptz, $6::timestamptz, $7::text::jsonb)
+              `INSERT INTO ${t.requests} (id, tenant, status, version, closed_at, next_due_at, state,
+                 requester_id, subject_type, subject_id, flow_key, submitted_at, blocked_at)
+               VALUES ($1, $2, $3, $4, $5::timestamptz, $6::timestamptz, $7::text::jsonb,
+                 $8, $9, $10, $11, $12::timestamptz, $13::timestamptz)
                ON CONFLICT (id) DO NOTHING`,
               columns,
             )
           : await q.query(
               `UPDATE ${t.requests}
                SET tenant = $2, status = $3, version = $4, closed_at = $5::timestamptz,
-                   next_due_at = $6::timestamptz, claimed_until = NULL, state = $7::text::jsonb
-               WHERE id = $1 AND version = $8`,
+                   next_due_at = $6::timestamptz, claimed_until = NULL, state = $7::text::jsonb,
+                   requester_id = $8, subject_type = $9, subject_id = $10, flow_key = $11,
+                   submitted_at = $12::timestamptz, blocked_at = $13::timestamptz
+               WHERE id = $1 AND version = $14`,
               [...columns, expectedVersion],
             );
       if (result.rowCount !== 1) {
@@ -131,7 +145,7 @@ function transactionOn(q: PgQueryable, n: Names, leaseMs: number): StoreTx {
         });
       }
       await q.query(`DELETE FROM ${t.inbox} WHERE request_id = $1`, [state.id]);
-      for (const view of inboxViews(state)) {
+      for (const view of taskViews(state)) {
         await q.query(
           `INSERT INTO ${t.inbox} (task_id, request_id, tenant, assignee_id, on_behalf_of, assigned_at, view)
            VALUES ($1, $2, $3, $4, $5, $6::timestamptz, $7::text::jsonb)`,
@@ -305,6 +319,49 @@ function transactionOn(q: PgQueryable, n: Names, leaseMs: number): StoreTx {
       return result.rows.map((r) => r.event);
     },
 
+    async findRequests({ tenantId, requesterId, statuses, subject, flowKey, limit, after }) {
+      const params: unknown[] = [tenant(tenantId)];
+      const where = ["tenant = $1"];
+      const add = (sql: string, value: unknown) => {
+        params.push(value);
+        where.push(sql.replace("?", `$${params.length}`));
+      };
+      if (requesterId !== undefined) add("requester_id = ?", requesterId);
+      if (statuses !== undefined) add("status = ANY(?::text[])", [...statuses]);
+      if (subject !== undefined) add("subject_type = ?", subject.type);
+      if (subject?.id !== undefined) add("subject_id = ?", subject.id);
+      if (flowKey !== undefined) add("flow_key = ?", flowKey);
+      if (after !== undefined) {
+        params.push(after.submittedAt, after.id);
+        where.push(`(submitted_at, id) < ($${params.length - 1}::timestamptz, $${params.length})`);
+      }
+      params.push(limit);
+      const result = await q.query<{ state: RequestState }>(
+        `SELECT state FROM ${t.requests}
+         WHERE ${where.join(" AND ")}
+         ORDER BY submitted_at DESC, id DESC
+         LIMIT $${params.length}`,
+        params,
+      );
+      return result.rows.map((r) => requestSummary(r.state));
+    },
+
+    async findBlocked({ tenantId, limit, after }) {
+      const params: unknown[] = [tenant(tenantId), limit];
+      if (after) params.push(after.blockedAt, after.requestId);
+      const result = await q.query<{ state: RequestState }>(
+        `SELECT state FROM ${t.requests}
+         WHERE tenant = $1 AND blocked_at IS NOT NULL
+           ${after ? "AND (blocked_at, id) > ($3::timestamptz, $4)" : ""}
+         ORDER BY blocked_at, id
+         LIMIT $2`,
+        params,
+      );
+      return result.rows
+        .map((r) => blockedStepView(r.state))
+        .filter((view): view is BlockedStepView => view !== null);
+    },
+
     async findInbox({ userId, tenantId, limit, after }) {
       const params: unknown[] = [tenant(tenantId), userId, limit];
       if (after) params.push(after.assignedAt, after.taskId);
@@ -358,27 +415,4 @@ function transactionOn(q: PgQueryable, n: Names, leaseMs: number): StoreTx {
       return result.rows.map((r) => r.rule);
     },
   };
-}
-
-/** The inbox rows of a request: pending tasks on its active step while it is pending. */
-function inboxViews(state: RequestState): TaskView[] {
-  if (state.status !== "pending") return [];
-  const step = state.steps.findLast((s) => s.status === "active");
-  if (step === undefined) return [];
-  return step.tasks
-    .filter((task) => task.status === "pending")
-    .map((task) => ({
-      requestId: state.id,
-      ...(state.tenantId === undefined ? {} : { tenantId: state.tenantId }),
-      flowKey: state.flowKey,
-      flowVersion: state.flowVersion,
-      subject: state.subject,
-      requesterId: state.requesterId,
-      stepId: step.stepId,
-      taskId: task.id,
-      assigneeId: task.assigneeId,
-      ...(task.onBehalfOf === undefined ? {} : { onBehalfOf: task.onBehalfOf }),
-      assignedAt: task.assignedAt,
-      ...(step.deadline === undefined ? {} : { deadlineAt: step.deadline.deadlineAt }),
-    }));
 }

@@ -4,8 +4,14 @@ import type { Calendar, StepResolution } from "../model/decision.js";
 import type { DelegationRule } from "../model/delegation.js";
 import { InvalidCommandError } from "../model/errors.js";
 import type { AuditEvent } from "../model/event.js";
-import type { RequestState } from "../model/state.js";
-import type { RungsStore, TaskView } from "../model/store.js";
+import type { RequestState, RequestStatus } from "../model/state.js";
+import type {
+  BlockedStepView,
+  RequestQuery,
+  RequestSummary,
+  RungsStore,
+  TaskView,
+} from "../model/store.js";
 import type { ResolutionHooks } from "../resolution/collect.js";
 import { findFlow } from "./flows.js";
 import { gatherResolution } from "./gather.js";
@@ -30,6 +36,42 @@ export interface InboxInput {
   /** Default 50. */
   readonly limit?: number;
   readonly after?: string;
+}
+
+export interface RequestsInput {
+  /** Omitted: only requests without a tenant. */
+  readonly tenantId?: string;
+  readonly requesterId?: string;
+  /** One status or any of several; omitted: every status. */
+  readonly status?: RequestStatus | readonly RequestStatus[];
+  /** Requests about one host record (`type` and `id`), or one kind of record (`type` only). */
+  readonly subject?: { readonly type: string; readonly id?: string };
+  readonly flowKey?: string;
+  /** Default 50, at most 200. */
+  readonly limit?: number;
+  readonly after?: string;
+}
+
+export interface RequestsPage {
+  /** Newest first. */
+  readonly requests: RequestSummary[];
+  /** Pass as `after` for the next page; absent on the last page. */
+  readonly next?: string;
+}
+
+export interface BlockedInput {
+  /** Omitted: only requests without a tenant. */
+  readonly tenantId?: string;
+  /** Default 50, at most 200. */
+  readonly limit?: number;
+  readonly after?: string;
+}
+
+export interface BlockedPage {
+  /** Blocked longest first. */
+  readonly steps: BlockedStepView[];
+  /** Pass as `after` for the next page; absent on the last page. */
+  readonly next?: string;
 }
 
 export type PreviewRequestInput = PreviewInput & { readonly flow: string };
@@ -58,6 +100,10 @@ export interface Delegations {
 export interface Queries {
   get(requestId: string): Promise<RequestState | null>;
   inbox(input: InboxInput): Promise<InboxPage>;
+  /** Requests matching every filter, newest first. Rungs does not check who may see them. */
+  requests(input?: RequestsInput): Promise<RequestsPage>;
+  /** Blocked steps waiting for an admin (EC-42), blocked longest first. */
+  blocked(input?: BlockedInput): Promise<BlockedPage>;
   history(requestId: string): Promise<AuditEvent[]>;
   preview(input: PreviewRequestInput): Promise<PreviewResult>;
   readonly delegations: Delegations;
@@ -98,6 +144,44 @@ export function queries(
       return tasks.length > limit && last !== undefined
         ? { tasks: page, next: `${last.assignedAt}~${last.taskId}` }
         : { tasks: page };
+    },
+
+    async requests(input = {}) {
+      const limit = listLimit(input.limit);
+      const query: RequestQuery = {
+        ...requestFilters(input),
+        limit: limit + 1,
+        ...(input.after === undefined
+          ? {}
+          : { after: cursor(input.after, "requests", (submittedAt, id) => ({ submittedAt, id })) }),
+      };
+      const found = await store.transaction((tx) => tx.findRequests(query));
+      const page = found.slice(0, limit);
+      const last = page.at(-1);
+      return found.length > limit && last !== undefined
+        ? { requests: page, next: `${last.submittedAt}~${last.id}` }
+        : { requests: page };
+    },
+
+    async blocked(input = {}) {
+      const limit = listLimit(input.limit);
+      if (input.tenantId !== undefined) nonEmpty(input.tenantId, "tenantId");
+      const after =
+        input.after === undefined
+          ? undefined
+          : cursor(input.after, "blocked", (blockedAt, requestId) => ({ blockedAt, requestId }));
+      const found = await store.transaction((tx) =>
+        tx.findBlocked({
+          ...(input.tenantId === undefined ? {} : { tenantId: input.tenantId }),
+          limit: limit + 1,
+          ...(after === undefined ? {} : { after }),
+        }),
+      );
+      const page = found.slice(0, limit);
+      const last = page.at(-1);
+      return found.length > limit && last !== undefined
+        ? { steps: page, next: `${last.blockedAt}~${last.requestId}` }
+        : { steps: page };
     },
 
     history: (requestId) => store.transaction((tx) => tx.getAudit(requestId)),
@@ -224,6 +308,71 @@ function delegationProblems(input: DelegationInput): string[] {
 
 function normalize(iso: string): string {
   return new Date(Date.parse(iso)).toISOString();
+}
+
+const STATUSES: readonly RequestStatus[] = [
+  "pending",
+  "approved",
+  "rejected",
+  "returned",
+  "withdrawn",
+];
+
+function listLimit(limit: number | undefined): number {
+  const value = limit ?? 50;
+  if (!Number.isInteger(value) || value < 1 || value > 200) {
+    throw new InvalidCommandError("limit must be an integer from 1 to 200");
+  }
+  return value;
+}
+
+function nonEmpty(value: unknown, name: string): void {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new InvalidCommandError(`${name} must be a non-empty string`);
+  }
+}
+
+/** Validates the filters of `rungs.requests` and turns them into a store query. */
+function requestFilters(input: RequestsInput): Omit<RequestQuery, "limit" | "after"> {
+  if (input.tenantId !== undefined) nonEmpty(input.tenantId, "tenantId");
+  if (input.requesterId !== undefined) nonEmpty(input.requesterId, "requesterId");
+  if (input.flowKey !== undefined) nonEmpty(input.flowKey, "flowKey");
+  let statuses: RequestStatus[] | undefined;
+  if (input.status !== undefined) {
+    statuses = typeof input.status === "string" ? [input.status] : [...input.status];
+    const unknown = statuses.filter((s) => !STATUSES.includes(s));
+    if (statuses.length === 0 || unknown.length > 0) {
+      throw new InvalidCommandError(`status must be one or more of: ${STATUSES.join(", ")}`);
+    }
+  }
+  if (input.subject !== undefined) {
+    nonEmpty(input.subject?.type, "subject.type");
+    if (input.subject.id !== undefined) nonEmpty(input.subject.id, "subject.id");
+  }
+  return {
+    ...(input.tenantId === undefined ? {} : { tenantId: input.tenantId }),
+    ...(input.requesterId === undefined ? {} : { requesterId: input.requesterId }),
+    ...(statuses === undefined ? {} : { statuses }),
+    ...(input.subject === undefined
+      ? {}
+      : {
+          subject: {
+            type: input.subject.type,
+            ...(input.subject.id === undefined ? {} : { id: input.subject.id }),
+          },
+        }),
+    ...(input.flowKey === undefined ? {} : { flowKey: input.flowKey }),
+  };
+}
+
+/** Cursors are `<ISO timestamp>~<id>`, as the previous page's `next` returned them. */
+function cursor<T>(value: string, query: string, make: (at: string, id: string) => T): T {
+  const at = typeof value === "string" ? value.indexOf("~") : -1;
+  const time = at > 0 ? value.slice(0, at) : "";
+  if (!ISO_UTC.test(time) || at === value.length - 1) {
+    throw new InvalidCommandError(`after is not a cursor returned by ${query}`);
+  }
+  return make(time, value.slice(at + 1));
 }
 
 function parseCursor(cursor: string): { assignedAt: string; taskId: string } {

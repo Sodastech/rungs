@@ -1,6 +1,14 @@
 import type { DelegationRule } from "./delegation.js";
 import type { AuditEvent, DomainEvent } from "./event.js";
-import type { RegisteredFlow, RequestState, Subject } from "./state.js";
+import type {
+  ApproverShortfall,
+  JsonValue,
+  RegisteredFlow,
+  RemovedApprover,
+  RequestState,
+  RequestStatus,
+  Subject,
+} from "./state.js";
 
 /** A flow belongs to one tenant, or is global when `tenantId` is omitted. No version: the latest. */
 export interface FlowRef {
@@ -53,6 +61,68 @@ export interface TaskView {
   readonly deadlineAt?: string;
   /** In the inbox of the approver a task acts for: the delegate holding it (EC-60). */
   readonly heldBy?: string;
+  /** The request payload, for display. It may contain personal data. */
+  readonly payload: JsonValue;
+}
+
+/** A request as `findRequests` and `rungs.requests` list it. */
+export interface RequestSummary {
+  readonly id: string;
+  readonly tenantId?: string;
+  readonly flowKey: string;
+  readonly flowVersion: number;
+  readonly subject: Subject;
+  readonly requesterId: string;
+  readonly status: RequestStatus;
+  readonly submittedAt: string;
+  readonly closedAt?: string;
+  /** Pass as `expectedVersion` to act on what was listed (EC-15). */
+  readonly version: number;
+  /** The request payload, for display. It may contain personal data. */
+  readonly payload: JsonValue;
+  /** The step waiting for a decision (`active`) or for an admin (`blocked`); null otherwise. */
+  readonly openStep: { readonly stepId: string; readonly status: "active" | "blocked" } | null;
+}
+
+export interface RequestQuery {
+  /** Omitted: only requests without a tenant, so nothing leaks across tenants. */
+  readonly tenantId?: string;
+  readonly requesterId?: string;
+  /** Any of these statuses; omitted: every status. */
+  readonly statuses?: readonly RequestStatus[];
+  /** Requests about one host record (`type` and `id`) or one kind of record (`type` only). */
+  readonly subject?: { readonly type: string; readonly id?: string };
+  readonly flowKey?: string;
+  readonly limit: number;
+  /** Continue after this request, in (`submittedAt` desc, `id` desc) order: newest first. */
+  readonly after?: { readonly submittedAt: string; readonly id: string };
+}
+
+/** A blocked step as `findBlocked` and `rungs.blocked` list it (EC-42). */
+export interface BlockedStepView {
+  readonly requestId: string;
+  readonly tenantId?: string;
+  readonly flowKey: string;
+  readonly flowVersion: number;
+  readonly subject: Subject;
+  readonly requesterId: string;
+  /** The request payload, for display. It may contain personal data. */
+  readonly payload: JsonValue;
+  readonly stepId: string;
+  readonly blockedAt: string;
+  readonly reason: ApproverShortfall;
+  /** Who the resolution removed, and why. Empty when nobody was removed. */
+  readonly removed: readonly RemovedApprover[];
+  /** Pass as `expectedVersion` to `reassign` or `retry` (EC-15). */
+  readonly version: number;
+}
+
+export interface BlockedQuery {
+  /** Omitted: only requests without a tenant. */
+  readonly tenantId?: string;
+  readonly limit: number;
+  /** Continue after this step, in (`blockedAt`, `requestId`) order: blocked longest first. */
+  readonly after?: { readonly blockedAt: string; readonly requestId: string };
 }
 
 export interface InboxQuery {
@@ -124,6 +194,16 @@ export interface StoreTx {
    * The tenant must match exactly. Adapters return the task as stored; the service adds `heldBy`.
    */
   findInbox(query: InboxQuery): Promise<TaskView[]>;
+  /**
+   * Requests matching every given filter, newest first by (`submittedAt` desc, `id` desc). The
+   * tenant must match exactly. Build each item with `requestSummary(state)`.
+   */
+  findRequests(query: RequestQuery): Promise<RequestSummary[]>;
+  /**
+   * Blocked steps of pending requests, blocked longest first by (`blockedAt`, `requestId`). The
+   * tenant must match exactly. Build each item with `blockedStepView(state)`.
+   */
+  findBlocked(query: BlockedQuery): Promise<BlockedStepView[]>;
 
   /**
    * Every rule of these users, active or not; the engine filters by time, scope and tenant.

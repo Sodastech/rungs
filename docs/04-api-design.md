@@ -104,6 +104,13 @@ everything needed to replay it: `maxEscalationDepth` and `maxDelegationDepth` (b
 
 Every command accepts an optional `idempotencyKey` and `expectedVersion`.
 
+**The payload is not where your business data lives.** Keep the record itself (an expense with its
+lines and receipts, a leave request, a purchase order) in your own tables, and point Rungs at it with
+`subject: { type, id }`. Put in the payload only what the flow's conditions read (for example
+`amount`) and what you want to show in lists. The payload is a snapshot taken at submit (EC-36): it
+does not follow later changes to your record, it is copied into list results, and it can contain
+personal data.
+
 The `payload` must be plain JSON, because it is persisted and conditions are evaluated against it.
 Anything else is rejected with `InvalidCommandError`, naming every offending path and its type:
 
@@ -240,7 +247,15 @@ await rungs.get(requestId);        // RequestState, or null when it does not exi
 await rungs.history(requestId);    // audit events, ordered by seq ([] when unknown)
 await rungs.inbox({ userId: "u_08", tenantId: "acme", limit: 50, after });
 // { tasks: [{ requestId, tenantId?, flowKey, flowVersion, subject, requesterId, stepId,
-//             taskId, assigneeId, onBehalfOf?, assignedAt, deadlineAt?, overdue }], next? }
+//             taskId, assigneeId, onBehalfOf?, heldBy?, assignedAt, deadlineAt?, payload,
+//             overdue }], next? }
+await rungs.requests({ tenantId: "acme", requesterId: "u_17", status: ["pending", "returned"],
+  subject: { type: "leave_request", id: "LR-1042" }, flowKey: "leave", limit: 50, after });
+// { requests: [{ id, tenantId?, flowKey, flowVersion, subject, requesterId, status,
+//                submittedAt, closedAt?, version, payload, openStep }], next? }
+await rungs.blocked({ tenantId: "acme", limit: 50, after });
+// { steps: [{ requestId, tenantId?, flowKey, flowVersion, subject, requesterId, payload,
+//             stepId, blockedAt, reason, removed, version }], next? }
 await rungs.preview({
   flow: "leave", requesterId: "u_17", subject: { type: "leave_request", id: "LR-1042" },
   payload: { days: 5 }, tenantId: "acme",
@@ -252,6 +267,27 @@ assigned to them, tasks they hold as a delegate (with `onBehalfOf`, the approver
 tasks a delegate holds on their behalf (with `heldBy`, the delegate). The last kind lets an approver
 who is back from leave see what waits for them and decide it directly (EC-60). Pass `next` back as `after` for the next page. Without
 `tenantId` it returns only requests without a tenant, never other tenants' tasks.
+
+**`requests`** lists requests, newest first (by `submittedAt`, then `id`). Every filter is
+optional and they combine: `requesterId`, `status` (one status or a list), `subject` (`type` and
+`id` for the requests about one record of yours, or `type` alone), and `flowKey`. Use it for "my
+requests" pages and to find the approval of one of your records. Each item has the request's
+`version`, to pass as `expectedVersion`, and `openStep`: the step waiting for a decision
+(`status: "active"`) or for an admin (`"blocked"`), or `null` when nothing is open.
+
+**`blocked`** lists blocked steps (EC-42), the longest blocked first, with why they are blocked
+(`reason`, `removed`) and the request `version` for `reassign` or `retry`. A step leaves the list
+when an admin reassigns it, a retry finds approvers, or the request is overridden or withdrawn.
+
+All three lists match the tenant exactly: without `tenantId` they return only requests without a
+tenant, never other tenants' requests (EC-62). `limit` defaults to 50; for `requests` and `blocked`
+it is at most 200. Pass `next` back as `after` for the next page; paging never repeats or skips an
+item when new requests arrive in between. An invalid `limit`, `status`, `subject` or `after` is an
+`InvalidCommandError`.
+
+**Who may see a list is the host's decision.** Rungs does not check it, and every item carries the
+request payload, which can contain personal data. Show a requester only their own requests, an
+approver their own inbox, and the blocked list only to admins.
 
 **`preview`** shows the requester the expected approval chain before submitting, without storing
 anything. For each step: `status` (`"will-run"`, `"skipped"` with `skipReason`, or `"cannot-run"`
@@ -450,6 +486,8 @@ interface StoreTx {
   // Queries.
   getAudit(requestId: string): Promise<AuditEvent[]>;               // ordered by seq
   findInbox(query: InboxQuery): Promise<TaskView[]>;               // see below
+  findRequests(query: RequestQuery): Promise<RequestSummary[]>;    // see below
+  findBlocked(query: BlockedQuery): Promise<BlockedStepView[]>;    // see below
 
   // Delegation rules. With a tenantId: that tenant's rules and rules without one; without: only
   // rules without one. The engine filters by time, scope, tenant and cancelledAt.
@@ -464,6 +502,16 @@ interface StoreTx {
 step of pending requests that are assigned to the user or held by a delegate on the user's behalf
 (`onBehalfOf`; the service adds `heldBy`) whose `tenantId` matches exactly (none matches
 none), ordered by (`assignedAt`, `taskId`), starting after `after` when given.
+
+`findRequests({ tenantId?, requesterId?, statuses?, subject?, flowKey?, limit, after? })` returns
+requests matching every given filter, ordered by (`submittedAt` desc, `id` desc), starting after
+`after` when given. `findBlocked({ tenantId?, limit, after? })` returns the blocked step of pending
+requests, ordered by (`blockedAt`, `requestId`). Both match the tenant exactly, like `findInbox`.
+
+Adapters build the items with the exported functions `taskViews(state)`, `requestSummary(state)` and
+`blockedStepView(state)`, so every store returns the same shapes. A store that indexes these lists
+writes what it needs in `saveRequest`, in the same transaction (the PostgreSQL store keeps
+projection columns; its migration 2 adds them to existing data).
 
 `tick` and event delivery pass `claim: true`. An adapter may then lease what it returns for a short
 time so that concurrent workers skip it; without `claim` nothing is leased, so reads for inspection

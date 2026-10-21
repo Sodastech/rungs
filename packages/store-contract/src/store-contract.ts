@@ -1,10 +1,12 @@
 import {
   type AuditEvent,
+  type BlockedQuery,
   ConflictError,
   type DelegationRule,
   type DomainEvent,
   defineFlow,
   type RegisteredFlow,
+  type RequestQuery,
   type RequestState,
   type RungsStore,
 } from "@rungsjs/core";
@@ -323,6 +325,7 @@ export function storeContract(name: string, makeStore: StoreFactory): void {
             assigneeId: "u_a",
             assignedAt: NOW,
             deadlineAt: LATER,
+            payload: { amount: 5 },
           },
           expect.objectContaining({ taskId: "r2.t1" }),
         ]);
@@ -368,6 +371,224 @@ export function storeContract(name: string, makeStore: StoreFactory): void {
               tx.findInbox({ userId: "u_a", limit: 10, ...(tenantId ? { tenantId } : {}) }),
             )
           ).map((t) => t.requestId);
+        expect(await ids()).toEqual(["r1"]);
+        expect(await ids("acme")).toEqual(["r2"]);
+        expect(await ids("globex")).toEqual([]);
+      });
+    });
+
+    describe("request list", () => {
+      const at = (minute: number) => `2026-01-05T09:${String(minute).padStart(2, "0")}:00.000Z`;
+      const ids = (rows: { id: string }[]) => rows.map((r) => r.id);
+
+      async function seeded() {
+        const store = await makeStore();
+        await store.transaction(async (tx) => {
+          await tx.saveRequest(request({ id: "r1", submittedAt: at(1) }), null);
+          await tx.saveRequest(
+            request({
+              id: "r2",
+              submittedAt: at(2),
+              requesterId: "u_other",
+              subject: { type: "expense", id: "EXP-2" },
+            }),
+            null,
+          );
+          await tx.saveRequest(
+            request({ id: "r3", submittedAt: at(2), status: "approved", closedAt: at(5) }),
+            null,
+          );
+          await tx.saveRequest(
+            request({
+              id: "r4",
+              submittedAt: at(3),
+              flowKey: "leave",
+              subject: { type: "leave", id: "LV-1" },
+            }),
+            null,
+          );
+          await tx.saveRequest(request({ id: "r5", submittedAt: at(4), tenantId: "acme" }), null);
+        });
+        return store;
+      }
+      const find = (store: RungsStore, query: Partial<RequestQuery> = {}) =>
+        store.transaction((tx) => tx.findRequests({ limit: 10, ...query }));
+
+      it("lists requests newest first, by (submittedAt, id) descending", async () => {
+        const store = await seeded();
+        expect(ids(await find(store))).toEqual(["r4", "r3", "r2", "r1"]);
+        const [r3] = await find(store, { statuses: ["approved"] });
+        expect(r3).toEqual({
+          id: "r3",
+          flowKey: "expense",
+          flowVersion: 1,
+          subject: { type: "expense", id: "EXP-1" },
+          requesterId: "u_req",
+          status: "approved",
+          submittedAt: at(2),
+          closedAt: at(5),
+          version: 1,
+          payload: { amount: 5 },
+          openStep: null,
+        });
+      });
+
+      it("filters by requester, statuses, subject and flow, all combined", async () => {
+        const store = await seeded();
+        expect(ids(await find(store, { requesterId: "u_req" }))).toEqual(["r4", "r3", "r1"]);
+        expect(ids(await find(store, { statuses: ["pending"] }))).toEqual(["r4", "r2", "r1"]);
+        expect(ids(await find(store, { statuses: ["approved", "rejected"] }))).toEqual(["r3"]);
+        expect(ids(await find(store, { subject: { type: "expense", id: "EXP-2" } }))).toEqual([
+          "r2",
+        ]);
+        expect(ids(await find(store, { subject: { type: "leave" } }))).toEqual(["r4"]);
+        expect(ids(await find(store, { flowKey: "leave" }))).toEqual(["r4"]);
+        expect(
+          ids(
+            await find(store, { requesterId: "u_req", statuses: ["pending"], flowKey: "expense" }),
+          ),
+        ).toEqual(["r1"]);
+      });
+
+      it("pages with limit and after, and a page never repeats or skips a request", async () => {
+        const store = await seeded();
+        expect(ids(await find(store, { limit: 2 }))).toEqual(["r4", "r3"]);
+        const next = await find(store, { limit: 2, after: { submittedAt: at(2), id: "r3" } });
+        expect(ids(next)).toEqual(["r2", "r1"]);
+        // A request submitted after the first page was read does not shift the next page.
+        await store.transaction((tx) =>
+          tx.saveRequest(request({ id: "r9", submittedAt: at(9) }), null),
+        );
+        expect(ids(await find(store, { after: { submittedAt: at(2), id: "r3" } }))).toEqual([
+          "r2",
+          "r1",
+        ]);
+      });
+
+      it("reflects the latest save: status and open step follow the request", async () => {
+        const store = await seeded();
+        await store.transaction(async (tx) => {
+          const r1 = (await tx.getRequest("r1", { forUpdate: true })) as RequestState;
+          await tx.saveRequest(
+            {
+              ...r1,
+              version: 2,
+              steps: [
+                { stepId: "manager", index: 0, status: "active", approvers: [], tasks: [] },
+              ] as RequestState["steps"],
+            },
+            1,
+          );
+        });
+        const [r1] = await find(store, {
+          subject: { type: "expense", id: "EXP-1" },
+          limit: 1,
+          statuses: ["pending"],
+        });
+        expect(r1).toMatchObject({
+          id: "r1",
+          version: 2,
+          openStep: { stepId: "manager", status: "active" },
+        });
+        await store.transaction(async (tx) => {
+          const current = (await tx.getRequest("r1", { forUpdate: true })) as RequestState;
+          await tx.saveRequest({ ...current, version: 3, status: "withdrawn", closedAt: at(8) }, 2);
+        });
+        expect(ids(await find(store, { statuses: ["withdrawn"] }))).toEqual(["r1"]);
+      });
+
+      it("EC-62 matches the tenant exactly: without a tenant only requests without one", async () => {
+        const store = await seeded();
+        expect(ids(await find(store))).not.toContain("r5");
+        expect(ids(await find(store, { tenantId: "acme" }))).toEqual(["r5"]);
+        expect(ids(await find(store, { tenantId: "globex" }))).toEqual([]);
+      });
+    });
+
+    describe("blocked steps", () => {
+      const blocked = (id: string, blockedAt: string, overrides: Partial<RequestState> = {}) =>
+        request({
+          id,
+          steps: [
+            {
+              stepId: "manager",
+              index: 0,
+              status: "approved",
+              approvers: ["u_mgr"],
+              tasks: [],
+            },
+            {
+              stepId: "finance",
+              index: 1,
+              status: "blocked",
+              blockedAt,
+              blockReason: { type: "no-approvers" },
+              removed: [{ userId: "u_fin", reason: "inactive" }],
+              approvers: [],
+              tasks: [],
+            },
+          ] as RequestState["steps"],
+          ...overrides,
+        });
+      const findBlocked = (store: RungsStore, query: Partial<BlockedQuery> = {}) =>
+        store.transaction((tx) => tx.findBlocked({ limit: 10, ...query }));
+
+      it("lists blocked steps of pending requests, blocked longest first, with a cursor", async () => {
+        const store = await makeStore();
+        await store.transaction(async (tx) => {
+          await tx.saveRequest(blocked("r2", LATER), null);
+          await tx.saveRequest(blocked("r1", NOW), null);
+          await tx.saveRequest(blocked("r3", NOW, { status: "withdrawn" }), null);
+          await tx.saveRequest(request({ id: "r4" }), null);
+        });
+        const all = await findBlocked(store);
+        expect(all).toEqual([
+          {
+            requestId: "r1",
+            flowKey: "expense",
+            flowVersion: 1,
+            subject: { type: "expense", id: "EXP-1" },
+            requesterId: "u_req",
+            payload: { amount: 5 },
+            stepId: "finance",
+            blockedAt: NOW,
+            reason: { type: "no-approvers" },
+            removed: [{ userId: "u_fin", reason: "inactive" }],
+            version: 1,
+          },
+          expect.objectContaining({ requestId: "r2" }),
+        ]);
+        const page = await findBlocked(store, { after: { blockedAt: NOW, requestId: "r1" } });
+        expect(page.map((s) => s.requestId)).toEqual(["r2"]);
+        expect((await findBlocked(store, { limit: 1 })).map((s) => s.requestId)).toEqual(["r1"]);
+      });
+
+      it("drops a step once the request is saved unblocked", async () => {
+        const store = await makeStore();
+        await store.transaction((tx) => tx.saveRequest(blocked("r1", NOW), null));
+        await store.transaction(async (tx) => {
+          const current = (await tx.getRequest("r1", { forUpdate: true })) as RequestState;
+          const [manager, finance] = current.steps;
+          await tx.saveRequest(
+            {
+              ...current,
+              version: 2,
+              steps: [manager, { ...finance, status: "active" }] as RequestState["steps"],
+            },
+            1,
+          );
+        });
+        expect(await findBlocked(store)).toEqual([]);
+      });
+
+      it("EC-62 matches the tenant exactly", async () => {
+        const store = await makeStore();
+        await store.transaction(async (tx) => {
+          await tx.saveRequest(blocked("r1", NOW), null);
+          await tx.saveRequest(blocked("r2", NOW, { tenantId: "acme" }), null);
+        });
+        const ids = async (tenantId?: string) =>
+          (await findBlocked(store, tenantId ? { tenantId } : {})).map((s) => s.requestId);
         expect(await ids()).toEqual(["r1"]);
         expect(await ids("acme")).toEqual(["r2"]);
         expect(await ids("globex")).toEqual([]);

@@ -117,6 +117,51 @@ CREATE INDEX ${n.local("delegations_to")} ON ${t.delegations} (to_user_id);
 `.trimStart();
     },
   },
+  {
+    version: 2,
+    name: "list_queries",
+    sql: (n) => {
+      const t = n.table;
+      return `
+-- Columns for rungs.requests() and rungs.blocked(), filled from the stored state.
+ALTER TABLE ${t.requests}
+  ADD COLUMN requester_id text,
+  ADD COLUMN subject_type text,
+  ADD COLUMN subject_id   text,
+  ADD COLUMN flow_key     text,
+  ADD COLUMN submitted_at timestamptz,
+  ADD COLUMN blocked_at   timestamptz;
+UPDATE ${t.requests} SET
+  requester_id = state->>'requesterId',
+  subject_type = state->'subject'->>'type',
+  subject_id   = state->'subject'->>'id',
+  flow_key     = state->>'flowKey',
+  submitted_at = (state->>'submittedAt')::timestamptz,
+  blocked_at   = CASE WHEN status = 'pending' THEN (
+    SELECT (step->>'blockedAt')::timestamptz
+    FROM jsonb_array_elements(state->'steps') WITH ORDINALITY AS s(step, position)
+    WHERE step->>'status' = 'blocked'
+    ORDER BY position DESC
+    LIMIT 1
+  ) END;
+ALTER TABLE ${t.requests}
+  ALTER COLUMN requester_id SET NOT NULL,
+  ALTER COLUMN subject_type SET NOT NULL,
+  ALTER COLUMN subject_id   SET NOT NULL,
+  ALTER COLUMN flow_key     SET NOT NULL,
+  ALTER COLUMN submitted_at SET NOT NULL;
+CREATE INDEX ${n.local("requests_list")} ON ${t.requests} (tenant, submitted_at DESC, id DESC);
+CREATE INDEX ${n.local("requests_requester")} ON ${t.requests} (tenant, requester_id, submitted_at DESC, id DESC);
+CREATE INDEX ${n.local("requests_status")} ON ${t.requests} (tenant, status, submitted_at DESC, id DESC);
+CREATE INDEX ${n.local("requests_subject")} ON ${t.requests} (tenant, subject_type, subject_id);
+CREATE INDEX ${n.local("requests_blocked")} ON ${t.requests} (tenant, blocked_at, id) WHERE blocked_at IS NOT NULL;
+
+-- Inbox rows now carry the request payload.
+UPDATE ${t.inbox} AS i SET view = i.view || jsonb_build_object('payload', r.state->'payload')
+FROM ${t.requests} AS r WHERE r.id = i.request_id;
+`.trimStart();
+    },
+  },
 ];
 
 /** The schema version this release needs; the store refuses an older one. */

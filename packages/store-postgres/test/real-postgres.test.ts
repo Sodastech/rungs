@@ -163,6 +163,6 @@ run("concurrency on a real server", () => {
     const schema = `rt_migrate_${process.pid}`;
     schemas.push(schema);
     const results = await Promise.all([1, 2, 3].map(() => migrate(client(), { schema })));
-    expect(results.flatMap((r) => r.applied)).toEqual([1]);
+    expect(results.flatMap((r) => r.applied)).toEqual([1, 2]);
   });
 });

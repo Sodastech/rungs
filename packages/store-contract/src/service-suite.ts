@@ -589,6 +589,7 @@ export function serviceSuite(name: string, makeStore: StoreFactory): void {
             assigneeId: "u_a",
             assignedAt: T0,
             deadlineAt: "2026-01-06T09:00:00.000Z",
+            payload: { amount: 5000 },
             overdue: true,
           },
         ]);
@@ -637,6 +638,119 @@ export function serviceSuite(name: string, makeStore: StoreFactory): void {
         await expect(rungs.inbox({ userId: "u_a", limit: 0 })).rejects.toBeInstanceOf(
           InvalidCommandError,
         );
+      });
+    });
+
+    describe("list queries", () => {
+      it("requests lists the newest first, filters, and pages with next", async () => {
+        const { rungs, at } = await setup();
+        await rungs.flows.register(expense);
+        const first = await rungs.submit(submitInput());
+        at("2026-01-05T10:00:00.000Z");
+        const second = await rungs.submit(
+          submitInput({ requesterId: "u_other", subject: { type: "expense", id: "EXP-2" } }),
+        );
+        at("2026-01-05T11:00:00.000Z");
+        const third = await rungs.submit(
+          submitInput({ subject: { type: "expense", id: "EXP-3" } }),
+        );
+        await rungs.withdraw({ requestId: third.id, actorId: "u_req" });
+
+        const all = await rungs.requests();
+        expect(all.requests.map((r) => r.id)).toEqual([third.id, second.id, first.id]);
+        expect(all.next).toBeUndefined();
+        expect(all.requests[1]).toMatchObject({
+          id: second.id,
+          status: "pending",
+          payload: { amount: 5000 },
+          openStep: { stepId: "manager", status: "active" },
+        });
+
+        const mine = await rungs.requests({ requesterId: "u_req", status: "pending" });
+        expect(mine.requests.map((r) => r.id)).toEqual([first.id]);
+        const bySubject = await rungs.requests({ subject: { type: "expense", id: "EXP-2" } });
+        expect(bySubject.requests.map((r) => r.id)).toEqual([second.id]);
+
+        const page1 = await rungs.requests({ limit: 2 });
+        expect(page1.requests.map((r) => r.id)).toEqual([third.id, second.id]);
+        expect(page1.next).toBeDefined();
+        const page2 = await rungs.requests({ limit: 2, after: page1.next as string });
+        expect(page2.requests.map((r) => r.id)).toEqual([first.id]);
+        expect(page2.next).toBeUndefined();
+      });
+
+      it("EC-42 blocked lists steps waiting for an admin until one acts", async () => {
+        const inactive = new Set<string>();
+        const { rungs } = await setup({ isActiveUser: (id) => !inactive.has(id) });
+        await rungs.flows.register(expense);
+        const request = await rungs.submit(submitInput());
+        inactive.add("u_fin");
+        await rungs.approve({ requestId: request.id, actorId: "u_mgr" });
+
+        const { steps } = await rungs.blocked();
+        expect(steps).toEqual([
+          expect.objectContaining({
+            requestId: request.id,
+            stepId: "finance",
+            reason: { type: "no-approvers" },
+            removed: [{ userId: "u_fin", reason: "inactive" }],
+            payload: { amount: 5000 },
+          }),
+        ]);
+        expect((await rungs.requests()).requests[0]?.openStep).toEqual({
+          stepId: "finance",
+          status: "blocked",
+        });
+        await rungs.reassign({
+          requestId: request.id,
+          stepId: "finance",
+          adminId: "u_admin",
+          toUserIds: ["u_lead"],
+          comment: "Finance is away",
+          expectedVersion: steps[0]?.version as number,
+        });
+        expect((await rungs.blocked()).steps).toEqual([]);
+      });
+
+      it("EC-62 requests and blocked never cross tenants", async () => {
+        const { rungs } = await setup();
+        await rungs.flows.register(expense);
+        const global = await rungs.submit(submitInput());
+        const acme = await rungs.submit(submitInput({ tenantId: "acme" }));
+        expect((await rungs.requests()).requests.map((r) => r.id)).toEqual([global.id]);
+        expect((await rungs.requests({ tenantId: "acme" })).requests.map((r) => r.id)).toEqual([
+          acme.id,
+        ]);
+        expect((await rungs.requests({ tenantId: "globex" })).requests).toEqual([]);
+        expect((await rungs.blocked({ tenantId: "globex" })).steps).toEqual([]);
+      });
+
+      it("refuses an invalid limit, status, subject or cursor", async () => {
+        const { rungs } = await setup();
+        for (const input of [
+          { limit: 0 },
+          { limit: 201 },
+          { limit: 1.5 },
+          { status: [] },
+          { status: "cancelled" },
+          { subject: { type: "" } },
+          { after: "not-a-cursor" },
+          { after: "2026-01-05T09:00:00.000Z~" },
+        ]) {
+          await expect(
+            rungs.requests(input as Parameters<typeof rungs.requests>[0]),
+          ).rejects.toBeInstanceOf(InvalidCommandError);
+        }
+        await expect(rungs.blocked({ limit: 0 })).rejects.toBeInstanceOf(InvalidCommandError);
+        await expect(rungs.blocked({ after: "x" })).rejects.toBeInstanceOf(InvalidCommandError);
+      });
+
+      it("inbox entries carry the request payload for display", async () => {
+        const { rungs } = await setup();
+        await rungs.flows.register(expense);
+        await rungs.submit(submitInput());
+        const { tasks } = await rungs.inbox({ userId: "u_mgr" });
+        expect(tasks[0]?.payload).toEqual({ amount: 5000 });
       });
     });
 

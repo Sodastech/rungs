@@ -91,6 +91,7 @@ Tier: **Core** = MIT `@rungsjs/core`; **Pro** = `@rungsjs/org`.
 | EC-40 | A comparison (`gt`, `gte`, `lt`, `lte`) in a condition meets a missing field or a value of the wrong type | Fail closed: `ConditionError` (`CONDITION_INVALID`) naming the field, expected and received type; no state change. `eq`/`neq`/`in`/`nin` on a missing field evaluate against `undefined`. All branches of `all`/`any` are evaluated so an error is never masked | — | Core |
 | EC-41 | A condition would fail with `ConditionError` on a step that activates later | Submit and resubmit evaluate every step condition up front, so the requester's command fails and nothing changes; the approver of an earlier step is never blocked. Conditions are still evaluated at activation (EC-38) | — | Core |
 | EC-51 | Resubmit under `from-returned-step` with a changed payload | Restarts from the first step instead, because earlier conditional steps must be evaluated again against the new data. The audit (`request.resubmitted`) records `applied: restart` and `payloadChanged: true`. Payloads are compared as JSON, ignoring key order | `returnPolicy` | Core |
+| EC-62 | A list query (`requests`, `blocked`, `inbox`) is made without a tenant, or for another tenant | Lists match the tenant exactly: without `tenantId` only requests without a tenant are returned, and a tenant never sees another tenant's requests, tasks or blocked steps. Who may see a list within a tenant is the host's decision | — | Core |
 
 ## Adding a new case
 

@@ -18,8 +18,11 @@ it("exports exactly the documented runtime API", () => {
     "RequestNotFoundError",
     "ResolutionError",
     "RungsError",
+    "blockedStepView",
     "createRungs",
     "decide",
     "defineFlow",
+    "requestSummary",
+    "taskViews",
   ]);
 });

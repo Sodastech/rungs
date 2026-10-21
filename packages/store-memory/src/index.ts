@@ -2,6 +2,8 @@
 
 import {
   type AuditEvent,
+  type BlockedStepView,
+  blockedStepView,
   ConflictError,
   type DelegationRule,
   type EventKey,
@@ -12,8 +14,10 @@ import {
   type RegisteredFlow,
   type RequestState,
   type RungsStore,
+  requestSummary,
   type StoreTx,
   type TaskView,
+  taskViews,
 } from "@rungsjs/core";
 
 export interface MemoryStoreOptions {
@@ -153,29 +157,10 @@ function transactionOn(data: Data): StoreTx {
       );
     },
     async findInbox({ userId, tenantId, limit, after }) {
-      const views: TaskView[] = [];
-      for (const request of Object.values(data.requests)) {
-        if (request.status !== "pending" || request.tenantId !== tenantId) continue;
-        const step = request.steps.findLast((s) => s.status === "active");
-        for (const task of step?.tasks ?? []) {
-          const mine = task.assigneeId === userId || task.onBehalfOf === userId;
-          if (step === undefined || task.status !== "pending" || !mine) continue;
-          views.push({
-            requestId: request.id,
-            ...(request.tenantId === undefined ? {} : { tenantId: request.tenantId }),
-            flowKey: request.flowKey,
-            flowVersion: request.flowVersion,
-            subject: request.subject,
-            requesterId: request.requesterId,
-            stepId: step.stepId,
-            taskId: task.id,
-            assigneeId: task.assigneeId,
-            ...(task.onBehalfOf === undefined ? {} : { onBehalfOf: task.onBehalfOf }),
-            assignedAt: task.assignedAt,
-            ...(step.deadline === undefined ? {} : { deadlineAt: step.deadline.deadlineAt }),
-          });
-        }
-      }
+      const views: TaskView[] = Object.values(data.requests)
+        .filter((request) => request.tenantId === tenantId)
+        .flatMap(taskViews)
+        .filter((view) => view.assigneeId === userId || view.onBehalfOf === userId);
       const order = (v: { assignedAt: string; taskId: string }) =>
         [Date.parse(v.assignedAt), v.taskId] as const;
       const before = (
@@ -188,6 +173,46 @@ function transactionOn(data: Data): StoreTx {
       };
       views.sort((a, b) => (before(a, b) ? -1 : before(b, a) ? 1 : 0));
       const start = after === undefined ? views : views.filter((v) => before(after, v));
+      return copy(start.slice(0, limit));
+    },
+    async findRequests({ tenantId, requesterId, statuses, subject, flowKey, limit, after }) {
+      type Key = { submittedAt: string; id: string };
+      const newer = (a: Key, b: Key) => {
+        const ta = Date.parse(a.submittedAt);
+        const tb = Date.parse(b.submittedAt);
+        return ta !== tb ? ta > tb : a.id > b.id;
+      };
+      const rows = Object.values(data.requests)
+        .filter(
+          (r) =>
+            r.tenantId === tenantId &&
+            (requesterId === undefined || r.requesterId === requesterId) &&
+            (statuses === undefined || statuses.includes(r.status)) &&
+            (subject === undefined ||
+              (r.subject.type === subject.type &&
+                (subject.id === undefined || r.subject.id === subject.id))) &&
+            (flowKey === undefined || r.flowKey === flowKey),
+        )
+        .map(requestSummary)
+        .sort((a, b) => (newer(a, b) ? -1 : newer(b, a) ? 1 : 0));
+      const start = after === undefined ? rows : rows.filter((r) => newer(after, r));
+      return copy(start.slice(0, limit));
+    },
+    async findBlocked({ tenantId, limit, after }) {
+      const earlier = (
+        a: { blockedAt: string; requestId: string },
+        b: { blockedAt: string; requestId: string },
+      ) => {
+        const ta = Date.parse(a.blockedAt);
+        const tb = Date.parse(b.blockedAt);
+        return ta !== tb ? ta < tb : a.requestId < b.requestId;
+      };
+      const rows = Object.values(data.requests)
+        .filter((r) => r.tenantId === tenantId)
+        .map(blockedStepView)
+        .filter((view): view is BlockedStepView => view !== null)
+        .sort((a, b) => (earlier(a, b) ? -1 : earlier(b, a) ? 1 : 0));
+      const start = after === undefined ? rows : rows.filter((v) => earlier(after, v));
       return copy(start.slice(0, limit));
     },
     async findDelegations(fromUserIds, tenantId) {

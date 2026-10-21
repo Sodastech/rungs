@@ -93,6 +93,8 @@ export type {
   TaskStatus,
 } from "./model/state.js";
 export type {
+  BlockedQuery,
+  BlockedStepView,
   ClaimOptions,
   EventKey,
   FlowRef,
@@ -100,10 +102,13 @@ export type {
   IdempotentRecord,
   InboxQuery,
   OutboxEntry,
+  RequestQuery,
+  RequestSummary,
   RungsStore,
   StoreTx,
   TaskView,
 } from "./model/store.js";
+export { blockedStepView, requestSummary, taskViews } from "./model/views.js";
 export type {
   ResolutionHooks,
   ResolveContext,
@@ -121,6 +126,8 @@ export {
 } from "./service/create-rungs.js";
 export type { FlowRegistration, FlowRegistry } from "./service/flows.js";
 export type {
+  BlockedInput,
+  BlockedPage,
   DelegationInput,
   Delegations,
   InboxEntry,
@@ -128,4 +135,6 @@ export type {
   InboxPage,
   PreviewRequestInput,
   Queries,
+  RequestsInput,
+  RequestsPage,
 } from "./service/queries.js";

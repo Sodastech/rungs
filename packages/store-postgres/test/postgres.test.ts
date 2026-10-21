@@ -72,7 +72,7 @@ describe("migrations", () => {
   it("migrate is idempotent and records the schema version", async () => {
     const client = harness.client();
     expect(await migrate(client, { schema: "m1" })).toEqual({
-      applied: [1],
+      applied: [1, 2],
       version: SCHEMA_VERSION,
     });
     expect(await migrate(client, { schema: "m1" })).toEqual({
@@ -114,6 +114,42 @@ describe("migrations", () => {
       expect(readFileSync(new URL(`../migrations/${file}`, import.meta.url), "utf8")).toBe(sql);
     }
     expect(migrationSql({ schema: "x", tablePrefix: "p_" })).toContain('"x"."p_requests"');
+  });
+
+  it("migration 2 fills the list columns and inbox payloads of existing requests", async () => {
+    // Requests written by the current release, copied into a schema still at version 1.
+    const { rungs, schema: source, client } = await service();
+    await rungs.flows.register(flow);
+    const open = await rungs.submit({
+      flow: "expense",
+      requesterId: "u_req",
+      subject: { type: "expense", id: "EXP-7" },
+      payload: { amount: 70 },
+    });
+    await client.execute(migrationSql({ schema: "upgrade", to: 1 }));
+    await client.execute(`
+      INSERT INTO upgrade.rungs_flows SELECT * FROM "${source}".rungs_flows;
+      INSERT INTO upgrade.rungs_requests (id, tenant, status, version, closed_at, next_due_at, state)
+        SELECT id, tenant, status, version, closed_at, next_due_at, state FROM "${source}".rungs_requests;
+      INSERT INTO upgrade.rungs_inbox (task_id, request_id, tenant, assignee_id, on_behalf_of, assigned_at, view)
+        SELECT task_id, request_id, tenant, assignee_id, on_behalf_of, assigned_at, view - 'payload'
+        FROM "${source}".rungs_inbox;
+    `);
+    expect(await migrate(client, { schema: "upgrade" })).toEqual({
+      applied: [2],
+      version: SCHEMA_VERSION,
+    });
+    const upgraded = createRungs({
+      store: postgresStore(client, { schema: "upgrade" }),
+      clock: () => new Date(T0),
+      ids: () => "unused",
+      events: "discard",
+    });
+    const listed = await upgraded.requests({ subject: { type: "expense", id: "EXP-7" } });
+    expect(listed.requests.map((r) => r.id)).toEqual([open.id]);
+    expect((await upgraded.requests({ requesterId: "u_req" })).requests).toHaveLength(1);
+    const { tasks } = await upgraded.inbox({ userId: "u_mgr" });
+    expect(tasks[0]?.payload).toEqual({ amount: 70 });
   });
 
   it("a script from migrationSql() leaves a schema the store accepts", async () => {
