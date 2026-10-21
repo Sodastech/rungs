@@ -96,9 +96,11 @@ const send = (method, params = {}) =>
 const once = (method) => new Promise((resolve) => waiters.push({ method, resolve }));
 
 async function load(url) {
+  // A navigation that only changes the hash fires no load event; do not wait for it forever.
+  await send("Page.navigate", { url: "about:blank" });
   const loaded = once("Page.loadEventFired");
   await send("Page.navigate", { url });
-  await loaded;
+  await Promise.race([loaded, sleep(15_000)]);
   await sleep(400);
 }
 

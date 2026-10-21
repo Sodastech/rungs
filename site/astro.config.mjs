@@ -32,8 +32,17 @@ export default defineConfig({
         },
       ],
       lastUpdated: true,
-      plugins: [starlightLinksValidator()],
-      sidebar: [],
+      plugins: [
+        starlightLinksValidator({
+          // Edge case anchors come from the catalog component, which the validator cannot see;
+          // test/edge-cases.test.ts checks that every linked ID exists instead.
+          exclude: ({ link }) => /^(?:\/rungs\/edge-cases\/)?#ec-\d+$/.test(link),
+        }),
+      ],
+      sidebar: [
+        { label: "Getting started", link: "/getting-started/" },
+        { label: "Edge cases", link: "/edge-cases/" },
+      ],
     }),
   ],
 });

@@ -1,0 +1,198 @@
+---
+// The edge case catalog, read from docs/05-edge-cases.md at build time (never copied here).
+import catalog from "../../../docs/05-edge-cases.md?raw";
+import { anchor, inlineMarkdown, parseEdgeCases } from "../lib/edge-cases";
+
+const sections = parseEdgeCases(catalog);
+const total = sections.reduce((n, s) => n + s.cases.length, 0);
+const slug = (title: string) =>
+  title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+const tierFamily = (tier: string) => (tier.startsWith("Pro") ? "pro" : "core");
+---
+
+<div class="ec-filters not-content">
+  <label>
+    <span>Search</span>
+    <input type="search" id="ec-search" placeholder="Delegation, quorum, EC-42…" autocomplete="off" />
+  </label>
+  <label>
+    <span>Tier</span>
+    <select id="ec-tier">
+      <option value="">All</option>
+      <option value="core">Core (free)</option>
+      <option value="pro">Pro</option>
+    </select>
+  </label>
+  <p id="ec-count" aria-live="polite">{total} cases</p>
+</div>
+
+<nav class="ec-jump not-content" aria-label="Sections">
+  {sections.map((s) => <a href={`#${slug(s.title)}`}>{s.title}</a>)}
+</nav>
+
+{
+  sections.map((section) => (
+    <section class="ec-section" data-section>
+      <h2 id={slug(section.title)}>{section.title}</h2>
+      {section.cases.map((c) => (
+        <article
+          class="ec-case not-content"
+          id={anchor(c.id)}
+          data-tier={tierFamily(c.tier)}
+          data-text={`${c.id} ${c.situation} ${c.behavior} ${c.config}`.toLowerCase()}
+        >
+          <header>
+            <a class="ec-id" href={`#${anchor(c.id)}`}>
+              {c.id}
+            </a>
+            <span class={`ec-tier ${tierFamily(c.tier)}`}>{c.tier}</span>
+          </header>
+          <p class="ec-situation" set:html={inlineMarkdown(c.situation)} />
+          <p set:html={inlineMarkdown(c.behavior)} />
+          {c.config !== "" && (
+            <p class="ec-config">
+              <span>Configure with</span> <span set:html={inlineMarkdown(c.config)} />
+            </p>
+          )}
+        </article>
+      ))}
+    </section>
+  ))
+}
+
+<script>
+  const search = document.getElementById("ec-search") as HTMLInputElement;
+  const tier = document.getElementById("ec-tier") as HTMLSelectElement;
+  const count = document.getElementById("ec-count") as HTMLElement;
+  const cases = [...document.querySelectorAll<HTMLElement>(".ec-case")];
+  const sections = [...document.querySelectorAll<HTMLElement>("[data-section]")];
+
+  function apply() {
+    const words = search.value.toLowerCase().split(/\s+/).filter(Boolean);
+    let shown = 0;
+    for (const item of cases) {
+      const match =
+        (tier.value === "" || item.dataset.tier === tier.value) &&
+        words.every((w) => item.dataset.text?.includes(w));
+      item.hidden = !match;
+      if (match) shown += 1;
+    }
+    for (const section of sections) {
+      section.hidden = section.querySelector(".ec-case:not([hidden])") === null;
+    }
+    count.textContent = `${shown} of ${cases.length} cases`;
+  }
+  search.addEventListener("input", apply);
+  tier.addEventListener("change", apply);
+</script>
+
+<style>
+  .ec-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.75rem 1rem;
+    margin-top: 1rem;
+  }
+  .ec-filters label {
+    display: grid;
+    gap: 0.25rem;
+    font-size: var(--sl-text-sm);
+    font-weight: 600;
+    color: var(--sl-color-gray-2);
+  }
+  .ec-filters input,
+  .ec-filters select {
+    font: inherit;
+    font-weight: 400;
+    color: var(--sl-color-white);
+    background: var(--sl-color-black);
+    border: 1px solid var(--sl-color-gray-4);
+    border-radius: 0.375rem;
+    padding: 0.4rem 0.6rem;
+    min-width: 14rem;
+  }
+  .ec-filters select {
+    min-width: 9rem;
+  }
+  #ec-count {
+    margin: 0 0 0.45rem;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+  }
+  .ec-jump {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+  .ec-jump a {
+    font-size: var(--sl-text-sm);
+    padding: 0.15rem 0.6rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 999px;
+    text-decoration: none;
+    color: var(--sl-color-gray-2);
+  }
+  .ec-jump a:hover {
+    border-color: var(--sl-color-accent);
+    color: var(--sl-color-white);
+  }
+  .ec-case {
+    margin-top: 0.75rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-gray-7, var(--sl-color-gray-6));
+    scroll-margin-top: calc(var(--sl-nav-height) + 1rem);
+  }
+  .ec-case:target {
+    border-color: var(--sl-color-accent);
+    box-shadow: 0 0 0 1px var(--sl-color-accent);
+  }
+  .ec-case header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .ec-case p {
+    margin: 0.4rem 0 0;
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-sm);
+    line-height: 1.6;
+  }
+  .ec-case p.ec-situation {
+    color: var(--sl-color-white);
+    font-size: var(--sl-text-base);
+    font-weight: 600;
+  }
+  .ec-id {
+    font-family: var(--sl-font-mono);
+    font-weight: 700;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-accent-high);
+    text-decoration: none;
+  }
+  .ec-tier {
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+    padding: 0.05rem 0.5rem;
+    border-radius: 999px;
+    background: var(--sl-color-accent-low);
+    color: var(--sl-color-accent-high);
+  }
+  .ec-tier.pro {
+    background: var(--sl-color-gray-5);
+    color: var(--sl-color-white);
+  }
+  .ec-config span:first-child {
+    font-weight: 600;
+  }
+  .ec-section[hidden],
+  .ec-case[hidden] {
+    display: none;
+  }
+</style>

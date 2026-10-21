@@ -1,0 +1,14 @@
+---
+title: Edge cases
+description: Every situation Rungs handles that a naive approval system gets wrong, with its default behavior, how to configure it, and the tier that implements it.
+tableOfContents: false
+---
+
+import EdgeCases from "../../components/EdgeCases.astro";
+
+This catalog is the specification of Rungs. Each case has an ID, a default behavior, the setting
+that changes it, and the tier that implements it: **Core** is the free MIT package, **Pro** the
+planned commercial one. Every Core case has a test named after its ID, and CI fails when one is
+missing. Link to a case with its ID, for example [`#ec-42`](#ec-42).
+
+<EdgeCases />
