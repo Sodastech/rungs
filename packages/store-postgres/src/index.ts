@@ -14,6 +14,7 @@ export {
 export { migrate, migrationSql, SCHEMA_VERSION } from "./migrations.js";
 export type { NamingOptions } from "./naming.js";
 export {
+  type PurgeRequestsOptions,
   type PurgeResult,
   purgeDispatchedEvents,
   purgeIdempotency,

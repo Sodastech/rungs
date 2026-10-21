@@ -247,7 +247,7 @@ describe("EC-61 purging closed requests", () => {
     ).rejects.toThrow("append-only");
   });
 
-  it("EC-61 purgeRequests removes requests closed before a time, per tenant or for all", async () => {
+  it("EC-61 purgeRequests removes requests closed before a time, per tenant or for all tenants", async () => {
     const acme = await service("acme");
     const a1 = await acme.submit();
     await acme.rungs.withdraw({ requestId: a1.id, actorId: "u_req" });
@@ -272,13 +272,46 @@ describe("EC-61 purging closed requests", () => {
     expect(await acme.rungs.get(a1.id)).toBeNull();
     expect(await acme.rungs.get(a2.id)).not.toBeNull();
     expect(
-      await purgeRequests(acme.client, { ...opts, closedBefore: "2026-03-01T00:00:00.000Z" }),
+      await purgeRequests(acme.client, {
+        ...opts,
+        closedBefore: "2026-03-01T00:00:00.000Z",
+        allTenants: true,
+      }),
     ).toMatchObject({
       requests: 1,
     });
     await expect(
-      purgeRequests(acme.client, { ...opts, closedBefore: "yesterday" }),
+      purgeRequests(acme.client, { ...opts, closedBefore: "yesterday", allTenants: true }),
     ).rejects.toBeInstanceOf(InvalidCommandError);
+  });
+
+  it("EC-61 purgeRequests refuses to run without an explicit tenant scope; nothing is deleted", async () => {
+    const acme = await service("acme");
+    const closed = await acme.submit();
+    await acme.rungs.withdraw({ requestId: closed.id, actorId: "u_req" });
+    const base = { schema: acme.schema, closedBefore: "2026-03-01T00:00:00.000Z" };
+    for (const options of [
+      base,
+      { ...base, allTenants: false },
+      { ...base, tenantId: "acme", allTenants: true },
+    ]) {
+      await expect(
+        purgeRequests(acme.client, options as unknown as Parameters<typeof purgeRequests>[1]),
+      ).rejects.toBeInstanceOf(InvalidCommandError);
+    }
+    expect(await acme.rungs.get(closed.id)).not.toBeNull();
+  });
+
+  it("EC-61 a cancelled request counts as closed and can be purged", async () => {
+    const { client, schema, rungs, count, open } = await closedAndOpen();
+    // The engine does not produce request status "cancelled" yet; a host-written row stands in.
+    await client.query(
+      `UPDATE "${schema}"."rungs_requests" SET status = 'cancelled', closed_at = '2026-01-05T09:00:00Z' WHERE id = $1`,
+      [open],
+    );
+    expect(await purgeRequest(client, open, { schema })).toMatchObject({ requests: 1 });
+    expect(await rungs.get(open)).toBeNull();
+    expect(await count("inbox", "request_id = $1", [open])).toBe(0);
   });
 });
 

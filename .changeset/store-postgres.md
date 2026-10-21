@@ -7,4 +7,4 @@ adapters for node-postgres, postgres.js and PGlite; `migrate()` and `migrationSq
 SQL files; JSONB state with indexed projections for due requests, the inbox and the outbox; row
 locks, compare-and-set and `SKIP LOCKED` leases for parallel workers; an append-only audit table;
 and `purgeRequest`, `purgeRequests`, `purgeIdempotency` and `purgeDispatchedEvents` for data
-retention (EC-61).
+retention (EC-61); `purgeRequests` takes an explicit `tenantId` or `allTenants: true`.

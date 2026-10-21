@@ -368,16 +368,19 @@ example from a scheduled job. Each returns what it deleted, so you can record it
 ```ts
 await purgeRequest(db, requestId);                                   // one closed request (EC-61)
 await purgeRequests(db, { closedBefore: "2025-01-01T00:00:00Z", tenantId: "acme", limit: 1000 });
+await purgeRequests(db, { closedBefore: "2025-01-01T00:00:00Z", allTenants: true });
 await purgeIdempotency(db, { olderThan: "2026-01-01T00:00:00Z" });   // { idempotencyKeys }
 await purgeDispatchedEvents(db, { olderThan: "2026-01-01T00:00:00Z" }); // { events }
 ```
 
-- `purgeRequest` and `purgeRequests` delete **closed** requests (approved, rejected, withdrawn)
+- `purgeRequest` and `purgeRequests` delete **closed** requests (approved, rejected, withdrawn, cancelled)
   with their audit events, outbox events, inbox rows and idempotency records, in one transaction,
   and return `{ requests, auditEvents, outboxEvents, idempotencyKeys }`. A request that is still
   open is refused with `InvalidTransitionError`; nothing is deleted.
 - `purgeRequests` handles at most `limit` (default 1000) requests per call; call it again until
-  `requests` is below the limit. Without `tenantId` it covers every tenant.
+  `requests` is below the limit. The tenant scope is always explicit: pass one `tenantId`, or
+  `allTenants: true` to cover every tenant. Neither or both is an `InvalidCommandError`, so a
+  forgotten option never deletes other tenants' data.
 - `purgeIdempotency`: after it, repeating one of those commands runs it again, so keep records at
   least as long as clients may retry. `purgeDispatchedEvents` never touches undelivered events.
 - Payloads may contain personal data. Purging a request removes its state and audit trail; data

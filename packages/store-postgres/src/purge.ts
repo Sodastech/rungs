@@ -7,6 +7,15 @@ const CLOSED = ["approved", "rejected", "withdrawn", "cancelled"];
 
 const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
 
+/** Which requests `purgeRequests` may delete. The tenant scope must be chosen explicitly. */
+export type PurgeRequestsOptions = {
+  readonly closedBefore: string;
+  readonly limit?: number;
+} & (
+  | { readonly tenantId: string; readonly allTenants?: never }
+  | { readonly allTenants: true; readonly tenantId?: never }
+);
+
 export interface PurgeResult {
   readonly requests: number;
   readonly auditEvents: number;
@@ -70,13 +79,25 @@ export async function purgeRequest(
 /**
  * EC-61: deletes closed requests whose `closedAt` is before `closedBefore`, with everything that
  * belongs to them, in one transaction; at most `limit` (default 1000) per call, so run it until
- * `requests` is below the limit. Without `tenantId` it covers every tenant.
+ * `requests` is below the limit. The scope is always explicit: one `tenantId`, or
+ * `allTenants: true`; neither or both is an `InvalidCommandError`.
  */
 export async function purgeRequests(
   client: PgClient,
-  options: NamingOptions & { closedBefore: string; tenantId?: string; limit?: number },
+  options: NamingOptions & PurgeRequestsOptions,
 ): Promise<PurgeResult> {
   const closedBefore = checkTime(options.closedBefore, "closedBefore");
+  const scoped = options.tenantId !== undefined;
+  const all = (options as { allTenants?: unknown }).allTenants;
+  if (all !== undefined && all !== true) {
+    throw new InvalidCommandError("allTenants must be true when given");
+  }
+  if (scoped === (all === true)) {
+    throw new InvalidCommandError("purgeRequests needs either tenantId or allTenants: true");
+  }
+  if (scoped && typeof options.tenantId !== "string") {
+    throw new InvalidCommandError("tenantId must be a string");
+  }
   const limit = options.limit ?? 1000;
   if (!Number.isInteger(limit) || limit < 1) {
     throw new InvalidCommandError("limit must be a positive integer");
