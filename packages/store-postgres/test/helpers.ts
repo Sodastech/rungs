@@ -3,7 +3,8 @@ import type { RungsStore } from "@rungsjs/core";
 import { fromPglite, migrate, type PgClient, postgresStore } from "../src/index.js";
 
 /**
- * One in-process PGlite database per test file (it takes about two seconds to start); every
+ * One in-process PGlite database per test file. It takes seconds to start (longer on CI), so
+ * call `start()` in `beforeAll` with its own timeout instead of inside the first test. Every
  * store gets its own freshly migrated schema, so tests never see each other's rows.
  */
 export function pgliteHarness() {
@@ -15,6 +16,9 @@ export function pgliteHarness() {
   };
   return {
     client,
+    async start() {
+      db ??= await PGlite.create();
+    },
     async freshSchema(): Promise<{ client: PgClient; schema: string }> {
       const schema = `t${++next}`;
       await migrate(client(), { schema });

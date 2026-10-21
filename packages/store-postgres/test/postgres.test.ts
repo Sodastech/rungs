@@ -8,7 +8,7 @@ import {
   InvalidTransitionError,
   type RequestState,
 } from "@rungsjs/core";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   migrate,
   migrationSql,
@@ -23,6 +23,7 @@ import { migrationFiles } from "../src/migrations.js";
 import { pgliteHarness } from "./helpers.js";
 
 const harness = pgliteHarness();
+beforeAll(() => harness.start(), 60_000);
 afterAll(() => harness.close());
 
 const T0 = "2026-01-05T09:00:00.000Z";
