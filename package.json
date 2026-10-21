@@ -16,6 +16,8 @@
     "lint": "biome check .",
     "check:ec": "node scripts/check-ec-coverage.mjs",
     "check:readme": "node scripts/check-readme.mjs",
+    "check:api": "node scripts/api-report.mjs --check",
+    "api:update": "node scripts/api-report.mjs",
     "format": "biome check --write .",
     "changeset": "changeset"
   },

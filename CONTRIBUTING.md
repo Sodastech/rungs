@@ -33,6 +33,7 @@ Before opening a pull request, run everything CI runs:
 pnpm lint            # Biome; `pnpm format` fixes most issues
 pnpm check:ec        # every Core edge case has a test named after its ID
 pnpm check:readme    # the README quick start is the code that is tested
+pnpm check:api       # the API reports match the source; `pnpm api:update` rewrites them
 pnpm build && pnpm typecheck && pnpm test
 ```
 

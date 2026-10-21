@@ -40,6 +40,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm check:ec
       - run: pnpm check:readme
+      - run: pnpm check:api
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm test

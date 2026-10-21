@@ -45,7 +45,9 @@ real-world edge cases handled correctly. Most existing libraries leave that to t
    Changing it requires updating `docs/04-api-design.md`, the documentation site pages that describe
    it (`site/src/content/docs`), and adding a changeset, all in the same change. The API reference
    on the site is generated from the types; code samples live in `examples/docs-snippets` and are
-   tested, so a changed API breaks the snippet tests until the docs follow.
+   tested, so a changed API breaks the snippet tests until the docs follow. `pnpm check:api`
+   fails until the API reports (`packages/*/api`) are regenerated with `pnpm api:update`, so every
+   change to the public API shows up in the diff.
 5. **Free/Pro boundary is respected.** Org-aware resolvers, the React UI and the flow builder live in
    Pro packages (`packages/pro-*`). Do not move Pro functionality into MIT packages without the
    owner's explicit decision. See `docs/02-free-vs-pro.md`.
@@ -72,6 +74,8 @@ pnpm typecheck      # tsc --noEmit in every package
 pnpm lint
 pnpm check:ec       # every Core edge case in docs/05 has a test named after its ID
 pnpm check:readme   # the README quick start is the tested snippet
+pnpm check:api      # the API reports in packages/*/api match the source
+pnpm api:update     # rewrite them after a deliberate public API change
 pnpm --filter @rungsjs/site dev   # the documentation site at http://localhost:4321/rungs/
 pnpm changeset      # record a release note for a public change
 ```
