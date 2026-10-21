@@ -76,6 +76,7 @@ pnpm check:ec       # every Core edge case in docs/05 has a test named after its
 pnpm check:readme   # the README quick start is the tested snippet
 pnpm check:api      # the API reports in packages/*/api match the source
 pnpm api:update     # rewrite them after a deliberate public API change
+pnpm check:pack     # pack the published packages and check them (after pnpm build)
 pnpm --filter @rungsjs/site dev   # the documentation site at http://localhost:4321/rungs/
 pnpm changeset      # record a release note for a public change
 ```

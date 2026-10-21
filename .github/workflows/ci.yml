@@ -84,3 +84,23 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run build --filter=@rungsjs/store-postgres...
       - run: pnpm --filter @rungsjs/store-postgres test
+
+  package:
+    name: Package contents
+    # Pinned on purpose; move to a newer image deliberately.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      # pnpm version comes from "packageManager" in package.json
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter=@rungsjs/store-memory... --filter=@rungsjs/store-postgres...
+      # Packs each published package as a release does: files, LICENSE, size, publint, attw
+      - run: pnpm check:pack
