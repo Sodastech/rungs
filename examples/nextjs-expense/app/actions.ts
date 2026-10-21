@@ -5,10 +5,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { advanceTime, getDemo, resetDemo, submitExpense } from "../rungs/demo";
+import { advanceTime, getDemo, resetDemo, resubmitExpense, submitExpense } from "../rungs/demo";
 import { person, setActive } from "../rungs/directory";
 import { describeError } from "../rungs/errors";
-import { categories, type ExpensePayload } from "../rungs/flow";
+import type { ExpenseDetails } from "../rungs/expenses";
+import { categories } from "../rungs/flow";
 import { homeFor, requireAdmin, requireUser, signIn, signOut } from "./session";
 
 export type ActionState = { error?: string; success?: string } | undefined;
@@ -31,7 +32,7 @@ async function attempt(command: () => Promise<unknown>, success?: string): Promi
   return success === undefined ? undefined : { success };
 }
 
-function readExpense(form: FormData): ExpensePayload | string {
+function readExpense(form: FormData): ExpenseDetails | string {
   const title = text(form, "title");
   const category = text(form, "category");
   const amount = Number(text(form, "amount"));
@@ -61,14 +62,14 @@ export async function signOutAction(): Promise<void> {
 
 export async function submitAction(_: ActionState, form: FormData): Promise<ActionState> {
   const user = await requireUser();
-  const payload = readExpense(form);
-  if (typeof payload === "string") return { error: payload };
+  const details = readExpense(form);
+  if (typeof details === "string") return { error: details };
   const demo = await getDemo();
   let requestId: string | undefined;
   const result = await attempt(async () => {
     const request = await submitExpense(demo, {
       requesterId: user.id,
-      payload,
+      details,
       expenseId: text(form, "expenseId"), // rendered once per form: a double submit is harmless
     });
     requestId = request.id;
@@ -99,17 +100,11 @@ export async function resubmitAction(
   form: FormData,
 ): Promise<ActionState> {
   const user = await requireUser();
-  const payload = readExpense(form);
-  if (typeof payload === "string") return { error: payload };
-  const { rungs } = await getDemo();
+  const details = readExpense(form);
+  if (typeof details === "string") return { error: details };
+  const demo = await getDemo();
   return attempt(
-    () =>
-      rungs.resubmit({
-        requestId,
-        actorId: user.id,
-        expectedVersion: version,
-        payload: { ...payload },
-      }),
+    () => resubmitExpense(demo, { requestId, actorId: user.id, details, expectedVersion: version }),
     "Resubmitted. The approval starts again from the first step.",
   );
 }

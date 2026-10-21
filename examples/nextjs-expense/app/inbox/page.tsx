@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Avatar, Badge } from "../../components/ui";
 import { getDemo } from "../../rungs/demo";
 import { nameOf } from "../../rungs/directory";
-import type { ExpensePayload } from "../../rungs/flow";
+import { expensesByIds } from "../../rungs/expenses";
 import { stepName } from "../../rungs/flow";
 import { formatMoney, relative } from "../format";
 import { requireUser } from "../session";
@@ -12,12 +12,16 @@ export const metadata: Metadata = { title: "Inbox" };
 
 export default async function InboxPage() {
   const user = await requireUser();
-  const { rungs, clock } = await getDemo();
+  const { db, rungs, clock } = await getDemo();
   const now = clock.now();
   // Tasks the user can decide: their own, ones they hold for someone on leave, and their own
   // tasks a delegate holds while they were away (EC-60).
   const { tasks } = await rungs.inbox({ userId: user.id, limit: 100 });
-  const requests = await Promise.all(tasks.map((t) => rungs.get(t.requestId)));
+  // The expenses behind these tasks, in one query, joined by the request subject.
+  const expenses = await expensesByIds(
+    db,
+    tasks.map((t) => t.subject.id),
+  );
 
   return (
     <>
@@ -33,13 +37,13 @@ export default async function InboxPage() {
         </div>
       ) : (
         <ul className="list">
-          {tasks.map((task, i) => {
-            const payload = requests[i]?.payload as ExpensePayload | undefined;
+          {tasks.map((task) => {
+            const expense = expenses.get(task.subject.id);
             return (
               <li key={task.taskId}>
                 <Link href={`/requests/${task.requestId}`} className="row">
                   <div>
-                    <div className="row-title">{payload?.title ?? task.subject.id}</div>
+                    <div className="row-title">{expense?.title ?? task.subject.id}</div>
                     <div className="row-meta">
                       <span className="inline-person">
                         <Avatar userId={task.requesterId} small /> {nameOf(task.requesterId)}
@@ -55,7 +59,7 @@ export default async function InboxPage() {
                     </div>
                   </div>
                   <div className="row-side">
-                    <span className="amount">{formatMoney(payload?.amount ?? 0)}</span>
+                    <span className="amount">{formatMoney(expense?.amount ?? 0)}</span>
                     {task.overdue ? (
                       <Badge tone="bad">Overdue</Badge>
                     ) : task.deadlineAt !== undefined ? (

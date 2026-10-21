@@ -1,90 +1,80 @@
-import type { RequestState, RequestStatus } from "@rungsjs/core";
 import type { PgClient } from "@rungsjs/store-postgres";
 import { SCHEMA } from "./db";
-import type { ExpensePayload } from "./flow";
 
 /**
- * The app's own record of an expense. Rungs keeps the approval (state, tasks, audit trail) and
- * points back here through the request subject `{ type: "expense", id }`; listing "my expenses"
- * or "everything open" is the app's job.
+ * The app's own record of an expense: its business data. Rungs keeps the approval (status, tasks,
+ * audit trail) and points back here through the request subject `{ type: "expense", id }`. Only
+ * the amount is copied into the request payload, because the flow's conditions read it.
  */
 export interface Expense {
   readonly id: string;
-  readonly requestId: string;
   readonly requesterId: string;
   readonly title: string;
   readonly category: string;
   readonly amount: number;
-  readonly status: RequestStatus;
-  readonly submittedAt: string;
+  readonly createdAt: string;
 }
+
+/** What the requester fills in on the form. */
+export type ExpenseDetails = Pick<Expense, "title" | "category" | "amount">;
 
 interface Row {
   id: string;
-  request_id: string;
   requester_id: string;
   title: string;
   category: string;
   amount: string;
-  status: RequestStatus;
-  submitted_at: Date | string;
+  created_at: Date | string;
 }
 
 const toExpense = (r: Row): Expense => ({
   id: r.id,
-  requestId: r.request_id,
   requesterId: r.requester_id,
   title: r.title,
   category: r.category,
   amount: Number(r.amount),
-  status: r.status,
-  submittedAt: new Date(r.submitted_at).toISOString(),
+  createdAt: new Date(r.created_at).toISOString(),
 });
 
-/** A repeated submit (same idempotency key) returns the same request: the insert is skipped. */
+/** Inserts the record; inserting the same id again (a repeated submit) does nothing. */
 export async function insertExpense(db: PgClient, e: Expense): Promise<void> {
   await db.query(
-    `INSERT INTO ${SCHEMA}.expenses
-       (id, request_id, requester_id, title, category, amount, status, submitted_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     ON CONFLICT DO NOTHING`,
-    [e.id, e.requestId, e.requesterId, e.title, e.category, e.amount, e.status, e.submittedAt],
+    `INSERT INTO ${SCHEMA}.expenses (id, requester_id, title, category, amount, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING`,
+    [e.id, e.requesterId, e.title, e.category, e.amount, e.createdAt],
   );
 }
 
-/** Copies status and details from the request; a resubmit may have changed the details. */
-export async function syncExpense(db: PgClient, request: RequestState): Promise<void> {
-  const { title, category, amount } = request.payload as unknown as ExpensePayload;
-  await db.query(
-    `UPDATE ${SCHEMA}.expenses SET status = $2, title = $3, category = $4, amount = $5
-     WHERE request_id = $1`,
-    [request.id, request.status, title, category, amount],
-  );
-}
-
-export async function listExpenses(
+export async function updateExpense(
   db: PgClient,
-  filter: { requesterId?: string; open?: boolean } = {},
-): Promise<Expense[]> {
-  const where: string[] = [];
-  const params: unknown[] = [];
-  if (filter.requesterId !== undefined) {
-    params.push(filter.requesterId);
-    where.push(`requester_id = $${params.length}`);
-  }
-  if (filter.open === true) where.push(`status IN ('pending', 'returned')`);
-  const { rows } = await db.query<Row>(
-    `SELECT * FROM ${SCHEMA}.expenses
-     ${where.length > 0 ? `WHERE ${where.join(" AND ")}` : ""}
-     ORDER BY submitted_at DESC`,
-    params,
+  id: string,
+  details: ExpenseDetails,
+): Promise<void> {
+  await db.query(
+    `UPDATE ${SCHEMA}.expenses SET title = $2, category = $3, amount = $4 WHERE id = $1`,
+    [id, details.title, details.category, details.amount],
   );
-  return rows.map(toExpense);
 }
 
-export async function expenseByRequest(db: PgClient, requestId: string): Promise<Expense | null> {
-  const { rows } = await db.query<Row>(`SELECT * FROM ${SCHEMA}.expenses WHERE request_id = $1`, [
-    requestId,
+export async function deleteExpense(db: PgClient, id: string): Promise<void> {
+  await db.query(`DELETE FROM ${SCHEMA}.expenses WHERE id = $1`, [id]);
+}
+
+/**
+ * The records behind a page of Rungs results, in one query: pass the `subject.id` of each
+ * request, task or blocked step, and join by id when rendering.
+ */
+export async function expensesByIds(
+  db: PgClient,
+  ids: readonly string[],
+): Promise<Map<string, Expense>> {
+  if (ids.length === 0) return new Map();
+  const { rows } = await db.query<Row>(`SELECT * FROM ${SCHEMA}.expenses WHERE id = ANY($1)`, [
+    [...new Set(ids)],
   ]);
-  return rows[0] === undefined ? null : toExpense(rows[0]);
+  return new Map(rows.map((r) => [r.id, toExpense(r)]));
+}
+
+export async function expenseById(db: PgClient, id: string): Promise<Expense | null> {
+  return (await expensesByIds(db, [id])).get(id) ?? null;
 }

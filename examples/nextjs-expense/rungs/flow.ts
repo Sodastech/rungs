@@ -34,10 +34,11 @@ export const expenseFlow = defineFlow({
   ],
 });
 
-/** What the requester fills in. It is the request payload, so step conditions can read it. */
+/**
+ * The request payload: only what the step conditions read. The expense itself (title, category,
+ * receipts) stays in the app's own table, linked by the request subject.
+ */
 export interface ExpensePayload {
-  readonly title: string;
-  readonly category: string;
   readonly amount: number;
 }
 

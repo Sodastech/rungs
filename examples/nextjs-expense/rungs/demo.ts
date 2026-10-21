@@ -4,7 +4,7 @@ import { type PgClient, postgresStore } from "@rungsjs/store-postgres";
 import { type DemoClock, demoClock } from "./clock";
 import { dropSchema, openDatabase, prepareSchema, SCHEMA } from "./db";
 import { loadInactiveUsers, resolutionHooks } from "./directory";
-import { insertExpense, syncExpense } from "./expenses";
+import { deleteExpense, type ExpenseDetails, insertExpense, updateExpense } from "./expenses";
 import { type ExpensePayload, expenseFlow } from "./flow";
 import { notify } from "./notifications";
 
@@ -26,12 +26,10 @@ export function rungsFor(db: PgClient, inactive: Set<string>, clock: () => Date)
     clock,
     ids: () => newId("r"),
     ...resolutionHooks(inactive),
-    // After every command commits: keep the app's expense record in step and notify people.
+    // After every command commits: tell the people involved.
     onEvent: async (event) => {
       const request = await rungs.get(event.requestId);
-      if (request === null) return;
-      if (event.type.startsWith("request.")) await syncExpense(db, request);
-      await notify(db, event, request);
+      if (request !== null) await notify(db, event, request);
     },
   });
   return rungs;
@@ -46,30 +44,51 @@ export async function createDemo(db: PgClient): Promise<Demo> {
   return { db, rungs, clock, inactive };
 }
 
+/** The payload of an expense's request: only what the flow's conditions read. */
+const payloadOf = (details: ExpenseDetails): ExpensePayload => ({ amount: details.amount });
+
 /**
- * Submits an expense. The form renders a fresh `expenseId`, which is both the subject Rungs points
- * back to and the idempotency key: a double click or a retried request submits it only once.
+ * Saves the expense, then sends it for approval. The form renders a fresh `expenseId`: it is the
+ * record's id, the subject Rungs points back to, and the idempotency key, so a double click or a
+ * retried request submits once. If Rungs refuses the submit, the record is removed again.
  */
 export async function submitExpense(
-  demo: Pick<Demo, "db" | "rungs">,
-  input: { requesterId: string; payload: ExpensePayload; expenseId?: string },
+  demo: Pick<Demo, "db" | "rungs" | "clock">,
+  input: { requesterId: string; details: ExpenseDetails; expenseId?: string },
 ): Promise<RequestState> {
   const expenseId = input.expenseId ?? newId("exp");
-  const request = await demo.rungs.submit({
-    flow: expenseFlow.key,
-    requesterId: input.requesterId,
-    subject: { type: "expense", id: expenseId },
-    payload: { ...input.payload },
-    idempotencyKey: `submit:${expenseId}`,
-  });
   await insertExpense(demo.db, {
     id: expenseId,
-    requestId: request.id,
     requesterId: input.requesterId,
-    ...input.payload,
-    status: request.status,
-    submittedAt: request.submittedAt,
+    ...input.details,
+    createdAt: demo.clock.now().toISOString(),
   });
+  try {
+    return await demo.rungs.submit({
+      flow: expenseFlow.key,
+      requesterId: input.requesterId,
+      subject: { type: "expense", id: expenseId },
+      payload: { ...payloadOf(input.details) },
+      idempotencyKey: `submit:${expenseId}`,
+    });
+  } catch (error) {
+    await deleteExpense(demo.db, expenseId);
+    throw error;
+  }
+}
+
+/** Resubmits a returned expense with changed details: the record and the payload change. */
+export async function resubmitExpense(
+  demo: Pick<Demo, "db" | "rungs">,
+  input: { requestId: string; actorId: string; details: ExpenseDetails; expectedVersion?: number },
+): Promise<RequestState> {
+  const request = await demo.rungs.resubmit({
+    requestId: input.requestId,
+    actorId: input.actorId,
+    payload: { ...payloadOf(input.details) },
+    ...(input.expectedVersion === undefined ? {} : { expectedVersion: input.expectedVersion }),
+  });
+  await updateExpense(demo.db, request.subject.id, input.details);
   return request;
 }
 

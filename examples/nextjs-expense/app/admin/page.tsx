@@ -4,7 +4,7 @@ import { ActionForm, SubmitButton } from "../../components/ActionForm";
 import { Avatar, Badge, StatusBadge } from "../../components/ui";
 import { getDemo } from "../../rungs/demo";
 import { nameOf, people } from "../../rungs/directory";
-import { listExpenses } from "../../rungs/expenses";
+import { expensesByIds } from "../../rungs/expenses";
 import { stepName } from "../../rungs/flow";
 import { reassignStepAction, retryStepAction, setActiveAction } from "../actions";
 import { formatMoney, relative } from "../format";
@@ -16,16 +16,13 @@ export default async function AdminPage() {
   await requireAdmin();
   const { db, rungs, clock, inactive } = await getDemo();
   const now = clock.now();
-  // Open expenses come from the app's table; Rungs has the state of each one.
-  const open = await listExpenses(db, { open: true });
-  const requests = await Promise.all(open.map((e) => rungs.get(e.requestId)));
-  const blocked = requests.flatMap((request, i) => {
-    const step = request?.steps.findLast((s) => s.status === "blocked");
-    const expense = open[i];
-    return request === null || request === undefined || step === undefined || expense === undefined
-      ? []
-      : [{ request, step, expense }];
-  });
+  // Two Rungs queries, then one query for the expenses behind them (joined by subject id).
+  const { steps: blocked } = await rungs.blocked({ limit: 50 });
+  const { requests: open } = await rungs.requests({ status: ["pending", "returned"], limit: 50 });
+  const expenses = await expensesByIds(db, [
+    ...blocked.map((s) => s.subject.id),
+    ...open.map((r) => r.subject.id),
+  ]);
 
   return (
     <>
@@ -51,22 +48,26 @@ export default async function AdminPage() {
               </p>
             ) : (
               <ul className="list">
-                {blocked.map(({ request, step, expense }) => (
-                  <li key={request.id} className="card flat">
+                {blocked.map((step) => (
+                  <li key={step.requestId} className="card flat">
                     <p className="row-title">
-                      <Link href={`/requests/${request.id}`}>{expense.title}</Link> ·{" "}
-                      <span className="amount">{formatMoney(expense.amount)}</span>
+                      <Link href={`/requests/${step.requestId}`}>
+                        {expenses.get(step.subject.id)?.title ?? step.subject.id}
+                      </Link>{" "}
+                      ·{" "}
+                      <span className="amount">
+                        {formatMoney(expenses.get(step.subject.id)?.amount ?? 0)}
+                      </span>
                     </p>
                     <p className="muted small">
-                      {stepName(step.stepId)} step, blocked{" "}
-                      {step.blockedAt === undefined ? "" : relative(step.blockedAt, now)}.{" "}
-                      {(step.removed ?? []).length > 0 &&
-                        `Removed: ${(step.removed ?? [])
+                      {stepName(step.stepId)} step, blocked {relative(step.blockedAt, now)}.{" "}
+                      {step.removed.length > 0 &&
+                        `Removed: ${step.removed
                           .map((r) => `${nameOf(r.userId)} (${r.reason})`)
                           .join(", ")}.`}
                     </p>
                     <ActionForm
-                      action={retryStepAction.bind(null, request.id, step.stepId, request.version)}
+                      action={retryStepAction.bind(null, step.requestId, step.stepId, step.version)}
                       label="Retry"
                     >
                       <p className="small muted">
@@ -79,9 +80,9 @@ export default async function AdminPage() {
                     <ActionForm
                       action={reassignStepAction.bind(
                         null,
-                        request.id,
+                        step.requestId,
                         step.stepId,
-                        request.version,
+                        step.version,
                       )}
                       label="Reassign step"
                     >
@@ -89,7 +90,7 @@ export default async function AdminPage() {
                         <legend>Or give the step to</legend>
                         <div className="checks">
                           {people
-                            .filter((p) => p.id !== request.requesterId && !inactive.has(p.id))
+                            .filter((p) => p.id !== step.requesterId && !inactive.has(p.id))
                             .map((p) => (
                               <label key={p.id}>
                                 <input type="checkbox" name="toUserIds" value={p.id} /> {p.name}
@@ -99,9 +100,9 @@ export default async function AdminPage() {
                         </div>
                       </fieldset>
                       <div className="field">
-                        <label htmlFor={`why-${request.id}`}>Reason</label>
+                        <label htmlFor={`why-${step.requestId}`}>Reason</label>
                         <input
-                          id={`why-${request.id}`}
+                          id={`why-${step.requestId}`}
                           name="comment"
                           type="text"
                           required
@@ -131,15 +132,19 @@ export default async function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {open.map((e) => (
-                    <tr key={e.id}>
+                  {open.map((request) => (
+                    <tr key={request.id}>
                       <td>
-                        <Link href={`/requests/${e.requestId}`}>{e.title}</Link>
+                        <Link href={`/requests/${request.id}`}>
+                          {expenses.get(request.subject.id)?.title ?? request.subject.id}
+                        </Link>
                       </td>
-                      <td>{nameOf(e.requesterId)}</td>
-                      <td className="amount">{formatMoney(e.amount)}</td>
+                      <td>{nameOf(request.requesterId)}</td>
+                      <td className="amount">
+                        {formatMoney(expenses.get(request.subject.id)?.amount ?? 0)}
+                      </td>
                       <td>
-                        <StatusBadge status={e.status} />
+                        <StatusBadge status={request.status} />
                       </td>
                     </tr>
                   ))}

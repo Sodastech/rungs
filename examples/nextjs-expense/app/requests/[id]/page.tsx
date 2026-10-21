@@ -8,7 +8,8 @@ import { Timeline } from "../../../components/Timeline";
 import { Avatar, StatusBadge } from "../../../components/ui";
 import { getDemo } from "../../../rungs/demo";
 import { hasRole, nameOf, people } from "../../../rungs/directory";
-import { categories, type ExpensePayload, expenseFlow } from "../../../rungs/flow";
+import { expenseById } from "../../../rungs/expenses";
+import { categories, expenseFlow } from "../../../rungs/flow";
 import {
   decideAction,
   delegateAction,
@@ -24,11 +25,13 @@ export const metadata: Metadata = { title: "Expense" };
 export default async function RequestPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireUser();
-  const { rungs, clock } = await getDemo();
+  const { db, rungs, clock } = await getDemo();
   const request = await rungs.get(id);
   if (request === null) notFound();
   const history = await rungs.history(id);
-  const payload = request.payload as unknown as ExpensePayload;
+  // The business record the request is about, linked by its subject.
+  const expense = await expenseById(db, request.subject.id);
+  if (expense === null) notFound();
   const open = request.status === "pending" || request.status === "returned";
 
   // Steps that have not started yet: ask Rungs who they would go to now.
@@ -65,9 +68,9 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
       </p>
       <div className="page-head">
         <div>
-          <h1>{payload.title}</h1>
+          <h1>{expense.title}</h1>
           <p className="lede">
-            {payload.category} · submitted {formatDateTime(request.submittedAt)}
+            {expense.category} · submitted {formatDateTime(request.submittedAt)}
           </p>
         </div>
         <StatusBadge status={request.status} />
@@ -79,7 +82,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
             <dl className="facts">
               <div>
                 <dt>Amount</dt>
-                <dd className="amount">{formatMoney(payload.amount)}</dd>
+                <dd className="amount">{formatMoney(expense.amount)}</dd>
               </div>
               <div>
                 <dt>Requester</dt>
@@ -167,13 +170,13 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                     name="title"
                     type="text"
                     required
-                    defaultValue={payload.title}
+                    defaultValue={expense.title}
                   />
                 </div>
                 <div className="inline-fields">
                   <div className="field">
                     <label htmlFor="r-category">Category</label>
-                    <select id="r-category" name="category" defaultValue={payload.category}>
+                    <select id="r-category" name="category" defaultValue={expense.category}>
                       {categories.map((c) => (
                         <option key={c}>{c}</option>
                       ))}
@@ -188,7 +191,7 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
                       min="0.01"
                       step="0.01"
                       required
-                      defaultValue={payload.amount}
+                      defaultValue={expense.amount}
                     />
                   </div>
                 </div>

@@ -34,7 +34,7 @@ export default async function NewExpensePage({ searchParams }: { searchParams: S
         flow: expenseFlow.key,
         requesterId: user.id,
         subject: { type: "expense", id: expenseId },
-        payload: { title, category, amount },
+        payload: { amount }, // what the conditions read; the details stay in the app
       });
     } catch (error) {
       previewError = describeError(error);

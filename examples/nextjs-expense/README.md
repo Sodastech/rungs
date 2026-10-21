@@ -48,16 +48,38 @@ the same expense from each side.
 6. **Out of office.** As Marco, plan time away with Diego covering. New tasks for Marco now go to
    Diego, and Marco can still decide them himself.
 
+## What lives where
+
+| Data | Kept by | Why |
+| --- | --- | --- |
+| The expense: title, category, amount (and in a real app receipts, cost centre, payout) | The app, table `expenses` | It is your business record. You validate it, edit it, search it and export it |
+| The approval: status, steps, tasks, who decided what and when | Rungs | Rungs enforces the flow and keeps the audit trail |
+| The link between them | The request `subject: { type: "expense", id }` | Find the approval of an expense with `rungs.requests({ subject })`; find the expense of a request by `subject.id` |
+| The request `payload`: `{ amount }` only | Rungs, as a snapshot at submit | The flow's conditions read it ("finance above $500") |
+| People, roles, who is active | The app (`rungs/directory.ts`) | Your organization data; Rungs asks for it through callbacks |
+| Notifications, the demo clock | The app | Rungs emits events; delivering them is yours |
+
+**Why the payload is not where the expense lives.** The payload is a snapshot taken at submit:
+it does not follow later edits to your record, it is copied into every list result (`requests`,
+`blocked`, `inbox`), and it may hold personal data. Keep it to what conditions need. Pages show
+lists by asking Rungs for the approval status and loading the matching expenses in one query
+(`expensesByIds` in [`rungs/expenses.ts`](rungs/expenses.ts)).
+
+**Why the app does not copy the approval status.** `rungs.requests()` already returns it, so a
+status column in `expenses` would be a second copy that can drift. When your app must act on an
+outcome, for example pay out an approved expense or send it to accounting, do that in `onEvent`
+on `request.approved`: events are delivered at least once, so make the handler idempotent.
+
 ## How it is built
 
 Everything the app does with Rungs is in [`rungs/`](rungs). Read that folder first:
 
 | File | What it shows |
 | --- | --- |
-| [`rungs/demo.ts`](rungs/demo.ts) | `createRungs` with the PostgreSQL store, the injected clock and ids, and `onEvent`; one instance per process |
+| [`rungs/demo.ts`](rungs/demo.ts) | `createRungs` with the PostgreSQL store, the injected clock and ids, and `onEvent`; one instance per process; submitting and resubmitting an expense |
 | [`rungs/flow.ts`](rungs/flow.ts) | The flow: manager, then finance above $500, then the director above $5,000 |
 | [`rungs/directory.ts`](rungs/directory.ts) | Roles, a `reportsTo` resolver and `isActiveUser`, from a fixed list of people |
-| [`rungs/expenses.ts`](rungs/expenses.ts) | The app's own expense records. Rungs keeps the approval; the app keeps its data |
+| [`rungs/expenses.ts`](rungs/expenses.ts) | The app's own expense records, and loading the records behind a page of Rungs results |
 | [`rungs/notifications.ts`](rungs/notifications.ts) | Turns events into messages; repeated deliveries are harmless |
 | [`rungs/clock.ts`](rungs/clock.ts) | The demo clock. "Advance time" moves it forward and runs `tick` |
 | [`rungs/errors.ts`](rungs/errors.ts) | Turns `RungsError` classes into messages for people |
@@ -70,7 +92,11 @@ The pages in [`app/`](app) are ordinary Next.js App Router pages. Each Server Ac
 - **Every form sends the version it was rendered with** (`expectedVersion`). If someone else acted
   first, the app shows a conflict message instead of overwriting their decision.
 - **Submitting is idempotent.** The form carries a fresh expense id that is also the idempotency
-  key, so a double click submits once.
+  key, so a double click submits once. The expense is saved first and removed again if Rungs
+  refuses the submit (for example when nobody could approve it).
+- **Lists come from Rungs.** "My expenses" uses `rungs.requests({ requesterId })` with cursor
+  paging, the admin page `rungs.blocked()` and `rungs.requests({ status })`; each page loads its
+  expenses with one query.
 - **`tick` runs on a schedule in a real app.** Here it runs when you move the demo clock.
 
 This example does not show real authentication, email delivery or organization charts.
@@ -80,8 +106,8 @@ planned.
 ## Tests
 
 `pnpm --filter @rungsjs/example-nextjs-expense test` runs the `rungs/` folder against an
-in-memory PGlite database: routing by amount, idempotent submits, reminders and escalation,
-blocked steps and conflicts.
+in-memory PGlite database: what is stored where, routing by amount, idempotent and refused
+submits, resubmits, reminders and escalation, blocked steps and conflicts.
 
 To refresh the screenshots in `assets/screenshots/`, reset the demo, start it with `pnpm build &&
 pnpm start` in this folder, and run `node scripts/screenshots.mjs` (it uses a local Chrome or

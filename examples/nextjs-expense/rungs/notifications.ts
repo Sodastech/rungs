@@ -2,6 +2,7 @@ import type { DomainEvent, RequestState } from "@rungsjs/core";
 import type { PgClient } from "@rungsjs/store-postgres";
 import { SCHEMA } from "./db";
 import { nameOf, people } from "./directory";
+import { expenseById } from "./expenses";
 import { stepName } from "./flow";
 
 export interface Notification {
@@ -13,8 +14,11 @@ export interface Notification {
 const admins = () => people.filter((p) => p.roles.includes("admin")).map((p) => p.id);
 
 /** Who hears about an event, and what they read. A real app would send email or chat here. */
-function recipients(event: DomainEvent, request: RequestState): [string[], string] | null {
-  const title = (request.payload as { title?: string }).title ?? "an expense";
+function recipients(
+  event: DomainEvent,
+  request: RequestState,
+  title: string,
+): [string[], string] | null {
   const requester = nameOf(request.requesterId);
   switch (event.type) {
     case "task.assigned": {
@@ -60,7 +64,8 @@ function recipients(event: DomainEvent, request: RequestState): [string[], strin
  * primary key (request, seq, user) makes a repeated delivery harmless.
  */
 export async function notify(db: PgClient, event: DomainEvent, request: RequestState) {
-  const found = recipients(event, request);
+  const expense = await expenseById(db, request.subject.id);
+  const found = recipients(event, request, expense?.title ?? "an expense");
   if (found === null) return;
   const [userIds, message] = found;
   for (const userId of userIds) {

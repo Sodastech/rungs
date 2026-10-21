@@ -813,3 +813,8 @@ p.row-title {
     flex-basis: 100%;
   }
 }
+
+.pager {
+  margin: 16px 0 0;
+  text-align: center;
+}

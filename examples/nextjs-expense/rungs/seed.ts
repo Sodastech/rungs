@@ -1,11 +1,11 @@
 import { SCHEMA } from "./db";
 import { type Demo, rungsFor, submitExpense } from "./demo";
-import type { ExpensePayload } from "./flow";
+import type { ExpenseDetails } from "./expenses";
 
 const HOUR = 3_600_000;
 
 type Step =
-  | { at: number; submit: string; by: string; payload: ExpensePayload }
+  | { at: number; submit: string; by: string; details: ExpenseDetails }
   | { at: number; act: "approve" | "reject" | "return"; on: string; by: string; comment?: string };
 
 /**
@@ -17,7 +17,7 @@ const story: Step[] = [
     at: 170,
     submit: "monitor",
     by: "marco",
-    payload: { title: "Second monitor", category: "Equipment", amount: 640 },
+    details: { title: "Second monitor", category: "Equipment", amount: 640 },
   },
   { at: 160, act: "approve", on: "monitor", by: "diego" },
   {
@@ -31,28 +31,28 @@ const story: Step[] = [
     at: 120,
     submit: "taxi",
     by: "alice",
-    payload: { title: "Taxi to the airport", category: "Travel", amount: 45 },
+    details: { title: "Taxi to the airport", category: "Travel", amount: 45 },
   },
   { at: 100, act: "approve", on: "taxi", by: "marco", comment: "Thanks for the receipt." },
   {
     at: 96,
     submit: "course",
     by: "alice",
-    payload: { title: "Online TypeScript course", category: "Training", amount: 300 },
+    details: { title: "Online TypeScript course", category: "Training", amount: 300 },
   },
   { at: 74, act: "return", on: "course", by: "marco", comment: "Please attach the invoice." },
   {
     at: 72,
     submit: "flight",
     by: "alice",
-    payload: { title: "Flight to the Lisbon conference", category: "Travel", amount: 1450 },
+    details: { title: "Flight to the Lisbon conference", category: "Travel", amount: 1450 },
   },
   { at: 68, act: "approve", on: "flight", by: "marco" },
   {
     at: 48,
     submit: "desk",
     by: "alice",
-    payload: { title: "Standing desk", category: "Equipment", amount: 6200 },
+    details: { title: "Standing desk", category: "Equipment", amount: 6200 },
   },
   {
     at: 30,
@@ -66,19 +66,19 @@ const story: Step[] = [
     at: 22,
     submit: "lunch",
     by: "alice",
-    payload: { title: "Team lunch after the release", category: "Meals", amount: 120 },
+    details: { title: "Team lunch after the release", category: "Meals", amount: 120 },
   },
   {
     at: 3,
     submit: "dock",
     by: "alice",
-    payload: { title: "Laptop docking station", category: "Equipment", amount: 780 },
+    details: { title: "Laptop docking station", category: "Equipment", amount: 780 },
   },
   {
     at: 6,
     submit: "dinner",
     by: "marco",
-    payload: { title: "Client dinner", category: "Meals", amount: 380 },
+    details: { title: "Client dinner", category: "Meals", amount: 380 },
   },
 ];
 
@@ -91,14 +91,15 @@ export async function seedIfEmpty(demo: Demo): Promise<void> {
 
   const end = demo.clock.now().getTime();
   let now = end;
-  const rungs = rungsFor(demo.db, demo.inactive, () => new Date(now));
+  const clock = { now: () => new Date(now), advance: async () => undefined };
+  const rungs = rungsFor(demo.db, demo.inactive, clock.now);
   const requestIds = new Map<string, string>();
   for (const step of [...story].sort((a, b) => b.at - a.at)) {
     now = end - step.at * HOUR;
     if ("submit" in step) {
       const request = await submitExpense(
-        { db: demo.db, rungs },
-        { requesterId: step.by, payload: step.payload },
+        { db: demo.db, rungs, clock },
+        { requesterId: step.by, details: step.details },
       );
       requestIds.set(step.submit, request.id);
       continue;
