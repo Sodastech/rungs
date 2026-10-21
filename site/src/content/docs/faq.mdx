@@ -1,0 +1,67 @@
+---
+title: FAQ
+description: Common questions about Rungs, its scope and its status.
+---
+
+## Can I use Rungs today?
+
+Not from npm yet: the first release is 0.1. You can try it from source (see
+[Getting started](/rungs/getting-started/)) and watch the
+[repository](https://github.com/Sodastech/rungs) for releases. Until 1.0, the API may still change;
+every change is recorded in the changelog.
+
+## How is it different from a workflow engine such as Camunda or Temporal?
+
+Rungs does one thing: approvals. It is a library that runs inside your Node.js application, on
+your database, with no server to operate and no diagram language. In return it handles the
+approval-specific cases those engines leave to you: requesters who are also approvers,
+delegation without double votes, steps that end up with nobody to approve, four eyes, return and
+resubmit. See the [edge case catalog](/rungs/edge-cases/).
+
+## Does it include a user interface?
+
+No. Rungs gives you the data (inbox, timeline, previews, lists) and you build the screens. The
+[example app](https://github.com/Sodastech/rungs/tree/main/examples/nextjs-expense) shows one way.
+Ready-made React components are planned.
+
+## Which databases does it support?
+
+PostgreSQL 15 or newer through `@rungsjs/store-postgres`, with node-postgres, postgres.js or
+PGlite, and an in-memory store for tests. Other databases need a store adapter; the
+[store contract](/rungs/reference/store-contract/) describes what it must do.
+
+## Does it know my org chart?
+
+Not by itself. Approvers come from your application through `roles` and resolvers you write, for
+example "the requester's manager" from your user table. Resolvers that understand organization
+structure (department heads, acting holders of vacant positions) are planned.
+
+## Who may approve, withdraw or administer?
+
+Rungs checks routing: whether an actor has a task on a request, or is its requester. It does not
+authenticate anyone or decide who is an administrator. Your application does that before calling
+a command.
+
+## Can it run on serverless platforms or the edge?
+
+On serverless Node.js runtimes, yes, with a PostgreSQL connection pool; run `tick` from a
+scheduled function. Not on edge runtimes, which cannot open database connections the store needs.
+
+## What happens to requests in progress when I change a flow?
+
+Nothing. Each request keeps the flow version it was submitted with
+([EC-37](/rungs/edge-cases/#ec-37)); new requests use the new version.
+
+## Business days and holidays?
+
+Durations are absolute time by default. Pass a `calendar` to `createRungs` to count business days
+with your own holidays ([EC-30](/rungs/edge-cases/#ec-30)).
+
+## What is the license?
+
+The packages documented here are MIT licensed.
+
+## Where do I report a bug or ask a question?
+
+In the [GitHub issues](https://github.com/Sodastech/rungs/issues). For a bug, the playground
+scenario that shows it is the most useful report.

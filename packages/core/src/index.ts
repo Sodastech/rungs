@@ -1,3 +1,10 @@
+/**
+ * The engine: flows, commands, queries and the store interface. No dependencies, no I/O.
+ *
+ * @packageDocumentation
+ * @module @rungsjs/core
+ */
+
 // Public entry point: everything exported here is public API (see docs/04-api-design.md).
 
 export { decide } from "./engine/decide.js";

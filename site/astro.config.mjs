@@ -1,6 +1,7 @@
 import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
 import starlightLinksValidator from "starlight-links-validator";
+import starlightTypeDoc, { typeDocSidebarGroup } from "starlight-typedoc";
 
 // Served from GitHub Pages at https://sodastech.github.io/rungs/. With a custom domain later,
 // set `site` to it and remove `base`.
@@ -33,6 +34,18 @@ export default defineConfig({
       ],
       lastUpdated: true,
       plugins: [
+        // The API reference, generated from the public entry points and their TSDoc comments.
+        starlightTypeDoc({
+          entryPoints: [
+            "../packages/core/src/index.ts",
+            "../packages/store-memory/src/index.ts",
+            "../packages/store-postgres/src/index.ts",
+          ],
+          tsconfig: "./tsconfig.typedoc.json",
+          output: "reference/api",
+          sidebar: { label: "API", collapsed: true },
+          typeDoc: { excludePrivate: true, excludeInternal: true, entryFileName: "index.md" },
+        }),
         starlightLinksValidator({
           // Edge case anchors come from the catalog component, which the validator cannot see;
           // test/edge-cases.test.ts checks that every linked ID exists instead.
@@ -44,7 +57,15 @@ export default defineConfig({
         { label: "Concepts", items: [{ autogenerate: { directory: "concepts" } }] },
         { label: "Guides", items: [{ autogenerate: { directory: "guides" } }] },
         { label: "Edge cases", link: "/edge-cases/" },
-        { label: "Reference", items: [{ autogenerate: { directory: "reference" } }] },
+        {
+          label: "Reference",
+          items: [
+            { label: "Errors", link: "/reference/errors/" },
+            { label: "Store contract", link: "/reference/store-contract/" },
+            typeDocSidebarGroup,
+          ],
+        },
+        { label: "FAQ", link: "/faq/" },
       ],
     }),
   ],

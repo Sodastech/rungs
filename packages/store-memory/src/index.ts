@@ -1,3 +1,10 @@
+/**
+ * An in-memory store for tests and prototypes.
+ *
+ * @packageDocumentation
+ * @module @rungsjs/store-memory
+ */
+
 // Public entry point: everything exported here is public API.
 
 import {

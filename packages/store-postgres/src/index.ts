@@ -1,3 +1,10 @@
+/**
+ * A store for PostgreSQL 15+, with migrations and data retention functions.
+ *
+ * @packageDocumentation
+ * @module @rungsjs/store-postgres
+ */
+
 // Public entry point: everything exported here is public API.
 
 export {
