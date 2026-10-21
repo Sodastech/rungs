@@ -54,7 +54,7 @@ export function parseEdgeCases(markdown: string): EdgeCaseSection[] {
   return sections.filter((section) => section.cases.length > 0);
 }
 
-const escape = (text: string) =>
+const escapeHtml = (text: string) =>
   text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
 /**
@@ -66,8 +66,8 @@ export function inlineMarkdown(text: string): string {
     .split(/(`[^`]*`)/)
     .map((part) =>
       part.startsWith("`") && part.endsWith("`") && part.length > 1
-        ? `<code>${escape(part.slice(1, -1))}</code>`
-        : escape(part)
+        ? `<code>${escapeHtml(part.slice(1, -1))}</code>`
+        : escapeHtml(part)
             .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
             .replace(/\*([^*]+)\*/g, "<em>$1</em>")
             .replace(/\bEC-(\d+)\b/g, '<a href="#ec-$1">EC-$1</a>'),
