@@ -1,10 +1,46 @@
 ---
 title: Getting started
-description: Install Rungs, or try it from source before the first release.
+description: Install Rungs, run your first approval flow, and try the example app.
 ---
 
+import { LinkCard, CardGrid } from "@astrojs/starlight/components";
 import Install from "../../components/Install.astro";
+import Snippet from "../../components/Snippet.astro";
+
+Rungs is a library: your application calls it to send a record (an expense, a leave request, a
+purchase order) through approval steps, and Rungs decides who must approve, keeps the state and
+writes the audit trail. It runs in your Node.js process, on your database.
 
 ## Install
 
 <Install />
+
+Rungs needs Node.js 22 or newer and is published as ES modules with TypeScript types.
+`@rungsjs/store-postgres` keeps everything in PostgreSQL 15 or newer; for tests and prototypes,
+`@rungsjs/store-memory` keeps it in memory.
+
+## Your first flow
+
+An expense goes to the requester's manager, then to finance when it is above 1,000:
+
+<Snippet file="quick-start.ts" region="quick-start" />
+
+What happened:
+
+- **`createRungs`** gets a store and the things Rungs never decides by itself: the time, how to
+  make IDs, and how to find approvers. `roles` turns a role into users; `directManager` is a
+  _resolver_ you write, here from a lookup table.
+- **`flows.register`** stores a versioned flow. Each request keeps the version it started with.
+- **`submit`** starts a request. Both steps apply because 2,500 is above 1,000, so Bob gets a
+  task first.
+- **`approve`** records each decision. Either finance user may decide, so Bob's and one finance
+  approval complete the request.
+
+## Next steps
+
+<CardGrid>
+  <LinkCard title="Concepts" href="/rungs/concepts/flows-and-steps/" description="Flows, approvers, conditions, delegation, deadlines and the audit trail." />
+  <LinkCard title="Edge cases" href="/rungs/edge-cases/" description="What Rungs does when real organizations get in the way." />
+  <LinkCard title="Example app" href="https://github.com/Sodastech/rungs/tree/main/examples/nextjs-expense" description="Next.js with an inbox, timeline, delegation and admin tools. Run it with pnpm demo." />
+  <LinkCard title="Playground" href="https://github.com/Sodastech/rungs/tree/main/examples/playground" description="Write a scenario, see every step, approver and decision as a timeline." />
+</CardGrid>

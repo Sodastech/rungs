@@ -185,6 +185,25 @@ importers:
         specifier: 5.0.5
         version: 5.0.5(@types/node@22.20.5)(vite@8.3.4(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
 
+  examples/docs-snippets:
+    dependencies:
+      '@electric-sql/pglite':
+        specifier: 0.5.8
+        version: 0.5.8
+      '@rungsjs/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@rungsjs/store-memory':
+        specifier: workspace:*
+        version: link:../../packages/store-memory
+      '@rungsjs/store-postgres':
+        specifier: workspace:*
+        version: link:../../packages/store-postgres
+    devDependencies:
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+
   examples/expense-basic:
     dependencies:
       '@rungsjs/core':

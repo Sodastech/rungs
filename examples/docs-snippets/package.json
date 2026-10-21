@@ -1,0 +1,21 @@
+{
+  "name": "@rungsjs/docs-snippets",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Every code sample on the documentation site and in the README, run by the tests.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@rungsjs/core": "workspace:*",
+    "@rungsjs/store-memory": "workspace:*",
+    "@rungsjs/store-postgres": "workspace:*",
+    "@electric-sql/pglite": "0.5.8"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5"
+  }
+}

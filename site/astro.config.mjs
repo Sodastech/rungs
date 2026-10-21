@@ -41,6 +41,7 @@ export default defineConfig({
       ],
       sidebar: [
         { label: "Getting started", link: "/getting-started/" },
+        { label: "Concepts", items: [{ autogenerate: { directory: "concepts" } }] },
         { label: "Edge cases", link: "/edge-cases/" },
       ],
     }),

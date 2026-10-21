@@ -1,0 +1,42 @@
+---
+// Shows a region of a file in examples/docs-snippets/src. Those files are run by the snippet
+// tests in CI, so every sample on the site is code that works.
+import { Code } from "@astrojs/starlight/components";
+import { region } from "../../../examples/docs-snippets/src/regions";
+import { repository } from "../release";
+
+interface Props {
+  /** Path inside examples/docs-snippets/src, e.g. "concepts/flows.ts". */
+  file: string;
+  region: string;
+  title?: string;
+}
+
+const sources = import.meta.glob<string>("../../../examples/docs-snippets/src/**/*.ts", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+});
+const { file, title } = Astro.props;
+const source = sources[`../../../examples/docs-snippets/src/${file}`];
+if (source === undefined) throw new Error(`Snippet file not found: ${file}`);
+const code = region(source, Astro.props.region);
+const href = `${repository}/blob/main/examples/docs-snippets/src/${file}`;
+---
+
+<Code code={code} lang="ts" title={title} />
+<p class="snippet-source">
+  Runs in CI: <a href={href}>{`examples/docs-snippets/src/${file}`}</a>
+</p>
+
+<style>
+  .snippet-source {
+    margin-top: 0.25rem !important;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+    text-align: right;
+  }
+  .snippet-source a {
+    color: var(--sl-color-gray-3);
+  }
+</style>

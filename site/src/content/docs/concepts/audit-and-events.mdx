@@ -1,0 +1,29 @@
+---
+title: Audit trail and events
+description: Every change is recorded with who did it and why, and your application hears about it.
+sidebar:
+  order: 7
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+Every command writes **audit events** in the same transaction as the change itself: what
+happened, who did it (`actorId`, or `null` for `tick`), when, and the details, such as the comment
+or which approvers were removed and why. The audit trail is append-only.
+
+<Snippet file="concepts/audit.ts" region="history" />
+
+## Events for your application
+
+After a command commits, Rungs delivers **domain events** to `onEvent`, for example to send an
+email when a task is assigned:
+
+<Snippet file="concepts/audit.ts" region="on-event" />
+
+Events are stored in an outbox in the same transaction, so none is lost when a process stops. They
+are delivered at least once, in order per request; a failed delivery is retried with backoff and
+holds back only that request's later events. A process without `onEvent`, such as a web server,
+leaves them for a worker that runs `rungs.dispatchPending()` ([EC-58](/rungs/edge-cases/#ec-58)).
+
+Because an event can arrive twice, make handlers idempotent: `requestId` with `seq` identifies an
+event.

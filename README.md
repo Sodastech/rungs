@@ -72,7 +72,7 @@ const done = await rungs.approve({ requestId: request.id, actorId: "u_fin2" });
 console.log(done.status); // "approved"
 ```
 
-This exact example runs in CI (`examples/expense-basic/test/readme.test.ts`). For a fuller tour
+This exact example runs in CI (`examples/docs-snippets/src/quick-start.ts`). For a fuller tour
 with delegation, return and resubmit, reminders, the inbox and the audit history, see
 [`examples/expense-basic`](examples/expense-basic). To try your own cases by hand, write a
 scenario and run it in the [playground](examples/playground): `pnpm playground scenarios/03-four-eyes.ts`

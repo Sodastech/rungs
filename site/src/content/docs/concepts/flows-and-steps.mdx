@@ -1,0 +1,45 @@
+---
+title: Flows and steps
+description: A flow is an ordered list of steps; each step says who approves and how many must agree.
+sidebar:
+  order: 1
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+A **flow** describes how one kind of record is approved. It is an ordered list of **steps**; a
+request goes through them one at a time, and each step must be approved before the next starts.
+A rejection in any step rejects the request.
+
+<Snippet file="concepts/flows.ts" region="define-flow" />
+
+## How many must approve
+
+`mode` decides when a step is done:
+
+| Mode | The step is approved when | Rejected when |
+| --- | --- | --- |
+| `"any"` (default) | the first approver approves | the first approver rejects |
+| `"all"` | everyone approves | anyone rejects |
+| `{ quorum: n }` | `n` approvers approve | approval can no longer reach `n` |
+
+In `any` mode the first decision closes the step and the other tasks are superseded
+([EC-12](/rungs/edge-cases/#ec-12)).
+
+## Versions
+
+`flows.register` validates a flow and stores it as a new version when its content changed. A
+request is pinned to the version it was submitted with, so changing a flow never changes requests
+already in progress ([EC-37](/rungs/edge-cases/#ec-37)). A tenant can register its own version of
+a flow, which its requests use instead of the global one ([EC-56](/rungs/edge-cases/#ec-56)).
+
+## Validation
+
+`defineFlow` checks a flow before anything runs, and reports every problem at once:
+
+<Snippet file="concepts/flows.ts" region="invalid-flow" />
+
+Settings that would silently skip an approval default to the safe choice: a step that ends up
+with nobody to approve stops the submit instead of being skipped
+([EC-02](/rungs/edge-cases/#ec-02)).
+

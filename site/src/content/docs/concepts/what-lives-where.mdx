@@ -1,0 +1,39 @@
+---
+title: What lives where
+description: Your application keeps its records; Rungs keeps their approval. The subject links them.
+sidebar:
+  order: 8
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+Rungs is not where your business data lives. Keep the record itself (an expense with its lines
+and receipts, a leave request, a purchase order) in your own tables, and point Rungs at it with
+the request's `subject`. Put in the `payload` only what the flow's conditions read.
+
+<Snippet file="concepts/host-data.ts" region="link" />
+
+| Data | Kept by |
+| --- | --- |
+| The record: title, lines, receipts, everything your users edit | Your application |
+| The approval: status, steps, tasks, decisions, audit trail | Rungs |
+| The link | `subject: { type, id }` on the request |
+| The payload: what conditions read | Rungs, as a snapshot at submit |
+| Users, roles, who is active | Your application, through callbacks |
+
+**Why the payload is not the place for business data.** It is a snapshot taken at submit and
+does not follow later edits ([EC-36](/rungs/edge-cases/#ec-36)); it is copied into every list
+result; and it may hold personal data.
+
+## Showing lists
+
+Ask Rungs for the approvals and load your records for that page in one query:
+
+<Snippet file="concepts/host-data.ts" region="list" />
+
+`rungs.requests()` filters by requester, status, subject or flow; `rungs.inbox()` lists a user's
+tasks; `rungs.blocked()` lists steps waiting for an admin. Rungs does not check who may see a list:
+show requesters their own requests, approvers their own inbox, and the blocked list to admins.
+
+The [example app](https://github.com/Sodastech/rungs/tree/main/examples/nextjs-expense) follows
+this pattern.

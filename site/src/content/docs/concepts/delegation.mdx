@@ -1,0 +1,39 @@
+---
+title: Delegation and out of office
+description: Approvers away? Their tasks go to a delegate, without anyone getting two votes.
+sidebar:
+  order: 4
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+There are two ways a task reaches someone other than the approver: an **out-of-office rule**,
+set in advance, and a **manual hand-over** of one task.
+
+## Out of office
+
+A rule sends new tasks of one user to another for a period. The new task carries the original
+approver's vote in `onBehalfOf`, and the audit trail shows both.
+
+<Snippet file="concepts/delegation.ts" region="out-of-office" />
+
+- Rules can be limited to some flows (`scope: { flowKeys }`) or one tenant.
+- Chains are followed up to `maxDelegationDepth` (default 3), and a cycle keeps the task with the
+  original approver ([EC-21](/rungs/edge-cases/#ec-21), [EC-22](/rungs/edge-cases/#ec-22)).
+- A delegate who is the requester, inactive, or already holds a vote in the step is skipped, so
+  nobody gets two votes ([EC-23](/rungs/edge-cases/#ec-23), [EC-48](/rungs/edge-cases/#ec-48)).
+- Ending a rule does not pull back tasks already delegated
+  ([EC-24](/rungs/edge-cases/#ec-24)). The original approver can still decide them directly
+  ([EC-60](/rungs/edge-cases/#ec-60)).
+
+## Hand over one task
+
+<Snippet file="concepts/delegation.ts" region="delegate" />
+
+The same checks apply. Handing a task back to the approver it acts for is always allowed
+([EC-50](/rungs/edge-cases/#ec-50)).
+
+:::caution[Who may set a rule is your decision]
+Rungs does not check who calls `delegations.set` or `delegate`. Make sure `fromUserId` is the
+signed-in user, or that the caller is an administrator.
+:::

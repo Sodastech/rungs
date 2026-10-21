@@ -1,0 +1,48 @@
+---
+title: Approvers and resolvers
+description: How a step finds its approvers, and what Rungs does with the people it finds.
+sidebar:
+  order: 2
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+A step's `approvers` says who decides. Rungs does not keep users or an org chart; it asks your
+application through three callbacks you pass to `createRungs`:
+
+<Snippet file="concepts/approvers.ts" region="hooks" />
+
+| Approvers | Resolves to |
+| --- | --- |
+| `{ type: "users", ids: [...] }` | Exactly these users |
+| `{ type: "role", role }` | `roles(role)` |
+| `{ type: "resolver", name, params? }` | `resolvers[name]({ request, stepId, params })` |
+| `{ type: "union", of: [...] }` | Everyone the inner specs resolve to |
+
+<Snippet file="concepts/approvers.ts" region="union" />
+
+## What Rungs removes, and records
+
+When a step starts, Rungs resolves its approvers and then removes, with the reason recorded on
+the step and in its audit event:
+
+- **The requester**, unless the flow sets `allowSelfApproval` ([EC-01](/rungs/edge-cases/#ec-01)).
+- **Inactive users**, according to `isActiveUser` ([EC-06](/rungs/edge-cases/#ec-06)).
+- **Duplicates**: a user reached twice gets one task ([EC-44](/rungs/edge-cases/#ec-44)).
+
+If nobody is left, Rungs does not skip the step silently. At submit, the submit is refused with
+`NoApproversError` ([EC-43](/rungs/edge-cases/#ec-43)); later in the flow, the step is blocked
+until an admin acts ([EC-42](/rungs/edge-cases/#ec-42)). `rungs.blocked()` lists such steps.
+
+`preview` shows the requester who would approve, before anything is stored:
+
+<Snippet file="concepts/approvers.ts" region="preview" />
+
+## Keep callbacks fast
+
+The callbacks run inside the command's database transaction, while the request is locked. Read
+from memory or a cache where you can, and never use the command's own database connection inside
+a callback: a database with a single connection, such as PGlite, would wait forever.
+
+Resolvers that walk an organization chart (direct manager, head of department, acting holder of a
+vacant position) are planned. Until then, write your own resolver, as above.

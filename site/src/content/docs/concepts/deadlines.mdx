@@ -1,0 +1,38 @@
+---
+title: Deadlines, reminders and escalation
+description: Time moves only when you call tick, with a clock you inject.
+sidebar:
+  order: 5
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+Rungs never reads the system clock. You pass `clock`, and time-based actions happen when you call
+`rungs.tick()`. That keeps behavior reproducible: the same state, command and time always give the
+same result, and tests can move time forward.
+
+<Snippet file="concepts/deadlines.ts" region="clock" />
+
+A step with a `deadline` says what happens when nobody decides in time:
+
+<Snippet file="concepts/deadlines.ts" region="deadline" />
+
+| `onTimeout` | At the deadline |
+| --- | --- |
+| `"remind"` (default) | Reminds the approvers, then every `remindOverdueEvery` (default one day) |
+| `"escalate"` | Gives the open tasks to `escalateTo`, with a new deadline |
+| `"auto-approve"`, `"auto-reject"` | Decides the step; never overrides a rejection already cast |
+
+Durations are ISO 8601 (`"PT8H"`, `"P2D"`, `"P1W"`); months and years are not allowed because
+their length varies. For business days, pass a `calendar` ([EC-30](/rungs/edge-cases/#ec-30)).
+
+## Running tick
+
+<Snippet file="concepts/deadlines.ts" region="tick" />
+
+`tick` is safe to run twice or from several workers at once: each due action is applied once
+([EC-27](/rungs/edge-cases/#ec-27)). Run it on a schedule, for example every minute.
+
+Escalation never lets one person replace several votes: in an `all` or quorum step that still
+needs more than one approval, a single escalation target is not enough and Rungs reports
+`request.escalation_failed` instead ([EC-28](/rungs/edge-cases/#ec-28)).

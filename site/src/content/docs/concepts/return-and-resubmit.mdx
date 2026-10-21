@@ -1,0 +1,30 @@
+---
+title: Return and resubmit
+description: Send a request back for changes instead of rejecting it, and decide what runs again.
+sidebar:
+  order: 6
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+An approver who needs a change can **return** the request instead of rejecting it. The requester
+then **resubmits**, with a changed payload if needed, or **withdraws** it.
+
+<Snippet file="concepts/return.ts" region="return" />
+
+The flow decides what runs again after a resubmit:
+
+<Snippet file="concepts/return.ts" region="policy" />
+
+- `"restart"` (default): every step from the beginning; earlier approvals no longer count.
+- `"from-returned-step"`: continue at the step that returned it. If the payload changed, Rungs
+  restarts anyway, because earlier approvers approved different data
+  ([EC-34](/rungs/edge-cases/#ec-34), [EC-51](/rungs/edge-cases/#ec-51)).
+
+An approver can also return to an earlier step instead of the requester
+([EC-33](/rungs/edge-cases/#ec-33)). A returned request accepts only `resubmit`, `withdraw` and an
+admin `override`.
+
+By default a returned request waits as long as it takes. With `resubmitDeadline`, Rungs reminds
+the requester or, with `onResubmitTimeout: "auto-withdraw"`, withdraws it
+([EC-52](/rungs/edge-cases/#ec-52)).

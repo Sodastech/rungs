@@ -1,0 +1,34 @@
+---
+title: Conditions
+description: Run a step only when the request's payload calls for it, with JSON rules instead of code.
+sidebar:
+  order: 3
+---
+
+import Snippet from "../../../components/Snippet.astro";
+
+A step with `when` runs only when its condition holds for the request payload; otherwise it is
+skipped and the skip is recorded. Conditions are plain JSON, so a flow can be stored, compared and
+shown to people, and no code from a flow ever runs.
+
+<Snippet file="concepts/conditions.ts" region="conditions" />
+
+| Operator | Compares |
+| --- | --- |
+| `eq`, `neq` | Any JSON value, strictly (`1` is not `"1"`) |
+| `gt`, `gte`, `lt`, `lte` | Numbers with numbers, strings with strings (ISO timestamps compare correctly) |
+| `in`, `nin` | A value against a list |
+| `all`, `any`, `not` | Other conditions |
+
+`field` is a dot path into the payload (`vendor.country`, `lines.0.amount`).
+
+## Conditions fail closed
+
+A comparison that does not make sense, such as a number against a string or a missing field,
+never quietly counts as false. Rungs evaluates every condition at submit, so the requester gets the
+error, not an approver weeks later:
+
+<Snippet file="concepts/conditions.ts" region="condition-error" />
+
+Conditions read the payload as it was at submit ([EC-36](/rungs/edge-cases/#ec-36)). When the
+data changes, resubmit the request with the new payload.
