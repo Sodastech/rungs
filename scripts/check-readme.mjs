@@ -1,6 +1,5 @@
-// The quick start in README.md must be the code in examples/docs-snippets/src/quick-start.ts
-// (its `quick-start` region), which the snippet tests run and the documentation site shows. So
-// the README never shows code that fails.
+// The code in each README must be a region of a file in examples/docs-snippets, whose tests run it
+// and which the documentation site shows. So no README shows code that fails.
 // Usage: node scripts/check-readme.mjs   (Node 22+, which runs the TypeScript helper directly)
 
 import { readFileSync } from "node:fs";
@@ -9,19 +8,26 @@ import { fileURLToPath } from "node:url";
 import { region } from "../examples/docs-snippets/src/regions.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const readme = readFileSync(join(root, "README.md"), "utf8").replaceAll("\r\n", "\n");
-const snippet = readFileSync(
-  join(root, "examples", "docs-snippets", "src", "quick-start.ts"),
-  "utf8",
-);
+const read = (...path) => readFileSync(join(root, ...path), "utf8").replaceAll("\r\n", "\n");
 
-const block = /```ts\n([\s\S]*?)```/.exec(readme)?.[1] ?? "";
+// The first ts block of each README, and the snippet region it must equal.
+const readmes = [
+  { readme: "README.md", file: "quick-start.ts", region: "quick-start" },
+  { readme: "packages/core/README.md", file: "quick-start.ts", region: "quick-start" },
+  { readme: "packages/store-memory/README.md", file: "guides/testing.ts", region: "test" },
+  { readme: "packages/store-postgres/README.md", file: "guides/postgres.ts", region: "connect" },
+];
 
-if (block.trim() !== region(snippet, "quick-start").trim()) {
-  console.error(
-    "README.md quick start differs from examples/docs-snippets/src/quick-start.ts (region quick-start)",
-  );
-  process.exitCode = 1;
-} else {
-  console.log("README quick start matches the tested snippet.");
+let failed = 0;
+for (const r of readmes) {
+  const block = /```ts\n([\s\S]*?)```/.exec(read(r.readme))?.[1] ?? "";
+  const snippet = read("examples", "docs-snippets", "src", r.file);
+  if (block.trim() !== region(snippet, r.region).trim()) {
+    console.error(
+      `${r.readme}: the code differs from examples/docs-snippets/src/${r.file} (region ${r.region})`,
+    );
+    failed += 1;
+  }
 }
+if (failed > 0) process.exitCode = 1;
+else console.log(`README code matches the tested snippets (${readmes.length} files).`);

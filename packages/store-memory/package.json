@@ -2,14 +2,35 @@
   "name": "@rungsjs/store-memory",
   "version": "0.0.0",
   "description": "In-memory store for Rungs, for tests and prototypes.",
+  "keywords": [
+    "approval",
+    "approval-workflow",
+    "workflow",
+    "rungs",
+    "store",
+    "in-memory",
+    "testing",
+    "typescript"
+  ],
+  "homepage": "https://sodastech.github.io/rungs/guides/testing/",
+  "bugs": {
+    "url": "https://github.com/Sodastech/rungs/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sodastech/rungs.git",
+    "directory": "packages/store-memory"
+  },
   "license": "MIT",
+  "author": "Sodastech",
   "type": "module",
   "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

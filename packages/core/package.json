@@ -2,7 +2,29 @@
   "name": "@rungsjs/core",
   "version": "0.0.0",
   "description": "Pure, deterministic approval workflow engine. Zero runtime dependencies.",
+  "keywords": [
+    "approval",
+    "approval-workflow",
+    "workflow",
+    "workflow-engine",
+    "approvals",
+    "delegation",
+    "escalation",
+    "audit-trail",
+    "state-machine",
+    "typescript"
+  ],
+  "homepage": "https://sodastech.github.io/rungs/",
+  "bugs": {
+    "url": "https://github.com/Sodastech/rungs/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sodastech/rungs.git",
+    "directory": "packages/core"
+  },
   "license": "MIT",
+  "author": "Sodastech",
   "type": "module",
   "sideEffects": false,
   "exports": {
