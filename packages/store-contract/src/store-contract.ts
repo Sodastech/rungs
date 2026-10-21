@@ -1,15 +1,13 @@
 import {
   type AuditEvent,
-  type BlockedQuery,
   ConflictError,
   type DelegationRule,
   type DomainEvent,
   defineFlow,
   type RegisteredFlow,
-  type RequestQuery,
   type RequestState,
-  type RungsStore,
 } from "@rungsjs/core";
+import type { BlockedQuery, RequestQuery, RungsStore } from "@rungsjs/core/store";
 import { describe, expect, it } from "vitest";
 
 /** Makes an empty store for one test. Adapters clean up their database here. */

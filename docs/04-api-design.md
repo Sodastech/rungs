@@ -9,6 +9,14 @@ Draft for Phase 1. Shapes may change until `1.0`; every change is recorded here.
 2. **Service** — `createRungs(options)` wires the engine to a store, resolvers, clock and event hooks.
    This is what most applications use.
 
+`@rungsjs/core` has three entry points, one per audience:
+
+| Import | For | Contents |
+|---|---|---|
+| `@rungsjs/core` | Applications | `createRungs`, `defineFlow`, flow, request, event and query types, errors, `RungsStore` |
+| `@rungsjs/core/store` | Store adapter authors | `StoreTx` and its query types, `taskViews`, `requestSummary`, `blockedStepView` |
+| `@rungsjs/core/engine` | Building your own service | `decide`, the command types, `Decision`, `EngineContext` |
+
 ## Creating an instance
 
 ```ts
@@ -157,7 +165,7 @@ await rungs.tick();   // process deadlines, reminders, timeouts; safe to run on 
 ## Pure engine (advanced)
 
 ```ts
-import { decide } from "@rungsjs/core";
+import { decide } from "@rungsjs/core/engine";
 
 const decision = decide(state /* RequestState | null */, command, {
   now: "2026-01-05T09:00:00.000Z", // ISO 8601 UTC, injected
@@ -440,6 +448,7 @@ await purgeDispatchedEvents(db, { olderThan: "2026-01-01T00:00:00Z" }); // { eve
 ## Store interface (for adapter authors)
 
 Fixed for 1.8. Everything the store returns is plain JSON; the service never shares objects with it.
+Adapters import these types and the view helpers from `@rungsjs/core/store`.
 
 ```ts
 interface RungsStore {
@@ -516,8 +525,8 @@ requests matching every given filter, ordered by (`submittedAt` desc, `id` desc)
 `after` when given. `findBlocked({ tenantId?, limit, after? })` returns the blocked step of pending
 requests, ordered by (`blockedAt`, `requestId`). Both match the tenant exactly, like `findInbox`.
 
-Adapters build the items with the exported functions `taskViews(state)`, `requestSummary(state)` and
-`blockedStepView(state)`, so every store returns the same shapes. A store that indexes these lists
+Adapters build the items with `taskViews(state)`, `requestSummary(state)` and `blockedStepView(state)`
+from `@rungsjs/core/store`, so every store returns the same shapes. A store that indexes these lists
 writes what it needs in `saveRequest`, in the same transaction (the PostgreSQL store keeps
 projection columns; its migration 2 adds them to existing data).
 

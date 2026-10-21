@@ -1,19 +1,21 @@
 import {
   type BlockedStepView,
-  blockedStepView,
   ConfigurationError,
   ConflictError,
   type DelegationRule,
-  type IdempotentRecord,
-  type OutboxEntry,
   type RegisteredFlow,
   type RequestState,
+  type TaskView,
+} from "@rungsjs/core";
+import {
+  blockedStepView,
+  type IdempotentRecord,
+  type OutboxEntry,
   type RungsStore,
   requestSummary,
   type StoreTx,
-  type TaskView,
   taskViews,
-} from "@rungsjs/core";
+} from "@rungsjs/core/store";
 import type { PgClient, PgQueryable } from "./client.js";
 import { SCHEMA_VERSION } from "./migrations.js";
 import { iso, type Names, type NamingOptions, names, tenant } from "./naming.js";

@@ -16,7 +16,9 @@ rungs/
 │   │   │   ├── engine/       # pure decide(state, command, ctx)
 │   │   │   ├── resolution/   # approver resolution pipeline
 │   │   │   ├── service/      # createRungs: store + resolvers + clock + events
-│   │   │   └── index.ts
+│   │   │   ├── index.ts      # @rungsjs/core: the application API
+│   │   │   ├── store.ts      # @rungsjs/core/store: for store adapter authors
+│   │   │   └── engine.ts     # @rungsjs/core/engine: the pure engine
 │   │   └── test/
 │   │       ├── edge-cases/   # one file per catalog section, tests named EC-xx
 │   │       └── helpers/      # fake clock, fake ids, fixture builders

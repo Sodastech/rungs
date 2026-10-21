@@ -10,25 +10,27 @@
 import {
   type AuditEvent,
   type BlockedStepView,
-  blockedStepView,
   ConflictError,
   type DelegationRule,
+  type RegisteredFlow,
+  type RequestState,
+  type TaskView,
+} from "@rungsjs/core";
+import {
+  blockedStepView,
   type EventKey,
   type FlowRef,
   type IdempotencyRef,
   type IdempotentRecord,
   type OutboxEntry,
-  type RegisteredFlow,
-  type RequestState,
   type RungsStore,
   requestSummary,
   type StoreTx,
-  type TaskView,
   taskViews,
-} from "@rungsjs/core";
+} from "@rungsjs/core/store";
 
 export interface MemoryStoreOptions {
-  /** Out-of-office rules to start with (managing them through the service comes later). */
+  /** Out-of-office rules to start with, e.g. in tests. `rungs.delegations` manages them later. */
   readonly delegations?: readonly DelegationRule[];
 }
 

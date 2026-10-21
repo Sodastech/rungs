@@ -38,6 +38,8 @@ export default defineConfig({
         starlightTypeDoc({
           entryPoints: [
             "../packages/core/src/index.ts",
+            "../packages/core/src/store.ts",
+            "../packages/core/src/engine.ts",
             "../packages/store-memory/src/index.ts",
             "../packages/store-postgres/src/index.ts",
           ],

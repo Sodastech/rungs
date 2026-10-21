@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { type DecidedResult, decide, type Unchanged } from "../../src/engine.js";
 import {
   type Calendar,
-  type DecidedResult,
-  decide,
   type FlowInput,
   InvalidCommandError,
   type RequestState,
   type StepInput,
-  type Unchanged,
 } from "../../src/index.js";
 import {
   approve,

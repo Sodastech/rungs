@@ -3,15 +3,17 @@ import { describe, expect, it } from "vitest";
 import {
   type Command,
   type DecidedResult,
-  type DelegationRule,
   decide,
+  type StepResolution,
+  type Unchanged,
+} from "../src/engine.js";
+import {
+  type DelegationRule,
   type FlowInput,
   type RegisteredFlow,
   type RequestState,
   RungsError,
   type StepInput,
-  type StepResolution,
-  type Unchanged,
 } from "../src/index.js";
 import { deepFreeze, registeredFlow } from "./helpers/engine.js";
 

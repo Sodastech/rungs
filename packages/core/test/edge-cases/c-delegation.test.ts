@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { decide } from "../../src/engine.js";
 import {
-  decide,
   type FlowInput,
   InvalidCommandError,
   NotAssignedError,

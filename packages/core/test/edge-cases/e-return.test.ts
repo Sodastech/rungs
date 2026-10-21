@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { decide } from "../../src/engine.js";
 import {
   ConditionError,
-  decide,
   InvalidCommandError,
   InvalidTransitionError,
   NoApproversError,
