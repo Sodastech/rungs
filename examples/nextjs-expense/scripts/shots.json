@@ -1,0 +1,45 @@
+[
+  {
+    "name": "setup-deactivate-finance",
+    "user": "ada",
+    "path": "/admin",
+    "before": [
+      "document.querySelector('button[aria-label=\"Deactivate Fatima Khan\"]').click()",
+      "document.querySelector('button[aria-label=\"Deactivate Kenji Sato\"]').click()"
+    ],
+    "capture": false
+  },
+  {
+    "name": "setup-block-docking-station",
+    "user": "marco",
+    "find": {
+      "on": "/inbox",
+      "link": "Laptop docking station"
+    },
+    "before": [
+      "[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Approve').click()"
+    ],
+    "capture": false
+  },
+  {
+    "name": "inbox",
+    "user": "diego",
+    "path": "/inbox",
+    "height": 720
+  },
+  {
+    "name": "request",
+    "user": "diego",
+    "find": {
+      "on": "/inbox",
+      "link": "Standing desk"
+    },
+    "height": 1180
+  },
+  {
+    "name": "admin",
+    "user": "ada",
+    "path": "/admin",
+    "height": 1180
+  }
+]

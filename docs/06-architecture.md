@@ -28,7 +28,7 @@ rungs/
 ├── examples/
 │   ├── expense-basic/     # private: the Phase 1 gate, three steps on the memory store
 │   ├── playground/        # private: scenario files played as a readable timeline (pnpm playground)
-│   └── nextjs-expenses/   # Phase 2
+│   └── nextjs-expense/    # private: Next.js demo app on PGlite or PostgreSQL (pnpm demo)
 └── skills/
     └── rungs/SKILL.md     # Claude Code skill (Phase 3)
 ```

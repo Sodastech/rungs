@@ -78,6 +78,19 @@ with delegation, return and resubmit, reminders, the inbox and the audit history
 scenario and run it in the [playground](examples/playground): `pnpm playground scenarios/03-four-eyes.ts`
 prints a readable timeline of every step, approver and decision.
 
+### Try it in the browser
+
+```bash
+pnpm install
+pnpm demo
+```
+
+This starts a [Next.js example app](examples/nextjs-expense) at <http://localhost:3000>, with no
+database to install. Sign in as any of six fictional people, submit an expense, approve it, move
+the clock forward to see reminders and escalation, and unblock a stuck step as the admin.
+
+![The approval chain and audit timeline in the example app](assets/screenshots/request.png)
+
 Beyond this: parallel steps (`any`, `all`, quorum), conditions, out-of-office delegation, deadlines
 with reminders, escalation and timeouts driven by `tick`, return and resubmit, admin override,
 previews of the approval chain, optimistic concurrency, idempotency keys, and an outbox for

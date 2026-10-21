@@ -34,11 +34,32 @@ rethink before investing in the next phase.
 
 ## Phase 2 — Real persistence + example app (≈ 3–4 weeks)
 
-- `store-postgres` with SQL migrations
-- Example Next.js app: submit a request, approval inbox, timeline, approve/reject
-- Documentation site (getting started, concepts, recipes, edge cases)
+- 2.1 `store-postgres` with SQL migrations (done)
+- 2.2 Example Next.js app: submit a request, approval inbox, timeline, approve/reject, delegation,
+  admin tools and a demo clock; PGlite by default, so it runs without a database (done)
+- 2.2b Online demo (planned, after the 2.2 results are reviewed; see below)
+- 2.3 Documentation site (getting started, concepts, recipes, edge cases)
 
 **Gate:** someone other than the owner can follow the docs and run the example in under 15 minutes.
+
+### 2.2b Online demo (plan)
+
+Goal: people can try the example without cloning the repository. Nothing here is built yet.
+
+- **Database.** PGlite does not fit serverless hosting such as Vercel: the file system is
+  temporary and every instance has its own copy. The online demo needs a real PostgreSQL server
+  through `DATABASE_URL`, for example a free Neon or Supabase database.
+- **A sandbox per visitor.** A shared demo does not work: one visitor moving the clock forward would
+  change everyone's data, and anyone could vandalize it. Each visitor gets a sandbox id in a cookie
+  and their own PostgreSQL schema (the `schema` option of `@rungsjs/store-postgres`), migrated and
+  seeded on the first visit, with its own demo clock. What a visitor types is visible only to them.
+- **Cleanup.** A scheduled job drops sandbox schemas older than 24 hours. Cap the number of
+  sandboxes and the request rate to keep the free database tier safe.
+- **`tick`.** No background loop is needed: `tick` runs when a visitor moves the demo clock.
+- **Alternative without hosting.** An "Open in StackBlitz" link runs the example, including PGlite,
+  in the visitor's browser. This becomes realistic once the packages are on npm.
+- **Decisions before building:** the hosting and database accounts, secrets stored in the host's
+  settings only, the domain, and limits per visitor.
 
 ## Phase 3 — Public launch of the free version (≈ 2 weeks)
 

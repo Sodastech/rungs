@@ -12,6 +12,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "playground": "turbo run build --filter=@rungsjs/playground^... --output-logs=errors-only && pnpm --filter @rungsjs/playground play",
+    "demo": "turbo run build --filter=@rungsjs/example-nextjs-expense^... --output-logs=errors-only && pnpm --filter @rungsjs/example-nextjs-expense dev",
     "lint": "biome check .",
     "check:ec": "node scripts/check-ec-coverage.mjs",
     "check:readme": "node scripts/check-readme.mjs",
