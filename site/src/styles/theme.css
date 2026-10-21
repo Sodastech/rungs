@@ -1,0 +1,38 @@
+/* Rungs brand on Starlight. Colors from assets/brand/README.md: navy #0E1422 and the approved
+   green #34D399; the grays are derived from the navy. Dark is Starlight's default theme. */
+
+:root {
+  --sl-color-accent-low: #0b3b2c;
+  --sl-color-accent: #34d399;
+  --sl-color-accent-high: #a7f3d0;
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #e6e9f0;
+  --sl-color-gray-2: #c5ccda;
+  --sl-color-gray-3: #8a96b0;
+  --sl-color-gray-4: #4f5b78;
+  --sl-color-gray-5: #3a4560;
+  --sl-color-gray-6: #1a2236;
+  --sl-color-black: #0e1422;
+}
+
+:root[data-theme="light"] {
+  --sl-color-accent-low: #d1fae5;
+  --sl-color-accent: #047857;
+  --sl-color-accent-high: #064e3b;
+  --sl-color-white: #0e1422;
+  --sl-color-gray-1: #1a2236;
+  --sl-color-gray-2: #3a4560;
+  --sl-color-gray-3: #4b5568;
+  --sl-color-gray-4: #8a96b0;
+  --sl-color-gray-5: #c5ccda;
+  --sl-color-gray-6: #eef1f6;
+  --sl-color-gray-7: #f6f7fb;
+  --sl-color-black: #ffffff;
+}
+
+/* The hero screenshot: framed like a window. */
+.hero img {
+  border-radius: 12px;
+  border: 1px solid var(--sl-color-gray-5);
+  box-shadow: 0 12px 40px rgb(14 20 34 / 25%);
+}

@@ -1,0 +1,33 @@
+---
+// Replaces Starlight's Banner: the release notice on every page while Rungs is not on npm,
+// followed by a page's own banner (frontmatter `banner`) if it has one. See src/release.ts.
+import Default from "@astrojs/starlight/components/Banner.astro";
+import { released, watchReleases } from "../release";
+---
+
+{
+  !released && (
+    <div class="release-banner" role="note">
+      <strong>Not released yet.</strong> Rungs is not on npm until 0.1.{" "}
+      <a href={watchReleases}>Watch the repository</a> (Watch → Custom → Releases) to hear when it
+      ships, or <a href={`${import.meta.env.BASE_URL}getting-started/#try-it-now`}>try it now from source</a>.
+    </div>
+  )
+}
+<Default />
+
+<style>
+  .release-banner {
+    padding: 0.5rem var(--sl-nav-pad-x);
+    background: var(--sl-color-accent-low);
+    color: var(--sl-color-white);
+    border-bottom: 1px solid var(--sl-color-accent);
+    font-size: var(--sl-text-sm);
+    line-height: 1.5;
+    text-align: center;
+  }
+  .release-banner a {
+    color: var(--sl-color-white);
+    font-weight: 600;
+  }
+</style>

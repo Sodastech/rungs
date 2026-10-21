@@ -4,7 +4,8 @@
 //   pnpm build && pnpm start          (in another terminal, on a freshly reset demo)
 //   node scripts/screenshots.mjs [shots.json] [--base http://localhost:3000] [--out dir]
 //
-// A shot is { name, user, path | find, width?, height?, fullPage?, capture?, before?: [js...] }.
+// A shot is { name, user, path | find, width?, height?, fullPage?, capture?, colorScheme?,
+// before?: [js...] }. `colorScheme` is "light" or "dark" (prefers-color-scheme).
 // `capture: false` only runs `before`, to set up state for the shots after it.
 // `find: { on, link }` opens `on` and follows the first link whose text contains `link`.
 // `before` runs in the page (after it loads) and may click buttons; the page reloads after each.
@@ -115,7 +116,11 @@ for (const shot of shots) {
     deviceScaleFactor: 2,
     mobile,
   });
-  await send("Network.setCookie", { name: "demo_user", value: shot.user, url: base });
+  await send("Emulation.setEmulatedMedia", {
+    features: [{ name: "prefers-color-scheme", value: shot.colorScheme ?? "light" }],
+  });
+  if (shot.user)
+    await send("Network.setCookie", { name: "demo_user", value: shot.user, url: base });
   let path = shot.path;
   if (shot.find) {
     await load(`${base}${shot.find.on}`);

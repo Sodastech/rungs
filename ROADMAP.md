@@ -66,6 +66,9 @@ Goal: people can try the example without cloning the repository. Nothing here is
 
 - Publish `0.1.0` to npm (`@rungsjs/core`, `@rungsjs/store-memory`, `@rungsjs/store-postgres`),
   with all changesets combined into one "Initial release" note; README with a short demo GIF
+- Release notices, in the same change as the publish: set `released = true` in
+  `site/src/release.ts` (removes the site banner and the "after the 0.1 release" notes), and remove
+  the "Not released yet" notice at the top of `README.md`
 - Launch posts: Show HN, r/node, r/typescript, r/nextjs, dev.to article on approval edge cases
 - Free Claude Code skill that teaches agents how to add flows with Rungs
 

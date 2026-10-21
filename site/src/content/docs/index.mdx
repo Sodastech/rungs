@@ -1,0 +1,42 @@
+---
+title: Approval workflows for TypeScript, with the edge cases handled
+description: Rungs is an approval workflow engine for TypeScript. Sequential and parallel steps, delegation, deadlines, escalation and a full audit trail, with the real-world edge cases handled.
+template: splash
+hero:
+  tagline: Send any record through a chain of approval steps, sequential or parallel, with delegation, deadlines, escalation, return and resubmit, and a full audit trail. The cases that break approval systems in production are specified, tested and handled.
+  image:
+    file: ../../assets/screenshot-request.png
+    alt: The example app showing an expense's approval chain and audit timeline
+  actions:
+    - text: Get started
+      link: /rungs/getting-started/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/Sodastech/rungs
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+import Install from "../../components/Install.astro";
+
+<Install />
+
+<CardGrid>
+  <Card title="Edge cases, specified" icon="list-format">
+    The requester is also an approver. The approver is on leave and their delegate already voted.
+    Nobody is left to approve mid-flow. Each case has an ID, a documented behavior and a test.
+  </Card>
+  <Card title="A pure engine" icon="seti:typescript">
+    The core has no dependencies and no I/O. Time, IDs and approver lookups are injected, so the
+    same state and command always give the same result.
+  </Card>
+  <Card title="PostgreSQL included" icon="seti:db">
+    A store for PostgreSQL 15+ with migrations, row locks and leases for parallel workers. Bring
+    node-postgres, postgres.js or PGlite.
+  </Card>
+  <Card title="Try the demo" icon="laptop">
+    A Next.js app with an inbox, timeline, delegation, admin tools and a clock you can move
+    forward. It runs without installing a database.
+  </Card>
+</CardGrid>

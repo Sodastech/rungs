@@ -1,0 +1,32 @@
+---
+// The install command, and while Rungs is not on npm, how to try it from source instead.
+// Everything release-dependent comes from src/release.ts.
+import { Code } from "@astrojs/starlight/components";
+import { released, tryNow } from "../release";
+
+const install = "npm install @rungsjs/core @rungsjs/store-postgres";
+---
+
+<div class="install">
+  {!released && <p class="install-label">After the 0.1 release:</p>}
+  <Code code={install} lang="sh" />
+  {
+    !released && (
+      <>
+        <p class="install-label" id="try-it-now">
+          Until then, try it from source (Node.js 22+ and pnpm):
+        </p>
+        <Code code={`${tryNow.clone}\n${tryNow.demo}          # the example app at http://localhost:3000\n${tryNow.playground}`} lang="sh" />
+      </>
+    )
+  }
+</div>
+
+<style>
+  .install-label {
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-2);
+  }
+</style>
