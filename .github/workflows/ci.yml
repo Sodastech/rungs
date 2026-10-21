@@ -104,3 +104,11 @@ jobs:
       - run: pnpm turbo run build --filter=@rungsjs/store-memory... --filter=@rungsjs/store-postgres...
       # Packs each published package as a release does: files, LICENSE, size, publint, attw
       - run: pnpm check:pack
+      # Installs those tarballs in an empty folder and runs them, as after a release
+      - name: Verify a clean install
+        run: |
+          mkdir -p "$RUNNER_TEMP/tarballs"
+          for dir in core store-memory store-postgres; do
+            pnpm --dir "packages/$dir" pack --pack-destination "$RUNNER_TEMP/tarballs"
+          done
+          node scripts/verify-release.mjs --tarballs "$RUNNER_TEMP/tarballs"

@@ -58,7 +58,8 @@ real-world edge cases handled correctly. Most existing libraries leave that to t
 - TypeScript (strict), ESM only, Node.js 22+.
 - pnpm workspaces monorepo; Turborepo for task running.
 - Build: `tsup` (ESM + `.d.ts`). Tests: `vitest`. Lint/format: Biome.
-- Releases: Changesets. Semver; `0.x` until the API is stable.
+- Releases: Changesets. Semver; `0.x` until the API is stable. Published only by the release
+  workflow with trusted publishing; never publish from a local machine. See `RELEASING.md`.
 - Errors are typed classes extending `RungsError` with a stable `code` string.
 - Prefer discriminated unions over boolean flags; prefer plain data over classes in the domain model.
 - All timestamps are ISO 8601 UTC strings in persisted data.
@@ -77,6 +78,7 @@ pnpm check:readme   # the README quick start is the tested snippet
 pnpm check:api      # the API reports in packages/*/api match the source
 pnpm api:update     # rewrite them after a deliberate public API change
 pnpm check:pack     # pack the published packages and check them (after pnpm build)
+pnpm verify:release <version>   # install a release from npm in an empty folder and run it
 pnpm --filter @rungsjs/site dev   # the documentation site at http://localhost:4321/rungs/
 pnpm changeset      # record a release note for a public change
 ```

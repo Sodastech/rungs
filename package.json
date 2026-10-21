@@ -19,6 +19,7 @@
     "check:api": "node scripts/api-report.mjs --check",
     "api:update": "node scripts/api-report.mjs",
     "check:pack": "node scripts/check-pack.mjs",
+    "verify:release": "node scripts/verify-release.mjs",
     "format": "biome check --write .",
     "changeset": "changeset"
   },

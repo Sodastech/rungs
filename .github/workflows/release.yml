@@ -1,0 +1,137 @@
+name: Release
+
+# How a release works, and the one-time setup on GitHub and npm: RELEASING.md.
+# This file name is part of the npm trusted publisher configuration: renaming it breaks publishing.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  ASTRO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  # Opens or updates the "Version Packages" pull request while changesets are pending, and
+  # otherwise says whether the versions on main still need publishing.
+  version:
+    name: Version Packages PR
+    # Off until the one-time setup in RELEASING.md is done: repository variable RELEASES=enabled.
+    if: vars.RELEASES == 'enabled'
+    # Pinned on purpose; move to a newer image deliberately.
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      publish: ${{ steps.plan.outputs.publish }}
+      version: ${{ steps.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # pnpm version comes from "packageManager" in package.json
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - run: pnpm install --frozen-lockfile
+
+      - id: changesets
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          commit-message: "chore: version packages"
+          pr-title: "chore: version packages"
+          # No publish-script: publishing is the separate, approved job below.
+          create-github-releases: false
+          push-git-tags: false
+
+      - id: plan
+        if: steps.changesets.outputs.has-changesets == 'false'
+        run: node scripts/release-plan.mjs
+
+  # Publishes to npm with trusted publishing (OIDC) and provenance, then tags the release and
+  # creates the GitHub Release. Waits for approval in the npm-publish environment.
+  publish:
+    name: Publish to npm
+    needs: version
+    if: needs.version.outputs.publish == 'true'
+    # Pinned on purpose; move to a newer image deliberately.
+    runs-on: ubuntu-24.04
+    environment: npm-publish
+    permissions:
+      contents: write # tags and the GitHub Release
+      id-token: write # npm trusted publishing and provenance
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      # Node 24 ships the npm CLI (11.5.1 or later) that trusted publishing needs. No dependency
+      # cache in this job, so nothing restored from another run can change what is published.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Check the npm CLI version
+        run: |
+          npm --version
+          node -e 'const [a,b,c]=process.argv[1].split(".").map(Number); if (a<11||(a===11&&(b<5||(b===5&&c<1)))) { console.error("npm 11.5.1 or later is needed for trusted publishing"); process.exit(1); }' "$(npm --version)"
+
+      - run: pnpm install --frozen-lockfile
+
+      # The "Version Packages" pull request is opened by GITHUB_TOKEN, which does not trigger CI,
+      # so everything CI checks runs again here before anything is published.
+      - run: pnpm lint
+      - run: pnpm check:ec
+      - run: pnpm check:readme
+      - run: pnpm check:api
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm check:pack
+
+      - name: Publish
+        run: node scripts/publish.mjs
+        env:
+          # Only for the first release, before a trusted publisher can exist (RELEASING.md).
+          # Empty afterwards: npm then authenticates with OIDC.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_BOOTSTRAP_TOKEN }}
+
+      - name: Tag and create the GitHub Release
+        run: node scripts/github-release.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # Installs what was published in an empty folder, as a user would, and runs it.
+  verify:
+    name: Verify on Node ${{ matrix.node }}
+    needs: [version, publish]
+    # Pinned on purpose; move to a newer image deliberately.
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+
+      - run: node scripts/verify-release.mjs "${{ needs.version.outputs.version }}"
