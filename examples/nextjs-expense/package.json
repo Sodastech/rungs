@@ -1,0 +1,29 @@
+{
+  "name": "@rungsjs/example-nextjs-expense",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Expense approvals in a Next.js app: inbox, timeline, delegation, admin and a demo clock.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@rungsjs/core": "workspace:*",
+    "@rungsjs/store-postgres": "workspace:*",
+    "next": "16.4.0",
+    "pg": "8.23.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0"
+  }
+}

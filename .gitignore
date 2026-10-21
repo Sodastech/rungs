@@ -7,3 +7,10 @@ coverage/
 !.env.example
 *.log
 .DS_Store
+.next/
+next-env.d.ts
+# Local demo databases (PGlite)
+.data/
+*.tsbuildinfo
+# Written by `next dev` when it detects a coding agent
+examples/nextjs-expense/AGENTS.md
