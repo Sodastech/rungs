@@ -1,6 +1,7 @@
-import type { RequestStatus } from "@rungsjs/core";
+import type { RequestState, RequestStatus } from "@rungsjs/core";
 import type { PgClient } from "@rungsjs/store-postgres";
 import { SCHEMA } from "./db";
+import type { ExpensePayload } from "./flow";
 
 /**
  * The app's own record of an expense. Rungs keeps the approval (state, tasks, audit trail) and
@@ -51,15 +52,14 @@ export async function insertExpense(db: PgClient, e: Expense): Promise<void> {
   );
 }
 
-export async function updateStatus(
-  db: PgClient,
-  requestId: string,
-  status: RequestStatus,
-): Promise<void> {
-  await db.query(`UPDATE ${SCHEMA}.expenses SET status = $2 WHERE request_id = $1`, [
-    requestId,
-    status,
-  ]);
+/** Copies status and details from the request; a resubmit may have changed the details. */
+export async function syncExpense(db: PgClient, request: RequestState): Promise<void> {
+  const { title, category, amount } = request.payload as unknown as ExpensePayload;
+  await db.query(
+    `UPDATE ${SCHEMA}.expenses SET status = $2, title = $3, category = $4, amount = $5
+     WHERE request_id = $1`,
+    [request.id, request.status, title, category, amount],
+  );
 }
 
 export async function listExpenses(

@@ -4,7 +4,7 @@ import { type PgClient, postgresStore } from "@rungsjs/store-postgres";
 import { type DemoClock, demoClock } from "./clock";
 import { dropSchema, openDatabase, prepareSchema, SCHEMA } from "./db";
 import { loadInactiveUsers, resolutionHooks } from "./directory";
-import { insertExpense, updateStatus } from "./expenses";
+import { insertExpense, syncExpense } from "./expenses";
 import { type ExpensePayload, expenseFlow } from "./flow";
 import { notify } from "./notifications";
 
@@ -26,11 +26,11 @@ export function rungsFor(db: PgClient, inactive: Set<string>, clock: () => Date)
     clock,
     ids: () => newId("r"),
     ...resolutionHooks(inactive),
-    // After every command commits: keep the app's expense status in step and notify people.
+    // After every command commits: keep the app's expense record in step and notify people.
     onEvent: async (event) => {
       const request = await rungs.get(event.requestId);
       if (request === null) return;
-      if (event.type.startsWith("request.")) await updateStatus(db, request.id, request.status);
+      if (event.type.startsWith("request.")) await syncExpense(db, request);
       await notify(db, event, request);
     },
   });

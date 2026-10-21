@@ -1,10 +1,7 @@
-import { getDemo } from "../rungs/demo";
-import { listExpenses } from "../rungs/expenses";
+import { redirect } from "next/navigation";
+import { currentUser, homeFor } from "./session";
 
-export const dynamic = "force-dynamic";
-
-export default async function Page() {
-  const { db } = await getDemo();
-  const expenses = await listExpenses(db);
-  return <p>{expenses.length} expenses</p>;
+export default async function Home() {
+  const user = await currentUser();
+  redirect(user === undefined ? "/login" : homeFor(user));
 }

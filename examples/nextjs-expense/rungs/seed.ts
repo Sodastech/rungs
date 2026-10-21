@@ -69,6 +69,12 @@ const story: Step[] = [
     payload: { title: "Team lunch after the release", category: "Meals", amount: 120 },
   },
   {
+    at: 3,
+    submit: "dock",
+    by: "alice",
+    payload: { title: "Laptop docking station", category: "Equipment", amount: 780 },
+  },
+  {
     at: 6,
     submit: "dinner",
     by: "marco",

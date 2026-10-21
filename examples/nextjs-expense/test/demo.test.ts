@@ -24,14 +24,14 @@ describe("the Next.js example's integration", { timeout: 60_000 }, () => {
     const demo = await fresh(true);
     await seedIfEmpty(demo);
     const all = await listExpenses(demo.db);
-    expect(all).toHaveLength(7);
+    expect(all).toHaveLength(8);
     expect(Object.fromEntries(all.map((e) => [e.title, e.status]))).toMatchObject({
       "Second monitor": "rejected",
       "Taxi to the airport": "approved",
       "Online TypeScript course": "returned",
       "Standing desk": "pending",
     });
-    expect(await inboxOf(demo, "marco")).toEqual(["manager"]);
+    expect(await inboxOf(demo, "marco")).toEqual(["manager", "manager"]);
     expect((await inboxOf(demo, "diego")).sort()).toEqual(["director", "manager"]);
     expect(await inboxOf(demo, "fatima")).toEqual(["finance"]);
   });
@@ -52,6 +52,23 @@ describe("the Next.js example's integration", { timeout: 60_000 }, () => {
     expect((await listExpenses(demo.db, { requesterId: "alice" }))[0]?.status).toBe("approved");
     const messages = (await notificationsFor(demo.db, "alice")).map((n) => n.message);
     expect(messages).toContain('"Taxi" was approved.');
+  });
+
+  it("a resubmit with new details updates the app's expense record", async () => {
+    const demo = await fresh();
+    const request = await submitExpense(demo, {
+      requesterId: "alice",
+      payload: { title: "Course", category: "Training", amount: 300 },
+    });
+    await demo.rungs.return({ requestId: request.id, actorId: "marco", to: "requester" });
+    await demo.rungs.resubmit({
+      requestId: request.id,
+      actorId: "alice",
+      payload: { title: "Course with invoice", category: "Training", amount: 320 },
+    });
+    expect(await listExpenses(demo.db)).toMatchObject([
+      { title: "Course with invoice", amount: 320, status: "pending" },
+    ]);
   });
 
   it("submitting the same form twice creates one expense", async () => {
