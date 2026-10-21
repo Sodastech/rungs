@@ -37,7 +37,14 @@ Each command runs in one store transaction: load the request (locked for update)
 resolve what the engine asks for, decide again, then save state, audit and outbox together.
 **Keep `roles`, `resolvers` and `isActiveUser` fast**: in 0.x they run inside that transaction,
 so a slow callback holds the request's lock. A failing callback rolls the whole command back
-(`ResolutionError`, EC-05). The public API does not depend on this choice (see
+(`ResolutionError`, EC-05).
+
+**Do not use the command's database connection inside a callback.** While a callback runs, Rungs
+holds that connection in an open transaction. A callback that reads from the same database must
+get another connection from a pool, so the pool needs more than one connection. A database with a
+single connection, such as PGlite, waits for the transaction to finish and the command never
+completes: keep what the callbacks need in memory instead (the Next.js example does this for
+`isActiveUser`). The public API does not depend on this choice (see
 `docs/06-architecture.md`).
 
 Every command method returns the new `RequestState` and accepts `idempotencyKey` and
@@ -373,7 +380,7 @@ await purgeIdempotency(db, { olderThan: "2026-01-01T00:00:00Z" });   // { idempo
 await purgeDispatchedEvents(db, { olderThan: "2026-01-01T00:00:00Z" }); // { events }
 ```
 
-- `purgeRequest` and `purgeRequests` delete **closed** requests (approved, rejected, withdrawn, cancelled)
+- `purgeRequest` and `purgeRequests` delete **closed** requests (approved, rejected, withdrawn)
   with their audit events, outbox events, inbox rows and idempotency records, in one transaction,
   and return `{ requests, auditEvents, outboxEvents, idempotencyKeys }`. A request that is still
   open is refused with `InvalidTransitionError`; nothing is deleted.

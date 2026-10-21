@@ -10,7 +10,6 @@ const requestTones: Record<RequestStatus, [Tone, string]> = {
   rejected: ["bad", "Rejected"],
   returned: ["info", "Returned"],
   withdrawn: ["idle", "Withdrawn"],
-  cancelled: ["idle", "Cancelled"],
 };
 
 export function Badge({ tone, children }: { tone: Tone; children: React.ReactNode }) {

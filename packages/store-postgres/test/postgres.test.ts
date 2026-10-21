@@ -303,16 +303,13 @@ describe("EC-61 purging closed requests", () => {
     expect(await acme.rungs.get(closed.id)).not.toBeNull();
   });
 
-  it("EC-61 a cancelled request counts as closed and can be purged", async () => {
-    const { client, schema, rungs, count, open } = await closedAndOpen();
-    // The engine does not produce request status "cancelled" yet; a host-written row stands in.
-    await client.query(
-      `UPDATE "${schema}"."rungs_requests" SET status = 'cancelled', closed_at = '2026-01-05T09:00:00Z' WHERE id = $1`,
-      [open],
-    );
-    expect(await purgeRequest(client, open, { schema })).toMatchObject({ requests: 1 });
-    expect(await rungs.get(open)).toBeNull();
-    expect(await count("inbox", "request_id = $1", [open])).toBe(0);
+  it("EC-61 a returned request is still open and cannot be purged", async () => {
+    const { client, schema, rungs, open } = await closedAndOpen();
+    await rungs.return({ requestId: open, actorId: "u_mgr", to: "requester" });
+    const error = await purgeRequest(client, open, { schema }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(InvalidTransitionError);
+    expect(error).toMatchObject({ status: "returned" });
+    expect(await rungs.get(open)).not.toBeNull();
   });
 });
 

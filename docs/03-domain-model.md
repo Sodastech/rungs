@@ -115,7 +115,7 @@ Plain JSON. The engine never mutates it; every command returns a new state.
 | `subject` | `{ type: string; id: string }` | The host record being approved |
 | `requesterId` | string | |
 | `payload` | JSON | Snapshot at submit; used by conditions (EC-36). Must be plain JSON: no `undefined`, `NaN`, `Date` or class instances |
-| `status` | `"pending" \| "approved" \| "rejected" \| "returned" \| "withdrawn" \| "cancelled"` | `returned` is open, not closed: the requester can resubmit or withdraw it, and an admin can override it. `closedAt` is set only for approved, rejected and withdrawn |
+| `status` | `"pending" \| "approved" \| "rejected" \| "returned" \| "withdrawn"` | `returned` is open, not closed: the requester can resubmit or withdraw it, and an admin can override it. `closedAt` is set only for approved, rejected and withdrawn |
 | `currentStepIndex` | number \| null | Index of the active step; `null` when none is active |
 | `version` | number | Optimistic concurrency; `1` after submit, incremented by every command |
 | `submittedAt`, `closedAt` | ISO string | UTC |

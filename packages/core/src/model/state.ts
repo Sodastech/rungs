@@ -21,13 +21,7 @@ export interface Subject {
   id: string;
 }
 
-export type RequestStatus =
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "returned"
-  | "withdrawn"
-  | "cancelled";
+export type RequestStatus = "pending" | "approved" | "rejected" | "returned" | "withdrawn";
 export type StepStatus =
   | "active"
   | "blocked"

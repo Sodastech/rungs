@@ -3,7 +3,7 @@ import type { PgClient, PgQueryable } from "./client.js";
 import { type Names, type NamingOptions, names, tenant } from "./naming.js";
 
 /** Statuses after which a request never changes again; only these can be purged (EC-61). */
-const CLOSED = ["approved", "rejected", "withdrawn", "cancelled"];
+const CLOSED = ["approved", "rejected", "withdrawn"];
 
 const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
 
