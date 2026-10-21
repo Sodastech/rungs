@@ -3,7 +3,10 @@
  * `fromPglite`, or implement it for any other driver. The drivers are not dependencies.
  */
 export interface PgQueryable {
-  /** One statement with `$1, $2, …` parameters. */
+  /**
+   * One statement with `$1, $2, …` parameters. `rowCount` is the number of rows a SELECT returned
+   * or an INSERT, UPDATE or DELETE changed, as node-postgres reports it.
+   */
   query<R = Record<string, unknown>>(
     text: string,
     params?: readonly unknown[],
@@ -115,7 +118,9 @@ function pgliteQueryable(db: PgliteQueryableLike): PgQueryable {
   return {
     async query<R>(text: string, params: readonly unknown[] = []) {
       const result = await db.query(text, [...params]);
-      return { rows: result.rows as R[], rowCount: result.affectedRows ?? result.rows.length };
+      // PGlite reports affectedRows 0 for a SELECT; count the rows it returned instead.
+      const rowCount = Math.max(result.affectedRows ?? 0, result.rows.length);
+      return { rows: result.rows as R[], rowCount };
     },
     async execute(script) {
       await db.exec(script);

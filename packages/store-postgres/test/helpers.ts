@@ -1,5 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import type { RungsStore } from "@rungsjs/core";
+import { expect } from "vitest";
 import { fromPglite, migrate, type PgClient, postgresStore } from "../src/index.js";
 
 /**
@@ -32,4 +33,18 @@ export function pgliteHarness() {
       await db?.close();
     },
   };
+}
+
+/** Every adapter reports rowCount the way node-postgres does. */
+export async function checkRowCount(client: PgClient, table: string): Promise<void> {
+  await client.execute(`CREATE TABLE ${table} (n integer)`);
+  const counts = [
+    (await client.query(`INSERT INTO ${table} SELECT generate_series(1, 3)`)).rowCount,
+    (await client.query(`SELECT n FROM ${table}`)).rowCount,
+    (await client.query(`SELECT n FROM ${table} WHERE n > 5`)).rowCount,
+    (await client.query(`UPDATE ${table} SET n = n + 1 WHERE n < 3`)).rowCount,
+    (await client.query(`DELETE FROM ${table} WHERE n > 100`)).rowCount,
+    (await client.transaction((tx) => tx.query(`SELECT n FROM ${table}`))).rowCount,
+  ];
+  expect(counts).toEqual([3, 3, 0, 2, 0, 3]);
 }

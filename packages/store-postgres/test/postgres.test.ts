@@ -20,7 +20,7 @@ import {
   SCHEMA_VERSION,
 } from "../src/index.js";
 import { migrationFiles } from "../src/migrations.js";
-import { pgliteHarness } from "./helpers.js";
+import { checkRowCount, pgliteHarness } from "./helpers.js";
 
 const harness = pgliteHarness();
 beforeAll(() => harness.start(), 60_000);
@@ -67,6 +67,11 @@ async function service(tenantId?: string) {
   };
   return { rungs, client, schema, submit, at, count, delivered };
 }
+
+it("fromPglite reports rowCount like node-postgres, also for a SELECT", async () => {
+  const { client, schema } = await harness.freshSchema();
+  await checkRowCount(client, `"${schema}".counted`);
+});
 
 describe("migrations", () => {
   it("migrate is idempotent and records the schema version", async () => {

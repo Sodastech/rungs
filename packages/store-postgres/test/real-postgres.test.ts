@@ -4,6 +4,7 @@ import pg from "pg";
 import postgres from "postgres";
 import { afterAll, describe, expect, it } from "vitest";
 import { fromPg, fromPostgresJs, migrate, type PgClient, postgresStore } from "../src/index.js";
+import { checkRowCount } from "./helpers.js";
 
 // Runs against a real PostgreSQL server when RUNGS_TEST_DATABASE_URL is set (CI does, for
 // PostgreSQL 15 to 18). Covers both drivers and what PGlite cannot: several connections at once.
@@ -58,6 +59,18 @@ const flow: FlowInput = {
   key: "expense",
   steps: [{ id: "reviewers", approvers: { type: "users", ids: ["u_a", "u_b"] }, deadline: "P1D" }],
 };
+
+run("drivers on a real server", () => {
+  it("node-postgres and postgres.js report rowCount the same way", async () => {
+    for (const [label, client] of [
+      ["pg", fromPg(pool as pg.Pool)],
+      ["pjs", fromPostgresJs(sql as postgres.Sql)],
+    ] as const) {
+      const { schema } = await fresh(client, `rc_${label}`);
+      await checkRowCount(client, `"${schema}".counted`);
+    }
+  });
+});
 
 run("concurrency on a real server", () => {
   const client = () => fromPg(pool as pg.Pool);
