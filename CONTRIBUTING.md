@@ -1,6 +1,6 @@
 # Contributing to Rungs
 
-Thanks for your interest! Rungs is pre-release and maintained on limited time, so small, focused
+Thanks for your interest! Rungs is young (0.x) and maintained on limited time, so small, focused
 issues and pull requests are the easiest to review.
 
 Everyone taking part agrees to the [Code of Conduct](CODE_OF_CONDUCT.md); report problems to
