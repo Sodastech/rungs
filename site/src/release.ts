@@ -1,8 +1,7 @@
-// Release status, in one place. At the 0.1 release (ROADMAP, Phase 3): set `released` to true.
-// That removes the banner on every page and the "after the 0.1 release" notes on the install
-// commands; search the site for `released` to check nothing else depends on it.
+// Release status, in one place. While `released` is false, every page shows a "not released yet"
+// banner and the install commands point to the source instead; search the site for `released`.
 
-export const released = false;
+export const released = true;
 
 export const repository = "https://github.com/Sodastech/rungs";
 

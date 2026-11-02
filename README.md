@@ -4,14 +4,12 @@
 
 # Rungs
 
-> **Not released yet.** Click **Watch → Custom → Releases** to get notified when 0.1 ships.
-
 **Documentation: [sodastech.github.io/rungs](https://sodastech.github.io/rungs/)**
 
 **Rungs is an approval workflow engine for TypeScript that gets the hard part right: who approves,
 and what happens when reality gets in the way.**
 
-> **Status: pre-release.** The API can still change.
+> **Status: 0.x.** The API can still change before 1.0; every change is in the changelog.
 > Feedback is very welcome: open an issue, or tell us which edge case your app gets wrong today.
 
 ## The problem
