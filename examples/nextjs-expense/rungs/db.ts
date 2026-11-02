@@ -22,7 +22,7 @@ export async function openDatabase(options: { dataDir?: string } = {}): Promise<
     throw new Error("DATABASE_URL is required on Vercel");
   }
   const { PGlite } = await import("@electric-sql/pglite");
-  const dataDir = options.dataDir ?? ".data/pglite";
+  const dataDir = options.dataDir ?? process.env.DEMO_DATA_DIR ?? ".data/pglite";
   if (dataDir === "memory") return fromPglite(await PGlite.create());
   mkdirSync(dataDir, { recursive: true });
   return fromPglite(await PGlite.create(dataDir));

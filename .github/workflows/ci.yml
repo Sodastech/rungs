@@ -85,6 +85,55 @@ jobs:
       - run: pnpm turbo run build --filter=@rungsjs/store-postgres...
       - run: pnpm --filter @rungsjs/store-postgres test
 
+  demo:
+    name: Demo end to end
+    # Pinned on purpose; move to a newer image deliberately.
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: rungs
+          POSTGRES_DB: rungs_demo_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://postgres:rungs@localhost:5432/rungs_demo_test
+    steps:
+      - uses: actions/checkout@v7
+
+      # pnpm version comes from "packageManager" in package.json
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter=@rungsjs/example-nextjs-expense
+      - run: pnpm --filter @rungsjs/example-nextjs-expense exec playwright install --with-deps chromium
+
+      - name: Sandboxes on a real server
+        run: pnpm --filter @rungsjs/example-nextjs-expense exec vitest run test/sandbox.test.ts
+        env:
+          RUNGS_TEST_DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+
+      - name: The online demo, on PostgreSQL
+        run: pnpm --filter @rungsjs/example-nextjs-expense e2e
+        env:
+          DEMO_PUBLIC: "1"
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+          CRON_SECRET: only-for-this-test
+
+      - name: The local demo, on PGlite
+        run: pnpm --filter @rungsjs/example-nextjs-expense e2e
+
   package:
     name: Package contents
     # Pinned on purpose; move to a newer image deliberately.
