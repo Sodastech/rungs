@@ -17,7 +17,6 @@ export default async function InboxPage() {
   // Tasks the user can decide: their own, ones they hold for someone on leave, and their own
   // tasks a delegate holds while they were away (EC-60).
   const { tasks } = await rungs.inbox({ userId: user.id, limit: 100 });
-  // The expenses behind these tasks, in one query, joined by the request subject.
   const expenses = await expensesByIds(
     db,
     tasks.map((t) => t.subject.id),

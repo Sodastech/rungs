@@ -29,7 +29,6 @@ export default async function RequestPage({ params }: { params: Promise<{ id: st
   const request = await rungs.get(id);
   if (request === null) notFound();
   const history = await rungs.history(id);
-  // The business record the request is about, linked by its subject.
   const expense = await expenseById(db, request.subject.id);
   if (expense === null) notFound();
   const open = request.status === "pending" || request.status === "returned";

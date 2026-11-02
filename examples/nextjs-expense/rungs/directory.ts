@@ -71,7 +71,6 @@ export function resolutionHooks(inactive: ReadonlySet<string>): ResolutionHooks 
   return {
     roles: (role) => people.filter((p) => p.roles.includes(role as Role)).map((p) => p.id),
     resolvers: {
-      // The requester's manager, from a fixed table.
       reportsTo: ({ request }) => {
         const manager = person(request.requesterId)?.reportsTo;
         return manager === undefined ? [] : [manager];
