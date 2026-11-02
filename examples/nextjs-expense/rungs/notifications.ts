@@ -1,6 +1,5 @@
 import type { DomainEvent, RequestState } from "@rungsjs/core";
-import type { PgClient } from "@rungsjs/store-postgres";
-import { SCHEMA } from "./db";
+import type { AppDb } from "./db";
 import { nameOf, people } from "./directory";
 import { expenseById } from "./expenses";
 import { stepName } from "./flow";
@@ -63,14 +62,14 @@ function recipients(
  * `onEvent` handler: Rungs calls it after each command commits, at least once per event. The
  * primary key (request, seq, user) makes a repeated delivery harmless.
  */
-export async function notify(db: PgClient, event: DomainEvent, request: RequestState) {
+export async function notify(db: AppDb, event: DomainEvent, request: RequestState) {
   const expense = await expenseById(db, request.subject.id);
   const found = recipients(event, request, expense?.title ?? "an expense");
   if (found === null) return;
   const [userIds, message] = found;
   for (const userId of userIds) {
     await db.query(
-      `INSERT INTO ${SCHEMA}.notifications (request_id, seq, user_id, message, at)
+      `INSERT INTO ${db.schema}.notifications (request_id, seq, user_id, message, at)
        VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`,
       [event.requestId, event.seq, userId, message, event.at],
     );
@@ -78,12 +77,12 @@ export async function notify(db: PgClient, event: DomainEvent, request: RequestS
 }
 
 export async function notificationsFor(
-  db: PgClient,
+  db: AppDb,
   userId: string,
   limit = 50,
 ): Promise<Notification[]> {
   const { rows } = await db.query<{ request_id: string; message: string; at: Date | string }>(
-    `SELECT request_id, message, at FROM ${SCHEMA}.notifications
+    `SELECT request_id, message, at FROM ${db.schema}.notifications
      WHERE user_id = $1 ORDER BY at DESC, seq DESC LIMIT $2`,
     [userId, limit],
   );

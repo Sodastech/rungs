@@ -21,6 +21,15 @@ Open <http://localhost:3000>. You do not need to install a database: the demo us
 (for example `DATABASE_URL=postgres://user:pass@localhost:5432/demo pnpm demo`). Everything is
 stored in a schema named `rungs_demo`, and **Reset demo** drops only that schema.
 
+### The online demo
+
+With `DEMO_PUBLIC=1` (which needs no change to `pnpm demo`), each visitor gets a **sandbox**: a
+PostgreSQL schema of their own, created when they choose a person and dropped when nobody has
+visited it for 24 hours. `rungs/sandbox.ts` holds this. To keep the first page fast, the sandbox
+is created in one round trip from `rungs/seed-snapshot.json`, the rows that replaying the seed
+story produces. After changing the story or the flow, rewrite that file with
+`pnpm --filter @rungsjs/example-nextjs-expense test -u`.
+
 ## A short tour
 
 You can sign in as any of six fictional people, with no password. Use **Switch person** to see

@@ -1,4 +1,3 @@
-import { SCHEMA } from "./db";
 import { type Demo, rungsFor, submitExpense } from "./demo";
 import type { ExpenseDetails } from "./expenses";
 
@@ -85,21 +84,28 @@ const story: Step[] = [
 /** Fills an empty demo with sample expenses. Does nothing once any expense exists. */
 export async function seedIfEmpty(demo: Demo): Promise<void> {
   const { rows } = await demo.db.query<{ n: number }>(
-    `SELECT count(*)::int AS n FROM ${SCHEMA}.expenses`,
+    `SELECT count(*)::int AS n FROM ${demo.db.schema}.expenses`,
   );
   if ((rows[0]?.n ?? 0) > 0) return;
+  await replayStory(demo, demo.clock.now().getTime());
+}
 
-  const end = demo.clock.now().getTime();
+/** Plays the story so that it ends at `end`. The same `end` always gives the same rows. */
+export async function replayStory(demo: Pick<Demo, "db" | "inactive">, end: number): Promise<void> {
   let now = end;
+  let nextId = 0;
   const clock = { now: () => new Date(now), advance: async () => undefined };
-  const rungs = rungsFor(demo.db, demo.inactive, clock.now);
+  const rungs = rungsFor(demo.db, demo.inactive, clock.now, () => {
+    nextId += 1;
+    return `r_seed${String(nextId).padStart(4, "0")}`;
+  });
   const requestIds = new Map<string, string>();
   for (const step of [...story].sort((a, b) => b.at - a.at)) {
     now = end - step.at * HOUR;
     if ("submit" in step) {
       const request = await submitExpense(
         { db: demo.db, rungs, clock },
-        { requesterId: step.by, details: step.details },
+        { requesterId: step.by, details: step.details, expenseId: `exp_${step.submit}` },
       );
       requestIds.set(step.submit, request.id);
       continue;

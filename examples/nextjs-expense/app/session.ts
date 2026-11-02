@@ -1,10 +1,59 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
+import { type Demo, getDemo, resetDemo, sharedDatabase } from "../rungs/demo";
 import { hasRole, type Person, people, person } from "../rungs/directory";
+import {
+  createSandbox,
+  isSandboxId,
+  openSandbox,
+  resetSandbox,
+  sandboxExists,
+} from "../rungs/sandbox";
 
 // Demo sign-in: a cookie holding the chosen person's id. There is no password and no real
 // authentication. Server code always takes the actor from here, never from form fields.
 const COOKIE = "demo_user";
+
+// The online demo (DEMO_PUBLIC=1) gives each visitor a sandbox. This cookie holds its random id,
+// which is also what keeps other visitors out, so it is not readable from scripts.
+const SANDBOX_COOKIE = "demo_sandbox";
+const COOKIE_MAX_AGE = 48 * 3600;
+
+export const isPublicDemo = () => process.env.DEMO_PUBLIC === "1";
+
+const cookieOptions = () =>
+  isPublicDemo()
+    ? ({
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: COOKIE_MAX_AGE,
+      } as const)
+    : ({ httpOnly: true, sameSite: "lax", path: "/" } as const);
+
+const sandboxCookie = async () => (await cookies()).get(SANDBOX_COOKIE)?.value;
+
+/** This visitor's demo: their sandbox online, or the one shared demo locally. Once per render. */
+export const currentDemo = cache(async (): Promise<Demo | null> => {
+  if (!isPublicDemo()) return getDemo();
+  const id = await sandboxCookie();
+  return isSandboxId(id) ? openSandbox(await sharedDatabase(), id) : null;
+});
+
+/** A sandbox that has been cleaned up sends its visitor back to choose a person, and start anew. */
+export async function requireDemo(): Promise<Demo> {
+  const demo = await currentDemo();
+  if (demo === null) redirect("/login");
+  return demo;
+}
+
+export async function resetCurrentDemo(): Promise<void> {
+  if (!isPublicDemo()) return resetDemo();
+  const id = await sandboxCookie();
+  if (isSandboxId(id)) await resetSandbox(await sharedDatabase(), id);
+}
 
 export async function currentUser(): Promise<Person | undefined> {
   const id = (await cookies()).get(COOKIE)?.value;
@@ -24,9 +73,19 @@ export async function requireAdmin(): Promise<Person> {
   return user;
 }
 
+/** Online, choosing a person is what creates the sandbox, so crawlers never cause one. */
+async function ensureSandbox(): Promise<void> {
+  if (!isPublicDemo()) return;
+  const client = await sharedDatabase();
+  const id = await sandboxCookie();
+  if (isSandboxId(id) && (await sandboxExists(client, id))) return;
+  (await cookies()).set(SANDBOX_COOKIE, await createSandbox(client), cookieOptions());
+}
+
 export async function signIn(userId: string): Promise<void> {
   if (person(userId) === undefined) throw new Error(`Unknown person: ${userId}`);
-  (await cookies()).set(COOKIE, userId, { httpOnly: true, sameSite: "lax", path: "/" });
+  await ensureSandbox();
+  (await cookies()).set(COOKIE, userId, cookieOptions());
 }
 
 export async function signOut(): Promise<void> {

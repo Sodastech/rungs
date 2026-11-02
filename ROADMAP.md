@@ -43,24 +43,26 @@ rethink before investing in the next phase.
 
 **Gate:** someone other than the owner can follow the docs and run the example in under 15 minutes.
 
-### 2.2b Online demo (plan)
+### 2.2b Online demo (in progress)
 
-Goal: people can try the example without cloning the repository. Nothing here is built yet.
+Goal: people can try the example without cloning the repository, at <https://rungs.sodastech.com>.
 
-- **Database.** PGlite does not fit serverless hosting such as Vercel: the file system is
-  temporary and every instance has its own copy. The online demo needs a real PostgreSQL server
-  through `DATABASE_URL`, for example a free Neon or Supabase database.
+- **Hosting.** The app runs on Vercel and the data in a Neon database in Singapore, through
+  `DATABASE_URL`. PGlite stays the default for `pnpm demo`; it does not fit serverless hosting,
+  where the file system is temporary and every instance has its own copy.
 - **A sandbox per visitor.** A shared demo does not work: one visitor moving the clock forward would
-  change everyone's data, and anyone could vandalize it. Each visitor gets a sandbox id in a cookie
-  and their own PostgreSQL schema (the `schema` option of `@rungsjs/store-postgres`), migrated and
-  seeded on the first visit, with its own demo clock. What a visitor types is visible only to them.
-- **Cleanup.** A scheduled job drops sandbox schemas older than 24 hours. Cap the number of
-  sandboxes and the request rate to keep the free database tier safe.
+  change everyone's data, and anyone could vandalize it. With `DEMO_PUBLIC=1`, each visitor gets a
+  sandbox id in a cookie and their own PostgreSQL schema (the `schema` option of
+  `@rungsjs/store-postgres`), with its own demo clock. It is created when they choose a person.
+  What a visitor types is visible only to them.
+- **Why not `tenantId`.** `tick` has no tenant scope, so one visitor's clock would act on others'
+  requests, and a tenant with open requests cannot be purged. See
+  [issue #3](https://github.com/Sodastech/rungs/issues/3), planned for 0.2.0.
+- **Cleanup.** A daily Vercel Cron job drops sandboxes nobody visited for 24 hours, so a sandbox
+  lives 24 to 48 hours after its last visit.
 - **`tick`.** No background loop is needed: `tick` runs when a visitor moves the demo clock.
-- **Alternative without hosting.** An "Open in StackBlitz" link runs the example, including PGlite,
-  in the visitor's browser. This becomes realistic once the packages are on npm.
-- **Decisions before building:** the hosting and database accounts, secrets stored in the host's
-  settings only, the domain, and limits per visitor.
+- **Before Pro is sold:** Vercel's free Hobby plan is for non-commercial use only. Move the demo to
+  a paid plan or to other hosting before the Pro packages go on sale.
 
 ## Phase 3 — Public launch of the free version (≈ 2 weeks)
 

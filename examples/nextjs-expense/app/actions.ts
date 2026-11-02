@@ -5,12 +5,20 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { advanceTime, getDemo, resetDemo, resubmitExpense, submitExpense } from "../rungs/demo";
+import { advanceTime, resubmitExpense, submitExpense } from "../rungs/demo";
 import { person, setActive } from "../rungs/directory";
 import { describeError } from "../rungs/errors";
 import type { ExpenseDetails } from "../rungs/expenses";
 import { categories } from "../rungs/flow";
-import { homeFor, requireAdmin, requireUser, signIn, signOut } from "./session";
+import {
+  homeFor,
+  requireAdmin,
+  requireDemo,
+  requireUser,
+  resetCurrentDemo,
+  signIn,
+  signOut,
+} from "./session";
 
 export type ActionState = { error?: string; success?: string } | undefined;
 
@@ -64,7 +72,7 @@ export async function submitAction(_: ActionState, form: FormData): Promise<Acti
   const user = await requireUser();
   const details = readExpense(form);
   if (typeof details === "string") return { error: details };
-  const demo = await getDemo();
+  const demo = await requireDemo();
   let requestId: string | undefined;
   const result = await attempt(async () => {
     const request = await submitExpense(demo, {
@@ -85,7 +93,7 @@ export async function withdrawAction(
   form: FormData,
 ): Promise<ActionState> {
   const user = await requireUser();
-  const { rungs } = await getDemo();
+  const { rungs } = await requireDemo();
   return attempt(
     () =>
       rungs.withdraw({ requestId, actorId: user.id, expectedVersion: version, ...comment(form) }),
@@ -102,7 +110,7 @@ export async function resubmitAction(
   const user = await requireUser();
   const details = readExpense(form);
   if (typeof details === "string") return { error: details };
-  const demo = await getDemo();
+  const demo = await requireDemo();
   return attempt(
     () => resubmitExpense(demo, { requestId, actorId: user.id, details, expectedVersion: version }),
     "Resubmitted. The approval starts again from the first step.",
@@ -119,7 +127,7 @@ export async function decideAction(
   form: FormData,
 ): Promise<ActionState> {
   const user = await requireUser();
-  const { rungs } = await getDemo();
+  const { rungs } = await requireDemo();
   const input = { requestId, actorId: user.id, expectedVersion: version, ...comment(form) };
   switch (text(form, "decision")) {
     case "approve":
@@ -147,7 +155,7 @@ export async function delegateAction(
   const user = await requireUser();
   const toUserId = text(form, "toUserId");
   if (person(toUserId) === undefined) return { error: "Choose who should decide instead." };
-  const { rungs } = await getDemo();
+  const { rungs } = await requireDemo();
   return attempt(
     () =>
       rungs.delegate({
@@ -175,7 +183,7 @@ export async function setAwayAction(_: ActionState, form: FormData): Promise<Act
   }
   const endsAt = new Date(`${until}T00:00:00.000Z`);
   endsAt.setUTCDate(endsAt.getUTCDate() + 1); // the rule covers the whole last day
-  const { rungs } = await getDemo();
+  const { rungs } = await requireDemo();
   return attempt(
     () =>
       rungs.delegations.set({
@@ -190,7 +198,7 @@ export async function setAwayAction(_: ActionState, form: FormData): Promise<Act
 
 export async function endAwayAction(ruleId: string): Promise<void> {
   const user = await requireUser();
-  const { rungs } = await getDemo();
+  const { rungs } = await requireDemo();
   const rules = await rungs.delegations.list({ userId: user.id });
   if (!rules.some((r) => r.id === ruleId && r.fromUserId === user.id)) return;
   await rungs.delegations.end({ id: ruleId });
@@ -201,7 +209,7 @@ export async function endAwayAction(ruleId: string): Promise<void> {
 
 export async function setActiveAction(userId: string, active: boolean): Promise<void> {
   await requireAdmin();
-  const demo = await getDemo();
+  const demo = await requireDemo();
   await setActive(demo.db, demo.inactive, userId, active);
   revalidatePath("/", "layout");
 }
@@ -218,7 +226,7 @@ export async function reassignStepAction(
   if (toUserIds.length === 0) return { error: "Choose at least one person." };
   const reason = text(form, "comment");
   if (reason === "") return { error: "Say why, for the audit trail." };
-  const { rungs } = await getDemo();
+  const { rungs } = await requireDemo();
   return attempt(
     () =>
       rungs.reassign({
@@ -239,7 +247,7 @@ export async function retryStepAction(
   version: number,
 ): Promise<ActionState> {
   const admin = await requireAdmin();
-  const { rungs } = await getDemo();
+  const { rungs } = await requireDemo();
   let still = false;
   const result = await attempt(async () => {
     const state = await rungs.retry({
@@ -267,7 +275,7 @@ export async function overrideAction(
   const reason = text(form, "comment");
   if (decision !== "approve" && decision !== "reject") return { error: "Choose a decision." };
   if (reason === "") return { error: "An override needs a reason, for the audit trail." };
-  const { rungs } = await getDemo();
+  const { rungs } = await requireDemo();
   return attempt(
     () =>
       rungs.override({
@@ -289,7 +297,7 @@ export async function advanceAction(_: ActionState, form: FormData): Promise<Act
   await requireUser();
   const hours = Number(form.get("hours"));
   if (![1, 24, 72].includes(hours)) return { error: "Unknown step." };
-  const demo = await getDemo();
+  const demo = await requireDemo();
   const summary = await advanceTime(demo, hours * HOUR);
   revalidatePath("/", "layout");
   const moved = hours === 1 ? "1 hour" : `${hours / 24} day${hours === 24 ? "" : "s"}`;
@@ -304,7 +312,7 @@ export async function advanceAction(_: ActionState, form: FormData): Promise<Act
 
 export async function resetAction(): Promise<void> {
   await requireUser();
-  await resetDemo();
+  await resetCurrentDemo();
   revalidatePath("/", "layout");
   redirect("/");
 }

@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { ActionForm, SubmitButton } from "../../components/ActionForm";
 import { Badge } from "../../components/ui";
-import { getDemo } from "../../rungs/demo";
 import { nameOf, people } from "../../rungs/directory";
 import { endAwayAction, setAwayAction } from "../actions";
 import { formatDate } from "../format";
-import { requireUser } from "../session";
+import { requireDemo, requireUser } from "../session";
 
 export const metadata: Metadata = { title: "Out of office" };
 
@@ -13,7 +12,7 @@ const day = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function AwayPage() {
   const user = await requireUser();
-  const { rungs, clock } = await getDemo();
+  const { rungs, clock } = await requireDemo();
   const now = clock.now();
   const rules = await rungs.delegations.list({ userId: user.id });
   const mine = rules.filter((r) => r.fromUserId === user.id);

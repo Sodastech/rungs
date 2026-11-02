@@ -4,3 +4,6 @@ packages:
   - "site"
 allowBuilds:
   esbuild: true
+overrides:
+  # Through @vercel/functions; versions below 4.6.6 have GHSA-mrhx-c7xc-m3w5.
+  zod@<4.6.6: ">=4.6.6 <5"

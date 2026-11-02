@@ -1,18 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Avatar, Badge } from "../../components/ui";
-import { getDemo } from "../../rungs/demo";
 import { nameOf } from "../../rungs/directory";
 import { expensesByIds } from "../../rungs/expenses";
 import { stepName } from "../../rungs/flow";
 import { formatMoney, relative } from "../format";
-import { requireUser } from "../session";
+import { requireDemo, requireUser } from "../session";
 
 export const metadata: Metadata = { title: "Inbox" };
 
 export default async function InboxPage() {
   const user = await requireUser();
-  const { db, rungs, clock } = await getDemo();
+  const { db, rungs, clock } = await requireDemo();
   const now = clock.now();
   // Tasks the user can decide: their own, ones they hold for someone on leave, and their own
   // tasks a delegate holds while they were away (EC-60).

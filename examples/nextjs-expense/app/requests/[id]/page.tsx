@@ -6,7 +6,6 @@ import { ActionForm, SubmitButton } from "../../../components/ActionForm";
 import { Ladder } from "../../../components/Ladder";
 import { Timeline } from "../../../components/Timeline";
 import { Avatar, StatusBadge } from "../../../components/ui";
-import { getDemo } from "../../../rungs/demo";
 import { hasRole, nameOf, people } from "../../../rungs/directory";
 import { expenseById } from "../../../rungs/expenses";
 import { categories, expenseFlow } from "../../../rungs/flow";
@@ -18,14 +17,14 @@ import {
   withdrawAction,
 } from "../../actions";
 import { formatDateTime, formatMoney } from "../../format";
-import { requireUser } from "../../session";
+import { requireDemo, requireUser } from "../../session";
 
 export const metadata: Metadata = { title: "Expense" };
 
 export default async function RequestPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireUser();
-  const { db, rungs, clock } = await getDemo();
+  const { db, rungs, clock } = await requireDemo();
   const request = await rungs.get(id);
   if (request === null) notFound();
   const history = await rungs.history(id);

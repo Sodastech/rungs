@@ -1,6 +1,5 @@
 import type { ResolutionHooks } from "@rungsjs/core";
-import type { PgClient } from "@rungsjs/store-postgres";
-import { SCHEMA } from "./db";
+import type { AppDb } from "./db";
 
 export type Role = "finance" | "director" | "admin";
 
@@ -41,25 +40,25 @@ export function hasRole(id: string, role: Role): boolean {
  * approvers, inside the command's transaction, so the answer must be fast: it comes from memory,
  * and the table only makes it survive a restart.
  */
-export async function loadInactiveUsers(db: PgClient): Promise<Set<string>> {
+export async function loadInactiveUsers(db: AppDb): Promise<Set<string>> {
   const { rows } = await db.query<{ user_id: string }>(
-    `SELECT user_id FROM ${SCHEMA}.inactive_users`,
+    `SELECT user_id FROM ${db.schema}.inactive_users`,
   );
   return new Set(rows.map((r) => r.user_id));
 }
 
 export async function setActive(
-  db: PgClient,
+  db: AppDb,
   inactive: Set<string>,
   userId: string,
   active: boolean,
 ): Promise<void> {
   if (active) {
-    await db.query(`DELETE FROM ${SCHEMA}.inactive_users WHERE user_id = $1`, [userId]);
+    await db.query(`DELETE FROM ${db.schema}.inactive_users WHERE user_id = $1`, [userId]);
     inactive.delete(userId);
   } else {
     await db.query(
-      `INSERT INTO ${SCHEMA}.inactive_users (user_id) VALUES ($1) ON CONFLICT DO NOTHING`,
+      `INSERT INTO ${db.schema}.inactive_users (user_id) VALUES ($1) ON CONFLICT DO NOTHING`,
       [userId],
     );
     inactive.add(userId);

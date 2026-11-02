@@ -1,5 +1,4 @@
-import type { PgClient } from "@rungsjs/store-postgres";
-import { SCHEMA } from "./db";
+import type { AppDb } from "./db";
 
 /**
  * The app's own record of an expense: its business data. Rungs keeps the approval (status, tasks,
@@ -37,27 +36,23 @@ const toExpense = (r: Row): Expense => ({
 });
 
 /** Inserts the record; inserting the same id again (a repeated submit) does nothing. */
-export async function insertExpense(db: PgClient, e: Expense): Promise<void> {
+export async function insertExpense(db: AppDb, e: Expense): Promise<void> {
   await db.query(
-    `INSERT INTO ${SCHEMA}.expenses (id, requester_id, title, category, amount, created_at)
+    `INSERT INTO ${db.schema}.expenses (id, requester_id, title, category, amount, created_at)
      VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING`,
     [e.id, e.requesterId, e.title, e.category, e.amount, e.createdAt],
   );
 }
 
-export async function updateExpense(
-  db: PgClient,
-  id: string,
-  details: ExpenseDetails,
-): Promise<void> {
+export async function updateExpense(db: AppDb, id: string, details: ExpenseDetails): Promise<void> {
   await db.query(
-    `UPDATE ${SCHEMA}.expenses SET title = $2, category = $3, amount = $4 WHERE id = $1`,
+    `UPDATE ${db.schema}.expenses SET title = $2, category = $3, amount = $4 WHERE id = $1`,
     [id, details.title, details.category, details.amount],
   );
 }
 
-export async function deleteExpense(db: PgClient, id: string): Promise<void> {
-  await db.query(`DELETE FROM ${SCHEMA}.expenses WHERE id = $1`, [id]);
+export async function deleteExpense(db: AppDb, id: string): Promise<void> {
+  await db.query(`DELETE FROM ${db.schema}.expenses WHERE id = $1`, [id]);
 }
 
 /**
@@ -65,16 +60,16 @@ export async function deleteExpense(db: PgClient, id: string): Promise<void> {
  * request, task or blocked step, and join by id when rendering.
  */
 export async function expensesByIds(
-  db: PgClient,
+  db: AppDb,
   ids: readonly string[],
 ): Promise<Map<string, Expense>> {
   if (ids.length === 0) return new Map();
-  const { rows } = await db.query<Row>(`SELECT * FROM ${SCHEMA}.expenses WHERE id = ANY($1)`, [
+  const { rows } = await db.query<Row>(`SELECT * FROM ${db.schema}.expenses WHERE id = ANY($1)`, [
     [...new Set(ids)],
   ]);
   return new Map(rows.map((r) => [r.id, toExpense(r)]));
 }
 
-export async function expenseById(db: PgClient, id: string): Promise<Expense | null> {
+export async function expenseById(db: AppDb, id: string): Promise<Expense | null> {
   return (await expensesByIds(db, [id])).get(id) ?? null;
 }

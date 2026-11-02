@@ -16,7 +16,8 @@
     "@electric-sql/pglite": "0.5.8",
     "@rungsjs/core": "workspace:*",
     "@rungsjs/store-postgres": "workspace:*",
-    "next": "16.4.0",
+    "@vercel/functions": "3.10.5",
+    "next": "16.4.3",
     "pg": "8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0"

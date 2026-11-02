@@ -3,13 +3,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ActionForm, SubmitButton } from "../../../components/ActionForm";
 import { Avatar, Badge } from "../../../components/ui";
-import { getDemo, newId } from "../../../rungs/demo";
+import { newId } from "../../../rungs/demo";
 import { nameOf } from "../../../rungs/directory";
 import { describeError } from "../../../rungs/errors";
 import { categories, expenseFlow } from "../../../rungs/flow";
 import { submitAction } from "../../actions";
 import { formatMoney } from "../../format";
-import { requireUser } from "../../session";
+import { requireDemo, requireUser } from "../../session";
 
 export const metadata: Metadata = { title: "New expense" };
 
@@ -28,7 +28,7 @@ export default async function NewExpensePage({ searchParams }: { searchParams: S
   let previewError: string | null = null;
   if (reviewing) {
     // Who would approve if this were submitted now. Nothing is stored.
-    const { rungs } = await getDemo();
+    const { rungs } = await requireDemo();
     try {
       preview = await rungs.preview({
         flow: expenseFlow.key,

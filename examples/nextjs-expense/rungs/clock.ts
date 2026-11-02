@@ -1,5 +1,4 @@
-import type { PgClient } from "@rungsjs/store-postgres";
-import { SCHEMA } from "./db";
+import type { AppDb } from "./db";
 
 /**
  * The demo's clock: real time plus an offset that "advance time" increases. Rungs never reads a
@@ -11,9 +10,9 @@ export interface DemoClock {
   advance(ms: number): Promise<void>;
 }
 
-export async function demoClock(db: PgClient): Promise<DemoClock> {
+export async function demoClock(db: AppDb): Promise<DemoClock> {
   const { rows } = await db.query<{ value: string }>(
-    `SELECT value FROM ${SCHEMA}.settings WHERE key = 'clock_offset_ms'`,
+    `SELECT value FROM ${db.schema}.settings WHERE key = 'clock_offset_ms'`,
   );
   let offset = Number(rows[0]?.value ?? 0);
   return {
@@ -22,7 +21,7 @@ export async function demoClock(db: PgClient): Promise<DemoClock> {
       if (!(ms > 0)) throw new Error("Time only moves forward");
       offset += ms;
       await db.query(
-        `INSERT INTO ${SCHEMA}.settings (key, value) VALUES ('clock_offset_ms', $1)
+        `INSERT INTO ${db.schema}.settings (key, value) VALUES ('clock_offset_ms', $1)
          ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
         [String(offset)],
       );

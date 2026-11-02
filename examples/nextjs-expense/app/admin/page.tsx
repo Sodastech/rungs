@@ -2,19 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ActionForm, SubmitButton } from "../../components/ActionForm";
 import { Avatar, Badge, StatusBadge } from "../../components/ui";
-import { getDemo } from "../../rungs/demo";
 import { nameOf, people } from "../../rungs/directory";
 import { expensesByIds } from "../../rungs/expenses";
 import { stepName } from "../../rungs/flow";
 import { reassignStepAction, retryStepAction, setActiveAction } from "../actions";
 import { formatMoney, relative } from "../format";
-import { requireAdmin } from "../session";
+import { requireAdmin, requireDemo } from "../session";
 
 export const metadata: Metadata = { title: "Admin" };
 
 export default async function AdminPage() {
   await requireAdmin();
-  const { db, rungs, clock, inactive } = await getDemo();
+  const { db, rungs, clock, inactive } = await requireDemo();
   const now = clock.now();
   // Two Rungs queries, then one query for the expenses behind them (joined by subject id).
   const { steps: blocked } = await rungs.blocked({ limit: 50 });

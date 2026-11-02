@@ -2,14 +2,14 @@ import { randomUUID } from "node:crypto";
 import { createRungs, type RequestState, type Rungs, type TickSummary } from "@rungsjs/core";
 import { type PgClient, postgresStore } from "@rungsjs/store-postgres";
 import { type DemoClock, demoClock } from "./clock";
-import { dropSchema, openDatabase, prepareSchema, SCHEMA } from "./db";
+import { type AppDb, dropSchema, inSchema, openDatabase, prepareSchema, SCHEMA } from "./db";
 import { loadInactiveUsers, resolutionHooks } from "./directory";
 import { deleteExpense, type ExpenseDetails, insertExpense, updateExpense } from "./expenses";
 import { type ExpensePayload, expenseFlow } from "./flow";
 import { notify } from "./notifications";
 
 export interface Demo {
-  readonly db: PgClient;
+  readonly db: AppDb;
   readonly rungs: Rungs;
   readonly clock: DemoClock;
   /** Users marked inactive on the admin page; read by `isActiveUser`. */
@@ -20,12 +20,17 @@ export interface Demo {
 export const newId = (prefix: string) => `${prefix}_${randomUUID().slice(0, 8)}`;
 
 // #region create-rungs
-/** One Rungs instance for the app. `clock` is injectable so the seed can replay the past. */
-export function rungsFor(db: PgClient, inactive: Set<string>, clock: () => Date): Rungs {
+/** One Rungs instance per schema. `clock` and `ids` are injectable so the seed can replay the past. */
+export function rungsFor(
+  db: AppDb,
+  inactive: Set<string>,
+  clock: () => Date,
+  ids: () => string = () => newId("r"),
+): Rungs {
   const rungs: Rungs = createRungs({
-    store: postgresStore(db, { schema: SCHEMA }),
+    store: postgresStore(db, { schema: db.schema }),
     clock,
-    ids: () => newId("r"),
+    ids,
     ...resolutionHooks(inactive),
     // After every command commits: tell the people involved.
     onEvent: async (event) => {
@@ -37,13 +42,19 @@ export function rungsFor(db: PgClient, inactive: Set<string>, clock: () => Date)
 }
 // #endregion create-rungs
 
-export async function createDemo(db: PgClient): Promise<Demo> {
-  await prepareSchema(db);
+/** A demo on a schema that is ready: its tables exist and its flow is registered. */
+export async function openDemo(db: AppDb): Promise<Demo> {
   const clock = await demoClock(db);
   const inactive = await loadInactiveUsers(db);
-  const rungs = rungsFor(db, inactive, clock.now);
-  await rungs.flows.register(expenseFlow); // a no-op when this version is already registered
-  return { db, rungs, clock, inactive };
+  return { db, rungs: rungsFor(db, inactive, clock.now), clock, inactive };
+}
+
+export async function createDemo(client: PgClient, schema = SCHEMA): Promise<Demo> {
+  const db = inSchema(client, schema);
+  await prepareSchema(db);
+  const demo = await openDemo(db);
+  await demo.rungs.flows.register(expenseFlow); // a no-op when this version is already registered
+  return demo;
 }
 
 /** The payload of an expense's request: only what the flow's conditions read. */
@@ -118,11 +129,18 @@ const state = globalThis as unknown as {
   demo?: Promise<Demo>;
 };
 
+/** The server process's one database connection (or pool). */
+export function sharedDatabase(): Promise<PgClient> {
+  state.rungsDemoDb ??= openDatabase().catch((error: unknown) => {
+    state.rungsDemoDb = undefined;
+    throw error;
+  });
+  return state.rungsDemoDb;
+}
+
 export function getDemo(): Promise<Demo> {
   state.demo ??= (async () => {
-    state.rungsDemoDb ??= openDatabase();
-    const db = await state.rungsDemoDb;
-    const demo = await createDemo(db);
+    const demo = await createDemo(await sharedDatabase());
     const { seedIfEmpty } = await import("./seed");
     await seedIfEmpty(demo);
     return demo;

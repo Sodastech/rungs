@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { StatusBadge } from "../../components/ui";
-import { getDemo } from "../../rungs/demo";
 import { expensesByIds } from "../../rungs/expenses";
 import { formatMoney, relative } from "../format";
-import { requireUser } from "../session";
+import { requireDemo, requireUser } from "../session";
 
 export const metadata: Metadata = { title: "My expenses" };
 
@@ -13,7 +12,7 @@ type Search = Promise<{ after?: string }>;
 export default async function ExpensesPage({ searchParams }: { searchParams: Search }) {
   const user = await requireUser();
   const { after } = await searchParams;
-  const { db, rungs, clock } = await getDemo();
+  const { db, rungs, clock } = await requireDemo();
   // #region list
   // The approval status comes from Rungs, newest first; the details from the app's own table.
   const page = await rungs.requests({

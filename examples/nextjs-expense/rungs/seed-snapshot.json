@@ -1,0 +1,3874 @@
+{
+ "end": "2026-01-15T00:00:00.000Z",
+ "tables": {
+  "rungs_flows": [
+   {
+    "key": "expense",
+    "flow": {
+     "key": "expense",
+     "steps": [
+      {
+       "id": "manager",
+       "mode": "any",
+       "name": "Manager",
+       "deadline": "P2D",
+       "approvers": {
+        "name": "reportsTo",
+        "type": "resolver"
+       },
+       "onTimeout": "escalate",
+       "escalateTo": {
+        "role": "director",
+        "type": "role"
+       },
+       "remindBefore": "P1D"
+      },
+      {
+       "id": "finance",
+       "mode": "any",
+       "name": "Finance",
+       "when": {
+        "op": "gt",
+        "field": "amount",
+        "value": 500
+       },
+       "deadline": "P3D",
+       "approvers": {
+        "role": "finance",
+        "type": "role"
+       },
+       "onTimeout": "remind"
+      },
+      {
+       "id": "director",
+       "mode": "any",
+       "name": "Director",
+       "when": {
+        "op": "gt",
+        "field": "amount",
+        "value": 5000
+       },
+       "approvers": {
+        "role": "director",
+        "type": "role"
+       }
+      }
+     ],
+     "version": 1,
+     "onEmptyStep": "fail",
+     "onAllSkipped": "approve",
+     "returnPolicy": "restart",
+     "dedupeApprovers": "consecutive",
+     "allowSelfApproval": false,
+     "maxDelegationDepth": 3,
+     "maxEscalationDepth": 3,
+     "remindBlockedEvery": "P1D",
+     "remindOverdueEvery": "P1D"
+    },
+    "tenant": "",
+    "version": 1
+   }
+  ],
+  "rungs_requests": [
+   {
+    "id": "r_seed0001",
+    "state": {
+     "id": "r_seed0001",
+     "steps": [
+      {
+       "index": 0,
+       "tasks": [
+        {
+         "id": "r_seed0001.t1",
+         "status": "approved",
+         "decidedAt": "2026-01-08T08:00:00.000Z",
+         "assignedAt": "2026-01-07T22:00:00.000Z",
+         "assigneeId": "diego"
+        }
+       ],
+       "status": "approved",
+       "stepId": "manager",
+       "closedAt": "2026-01-08T08:00:00.000Z",
+       "deadline": {
+        "remindAt": "2026-01-08T22:00:00.000Z",
+        "reminders": 0,
+        "deadlineAt": "2026-01-09T22:00:00.000Z",
+        "escalationDepth": 0
+       },
+       "approvers": [
+        "diego"
+       ],
+       "activatedAt": "2026-01-07T22:00:00.000Z"
+      },
+      {
+       "index": 1,
+       "tasks": [
+        {
+         "id": "r_seed0001.t2",
+         "status": "superseded",
+         "decidedAt": "2026-01-08T18:00:00.000Z",
+         "assignedAt": "2026-01-08T08:00:00.000Z",
+         "assigneeId": "fatima"
+        },
+        {
+         "id": "r_seed0001.t3",
+         "status": "rejected",
+         "comment": "Already ordered through IT last week.",
+         "decidedAt": "2026-01-08T18:00:00.000Z",
+         "assignedAt": "2026-01-08T08:00:00.000Z",
+         "assigneeId": "kenji"
+        }
+       ],
+       "status": "rejected",
+       "stepId": "finance",
+       "closedAt": "2026-01-08T18:00:00.000Z",
+       "deadline": {
+        "reminders": 0,
+        "deadlineAt": "2026-01-11T08:00:00.000Z",
+        "escalationDepth": 0
+       },
+       "approvers": [
+        "fatima",
+        "kenji"
+       ],
+       "activatedAt": "2026-01-08T08:00:00.000Z"
+      }
+     ],
+     "status": "rejected",
+     "flowKey": "expense",
+     "payload": {
+      "amount": 640
+     },
+     "subject": {
+      "id": "exp_monitor",
+      "type": "expense"
+     },
+     "version": 3,
+     "closedAt": "2026-01-08T18:00:00.000Z",
+     "nextDueAt": null,
+     "flowVersion": 1,
+     "requesterId": "marco",
+     "submittedAt": "2026-01-07T22:00:00.000Z",
+     "lastAuditSeq": 12,
+     "lastTaskNumber": 3,
+     "currentStepIndex": null
+    },
+    "status": "rejected",
+    "tenant": "",
+    "version": 3,
+    "flow_key": "expense",
+    "closed_at": "2026-01-08T18:00:00.000Z",
+    "blocked_at": null,
+    "subject_id": "exp_monitor",
+    "next_due_at": null,
+    "requester_id": "marco",
+    "subject_type": "expense",
+    "submitted_at": "2026-01-07T22:00:00.000Z",
+    "claimed_until": null
+   },
+   {
+    "id": "r_seed0002",
+    "state": {
+     "id": "r_seed0002",
+     "steps": [
+      {
+       "index": 0,
+       "tasks": [
+        {
+         "id": "r_seed0002.t1",
+         "status": "approved",
+         "comment": "Thanks for the receipt.",
+         "decidedAt": "2026-01-10T20:00:00.000Z",
+         "assignedAt": "2026-01-10T00:00:00.000Z",
+         "assigneeId": "marco"
+        }
+       ],
+       "status": "approved",
+       "stepId": "manager",
+       "closedAt": "2026-01-10T20:00:00.000Z",
+       "deadline": {
+        "remindAt": "2026-01-11T00:00:00.000Z",
+        "reminders": 0,
+        "deadlineAt": "2026-01-12T00:00:00.000Z",
+        "escalationDepth": 0
+       },
+       "approvers": [
+        "marco"
+       ],
+       "activatedAt": "2026-01-10T00:00:00.000Z"
+      },
+      {
+       "index": 1,
+       "tasks": [],
+       "status": "skipped",
+       "stepId": "finance",
+       "approvers": [],
+       "skippedAt": "2026-01-10T20:00:00.000Z",
+       "skipReason": {
+        "type": "condition-false",
+        "condition": {
+         "op": "gt",
+         "field": "amount",
+         "value": 500
+        }
+       }
+      },
+      {
+       "index": 2,
+       "tasks": [],
+       "status": "skipped",
+       "stepId": "director",
+       "approvers": [],
+       "skippedAt": "2026-01-10T20:00:00.000Z",
+       "skipReason": {
+        "type": "condition-false",
+        "condition": {
+         "op": "gt",
+         "field": "amount",
+         "value": 5000
+        }
+       }
+      }
+     ],
+     "status": "approved",
+     "flowKey": "expense",
+     "payload": {
+      "amount": 45
+     },
+     "subject": {
+      "id": "exp_taxi",
+      "type": "expense"
+     },
+     "version": 2,
+     "closedAt": "2026-01-10T20:00:00.000Z",
+     "nextDueAt": null,
+     "flowVersion": 1,
+     "requesterId": "alice",
+     "submittedAt": "2026-01-10T00:00:00.000Z",
+     "lastAuditSeq": 8,
+     "lastTaskNumber": 1,
+     "currentStepIndex": null
+    },
+    "status": "approved",
+    "tenant": "",
+    "version": 2,
+    "flow_key": "expense",
+    "closed_at": "2026-01-10T20:00:00.000Z",
+    "blocked_at": null,
+    "subject_id": "exp_taxi",
+    "next_due_at": null,
+    "requester_id": "alice",
+    "subject_type": "expense",
+    "submitted_at": "2026-01-10T00:00:00.000Z",
+    "claimed_until": null
+   },
+   {
+    "id": "r_seed0003",
+    "state": {
+     "id": "r_seed0003",
+     "steps": [
+      {
+       "index": 0,
+       "tasks": [
+        {
+         "id": "r_seed0003.t1",
+         "status": "returned",
+         "comment": "Please attach the invoice.",
+         "decidedAt": "2026-01-11T22:00:00.000Z",
+         "assignedAt": "2026-01-11T00:00:00.000Z",
+         "assigneeId": "marco"
+        }
+       ],
+       "status": "returned",
+       "stepId": "manager",
+       "closedAt": "2026-01-11T22:00:00.000Z",
+       "deadline": {
+        "remindAt": "2026-01-12T00:00:00.000Z",
+        "reminders": 0,
+        "deadlineAt": "2026-01-13T00:00:00.000Z",
+        "escalationDepth": 0
+       },
+       "approvers": [
+        "marco"
+       ],
+       "activatedAt": "2026-01-11T00:00:00.000Z"
+      }
+     ],
+     "status": "returned",
+     "flowKey": "expense",
+     "payload": {
+      "amount": 300
+     },
+     "subject": {
+      "id": "exp_course",
+      "type": "expense"
+     },
+     "version": 2,
+     "nextDueAt": null,
+     "flowVersion": 1,
+     "requesterId": "alice",
+     "submittedAt": "2026-01-11T00:00:00.000Z",
+     "lastAuditSeq": 6,
+     "lastTaskNumber": 1,
+     "currentStepIndex": null
+    },
+    "status": "returned",
+    "tenant": "",
+    "version": 2,
+    "flow_key": "expense",
+    "closed_at": null,
+    "blocked_at": null,
+    "subject_id": "exp_course",
+    "next_due_at": null,
+    "requester_id": "alice",
+    "subject_type": "expense",
+    "submitted_at": "2026-01-11T00:00:00.000Z",
+    "claimed_until": null
+   },
+   {
+    "id": "r_seed0004",
+    "state": {
+     "id": "r_seed0004",
+     "steps": [
+      {
+       "index": 0,
+       "tasks": [
+        {
+         "id": "r_seed0004.t1",
+         "status": "approved",
+         "decidedAt": "2026-01-12T04:00:00.000Z",
+         "assignedAt": "2026-01-12T00:00:00.000Z",
+         "assigneeId": "marco"
+        }
+       ],
+       "status": "approved",
+       "stepId": "manager",
+       "closedAt": "2026-01-12T04:00:00.000Z",
+       "deadline": {
+        "remindAt": "2026-01-13T00:00:00.000Z",
+        "reminders": 0,
+        "deadlineAt": "2026-01-14T00:00:00.000Z",
+        "escalationDepth": 0
+       },
+       "approvers": [
+        "marco"
+       ],
+       "activatedAt": "2026-01-12T00:00:00.000Z"
+      },
+      {
+       "index": 1,
+       "tasks": [
+        {
+         "id": "r_seed0004.t2",
+         "status": "pending",
+         "assignedAt": "2026-01-12T04:00:00.000Z",
+         "assigneeId": "fatima"
+        },
+        {
+         "id": "r_seed0004.t3",
+         "status": "pending",
+         "assignedAt": "2026-01-12T04:00:00.000Z",
+         "assigneeId": "kenji"
+        }
+       ],
+       "status": "active",
+       "stepId": "finance",
+       "deadline": {
+        "reminders": 0,
+        "deadlineAt": "2026-01-15T04:00:00.000Z",
+        "escalationDepth": 0
+       },
+       "approvers": [
+        "fatima",
+        "kenji"
+       ],
+       "activatedAt": "2026-01-12T04:00:00.000Z"
+      }
+     ],
+     "status": "pending",
+     "flowKey": "expense",
+     "payload": {
+      "amount": 1450
+     },
+     "subject": {
+      "id": "exp_flight",
+      "type": "expense"
+     },
+     "version": 2,
+     "nextDueAt": "2026-01-15T04:00:00.000Z",
+     "flowVersion": 1,
+     "requesterId": "alice",
+     "submittedAt": "2026-01-12T00:00:00.000Z",
+     "lastAuditSeq": 8,
+     "lastTaskNumber": 3,
+     "currentStepIndex": 1
+    },
+    "status": "pending",
+    "tenant": "",
+    "version": 2,
+    "flow_key": "expense",
+    "closed_at": null,
+    "blocked_at": null,
+    "subject_id": "exp_flight",
+    "next_due_at": "2026-01-15T04:00:00.000Z",
+    "requester_id": "alice",
+    "subject_type": "expense",
+    "submitted_at": "2026-01-12T00:00:00.000Z",
+    "claimed_until": null
+   },
+   {
+    "id": "r_seed0005",
+    "state": {
+     "id": "r_seed0005",
+     "steps": [
+      {
+       "index": 0,
+       "tasks": [
+        {
+         "id": "r_seed0005.t1",
+         "status": "approved",
+         "comment": "Recommended by the office ergonomics check.",
+         "decidedAt": "2026-01-13T18:00:00.000Z",
+         "assignedAt": "2026-01-13T00:00:00.000Z",
+         "assigneeId": "marco"
+        }
+       ],
+       "status": "approved",
+       "stepId": "manager",
+       "closedAt": "2026-01-13T18:00:00.000Z",
+       "deadline": {
+        "remindAt": "2026-01-14T00:00:00.000Z",
+        "reminders": 0,
+        "deadlineAt": "2026-01-15T00:00:00.000Z",
+        "escalationDepth": 0
+       },
+       "approvers": [
+        "marco"
+       ],
+       "activatedAt": "2026-01-13T00:00:00.000Z"
+      },
+      {
+       "index": 1,
+       "tasks": [
+        {
+         "id": "r_seed0005.t2",
+         "status": "approved",
+         "decidedAt": "2026-01-14T04:00:00.000Z",
+         "assignedAt": "2026-01-13T18:00:00.000Z",
+         "assigneeId": "fatima"
+        },
+        {
+         "id": "r_seed0005.t3",
+         "status": "superseded",
+         "decidedAt": "2026-01-14T04:00:00.000Z",
+         "assignedAt": "2026-01-13T18:00:00.000Z",
+         "assigneeId": "kenji"
+        }
+       ],
+       "status": "approved",
+       "stepId": "finance",
+       "closedAt": "2026-01-14T04:00:00.000Z",
+       "deadline": {
+        "reminders": 0,
+        "deadlineAt": "2026-01-16T18:00:00.000Z",
+        "escalationDepth": 0
+       },
+       "approvers": [
+        "fatima",
+        "kenji"
+       ],
+       "activatedAt": "2026-01-13T18:00:00.000Z"
+      },
+      {
+       "index": 2,
+       "tasks": [
+        {
+         "id": "r_seed0005.t4",
+         "status": "pending",
+         "assignedAt": "2026-01-14T04:00:00.000Z",
+         "assigneeId": "diego"
+        }
+       ],
+       "status": "active",
+       "stepId": "director",
+       "approvers": [
+        "diego"
+       ],
+       "activatedAt": "2026-01-14T04:00:00.000Z"
+      }
+     ],
+     "status": "pending",
+     "flowKey": "expense",
+     "payload": {
+      "amount": 6200
+     },
+     "subject": {
+      "id": "exp_desk",
+      "type": "expense"
+     },
+     "version": 3,
+     "nextDueAt": null,
+     "flowVersion": 1,
+     "requesterId": "alice",
+     "submittedAt": "2026-01-13T00:00:00.000Z",
+     "lastAuditSeq": 13,
+     "lastTaskNumber": 4,
+     "currentStepIndex": 2
+    },
+    "status": "pending",
+    "tenant": "",
+    "version": 3,
+    "flow_key": "expense",
+    "closed_at": null,
+    "blocked_at": null,
+    "subject_id": "exp_desk",
+    "next_due_at": null,
+    "requester_id": "alice",
+    "subject_type": "expense",
+    "submitted_at": "2026-01-13T00:00:00.000Z",
+    "claimed_until": null
+   },
+   {
+    "id": "r_seed0006",
+    "state": {
+     "id": "r_seed0006",
+     "steps": [
+      {
+       "index": 0,
+       "tasks": [
+        {
+         "id": "r_seed0006.t1",
+         "status": "pending",
+         "assignedAt": "2026-01-14T02:00:00.000Z",
+         "assigneeId": "marco"
+        }
+       ],
+       "status": "active",
+       "stepId": "manager",
+       "deadline": {
+        "remindAt": "2026-01-15T02:00:00.000Z",
+        "reminders": 0,
+        "deadlineAt": "2026-01-16T02:00:00.000Z",
+        "escalationDepth": 0
+       },
+       "approvers": [
+        "marco"
+       ],
+       "activatedAt": "2026-01-14T02:00:00.000Z"
+      }
+     ],
+     "status": "pending",
+     "flowKey": "expense",
+     "payload": {
+      "amount": 120
+     },
+     "subject": {
+      "id": "exp_lunch",
+      "type": "expense"
+     },
+     "version": 1,
+     "nextDueAt": "2026-01-15T02:00:00.000Z",
+     "flowVersion": 1,
+     "requesterId": "alice",
+     "submittedAt": "2026-01-14T02:00:00.000Z",
+     "lastAuditSeq": 3,
+     "lastTaskNumber": 1,
+     "currentStepIndex": 0
+    },
+    "status": "pending",
+    "tenant": "",
+    "version": 1,
+    "flow_key": "expense",
+    "closed_at": null,
+    "blocked_at": null,
+    "subject_id": "exp_lunch",
+    "next_due_at": "2026-01-15T02:00:00.000Z",
+    "requester_id": "alice",
+    "subject_type": "expense",
+    "submitted_at": "2026-01-14T02:00:00.000Z",
+    "claimed_until": null
+   },
+   {
+    "id": "r_seed0007",
+    "state": {
+     "id": "r_seed0007",
+     "steps": [
+      {
+       "index": 0,
+       "tasks": [
+        {
+         "id": "r_seed0007.t1",
+         "status": "pending",
+         "assignedAt": "2026-01-14T18:00:00.000Z",
+         "assigneeId": "diego"
+        }
+       ],
+       "status": "active",
+       "stepId": "manager",
+       "deadline": {
+        "remindAt": "2026-01-15T18:00:00.000Z",
+        "reminders": 0,
+        "deadlineAt": "2026-01-16T18:00:00.000Z",
+        "escalationDepth": 0
+       },
+       "approvers": [
+        "diego"
+       ],
+       "activatedAt": "2026-01-14T18:00:00.000Z"
+      }
+     ],
+     "status": "pending",
+     "flowKey": "expense",
+     "payload": {
+      "amount": 380
+     },
+     "subject": {
+      "id": "exp_dinner",
+      "type": "expense"
+     },
+     "version": 1,
+     "nextDueAt": "2026-01-15T18:00:00.000Z",
+     "flowVersion": 1,
+     "requesterId": "marco",
+     "submittedAt": "2026-01-14T18:00:00.000Z",
+     "lastAuditSeq": 3,
+     "lastTaskNumber": 1,
+     "currentStepIndex": 0
+    },
+    "status": "pending",
+    "tenant": "",
+    "version": 1,
+    "flow_key": "expense",
+    "closed_at": null,
+    "blocked_at": null,
+    "subject_id": "exp_dinner",
+    "next_due_at": "2026-01-15T18:00:00.000Z",
+    "requester_id": "marco",
+    "subject_type": "expense",
+    "submitted_at": "2026-01-14T18:00:00.000Z",
+    "claimed_until": null
+   },
+   {
+    "id": "r_seed0008",
+    "state": {
+     "id": "r_seed0008",
+     "steps": [
+      {
+       "index": 0,
+       "tasks": [
+        {
+         "id": "r_seed0008.t1",
+         "status": "pending",
+         "assignedAt": "2026-01-14T21:00:00.000Z",
+         "assigneeId": "marco"
+        }
+       ],
+       "status": "active",
+       "stepId": "manager",
+       "deadline": {
+        "remindAt": "2026-01-15T21:00:00.000Z",
+        "reminders": 0,
+        "deadlineAt": "2026-01-16T21:00:00.000Z",
+        "escalationDepth": 0
+       },
+       "approvers": [
+        "marco"
+       ],
+       "activatedAt": "2026-01-14T21:00:00.000Z"
+      }
+     ],
+     "status": "pending",
+     "flowKey": "expense",
+     "payload": {
+      "amount": 780
+     },
+     "subject": {
+      "id": "exp_dock",
+      "type": "expense"
+     },
+     "version": 1,
+     "nextDueAt": "2026-01-15T21:00:00.000Z",
+     "flowVersion": 1,
+     "requesterId": "alice",
+     "submittedAt": "2026-01-14T21:00:00.000Z",
+     "lastAuditSeq": 3,
+     "lastTaskNumber": 1,
+     "currentStepIndex": 0
+    },
+    "status": "pending",
+    "tenant": "",
+    "version": 1,
+    "flow_key": "expense",
+    "closed_at": null,
+    "blocked_at": null,
+    "subject_id": "exp_dock",
+    "next_due_at": "2026-01-15T21:00:00.000Z",
+    "requester_id": "alice",
+    "subject_type": "expense",
+    "submitted_at": "2026-01-14T21:00:00.000Z",
+    "claimed_until": null
+   }
+  ],
+  "rungs_inbox": [
+   {
+    "view": {
+     "stepId": "finance",
+     "taskId": "r_seed0004.t2",
+     "flowKey": "expense",
+     "payload": {
+      "amount": 1450
+     },
+     "subject": {
+      "id": "exp_flight",
+      "type": "expense"
+     },
+     "requestId": "r_seed0004",
+     "assignedAt": "2026-01-12T04:00:00.000Z",
+     "assigneeId": "fatima",
+     "deadlineAt": "2026-01-15T04:00:00.000Z",
+     "flowVersion": 1,
+     "requesterId": "alice"
+    },
+    "tenant": "",
+    "task_id": "r_seed0004.t2",
+    "request_id": "r_seed0004",
+    "assigned_at": "2026-01-12T04:00:00.000Z",
+    "assignee_id": "fatima",
+    "on_behalf_of": null
+   },
+   {
+    "view": {
+     "stepId": "finance",
+     "taskId": "r_seed0004.t3",
+     "flowKey": "expense",
+     "payload": {
+      "amount": 1450
+     },
+     "subject": {
+      "id": "exp_flight",
+      "type": "expense"
+     },
+     "requestId": "r_seed0004",
+     "assignedAt": "2026-01-12T04:00:00.000Z",
+     "assigneeId": "kenji",
+     "deadlineAt": "2026-01-15T04:00:00.000Z",
+     "flowVersion": 1,
+     "requesterId": "alice"
+    },
+    "tenant": "",
+    "task_id": "r_seed0004.t3",
+    "request_id": "r_seed0004",
+    "assigned_at": "2026-01-12T04:00:00.000Z",
+    "assignee_id": "kenji",
+    "on_behalf_of": null
+   },
+   {
+    "view": {
+     "stepId": "director",
+     "taskId": "r_seed0005.t4",
+     "flowKey": "expense",
+     "payload": {
+      "amount": 6200
+     },
+     "subject": {
+      "id": "exp_desk",
+      "type": "expense"
+     },
+     "requestId": "r_seed0005",
+     "assignedAt": "2026-01-14T04:00:00.000Z",
+     "assigneeId": "diego",
+     "flowVersion": 1,
+     "requesterId": "alice"
+    },
+    "tenant": "",
+    "task_id": "r_seed0005.t4",
+    "request_id": "r_seed0005",
+    "assigned_at": "2026-01-14T04:00:00.000Z",
+    "assignee_id": "diego",
+    "on_behalf_of": null
+   },
+   {
+    "view": {
+     "stepId": "manager",
+     "taskId": "r_seed0006.t1",
+     "flowKey": "expense",
+     "payload": {
+      "amount": 120
+     },
+     "subject": {
+      "id": "exp_lunch",
+      "type": "expense"
+     },
+     "requestId": "r_seed0006",
+     "assignedAt": "2026-01-14T02:00:00.000Z",
+     "assigneeId": "marco",
+     "deadlineAt": "2026-01-16T02:00:00.000Z",
+     "flowVersion": 1,
+     "requesterId": "alice"
+    },
+    "tenant": "",
+    "task_id": "r_seed0006.t1",
+    "request_id": "r_seed0006",
+    "assigned_at": "2026-01-14T02:00:00.000Z",
+    "assignee_id": "marco",
+    "on_behalf_of": null
+   },
+   {
+    "view": {
+     "stepId": "manager",
+     "taskId": "r_seed0007.t1",
+     "flowKey": "expense",
+     "payload": {
+      "amount": 380
+     },
+     "subject": {
+      "id": "exp_dinner",
+      "type": "expense"
+     },
+     "requestId": "r_seed0007",
+     "assignedAt": "2026-01-14T18:00:00.000Z",
+     "assigneeId": "diego",
+     "deadlineAt": "2026-01-16T18:00:00.000Z",
+     "flowVersion": 1,
+     "requesterId": "marco"
+    },
+    "tenant": "",
+    "task_id": "r_seed0007.t1",
+    "request_id": "r_seed0007",
+    "assigned_at": "2026-01-14T18:00:00.000Z",
+    "assignee_id": "diego",
+    "on_behalf_of": null
+   },
+   {
+    "view": {
+     "stepId": "manager",
+     "taskId": "r_seed0008.t1",
+     "flowKey": "expense",
+     "payload": {
+      "amount": 780
+     },
+     "subject": {
+      "id": "exp_dock",
+      "type": "expense"
+     },
+     "requestId": "r_seed0008",
+     "assignedAt": "2026-01-14T21:00:00.000Z",
+     "assigneeId": "marco",
+     "deadlineAt": "2026-01-16T21:00:00.000Z",
+     "flowVersion": 1,
+     "requesterId": "alice"
+    },
+    "tenant": "",
+    "task_id": "r_seed0008.t1",
+    "request_id": "r_seed0008",
+    "assigned_at": "2026-01-14T21:00:00.000Z",
+    "assignee_id": "marco",
+    "on_behalf_of": null
+   }
+  ],
+  "rungs_audit": [
+   {
+    "at": "2026-01-07T22:00:00.000Z",
+    "seq": 1,
+    "type": "request.submitted",
+    "event": {
+     "at": "2026-01-07T22:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_monitor",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "marco",
+     "requestId": "r_seed0001"
+    },
+    "tenant": "",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-07T22:00:00.000Z",
+    "seq": 2,
+    "type": "step.activated",
+    "event": {
+     "at": "2026-01-07T22:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "diego"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "marco",
+     "requestId": "r_seed0001"
+    },
+    "tenant": "",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-07T22:00:00.000Z",
+    "seq": 3,
+    "type": "task.assigned",
+    "event": {
+     "at": "2026-01-07T22:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0001.t1",
+      "assigneeId": "diego"
+     },
+     "type": "task.assigned",
+     "actorId": "marco",
+     "requestId": "r_seed0001"
+    },
+    "tenant": "",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-08T08:00:00.000Z",
+    "seq": 4,
+    "type": "task.approved",
+    "event": {
+     "at": "2026-01-08T08:00:00.000Z",
+     "seq": 4,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0001.t1"
+     },
+     "type": "task.approved",
+     "actorId": "diego",
+     "requestId": "r_seed0001"
+    },
+    "tenant": "",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-08T08:00:00.000Z",
+    "seq": 5,
+    "type": "step.completed",
+    "event": {
+     "at": "2026-01-08T08:00:00.000Z",
+     "seq": 5,
+     "data": {
+      "stepId": "manager",
+      "outcome": "approved",
+      "stepIndex": 0
+     },
+     "type": "step.completed",
+     "actorId": "diego",
+     "requestId": "r_seed0001"
+    },
+    "tenant": "",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-08T08:00:00.000Z",
+    "seq": 6,
+    "type": "step.activated",
+    "event": {
+     "at": "2026-01-08T08:00:00.000Z",
+     "seq": 6,
+     "data": {
+      "stepId": "finance",
+      "approvers": [
+       "fatima",
+       "kenji"
+      ],
+      "stepIndex": 1
+     },
+     "type": "step.activated",
+     "actorId": "diego",
+     "requestId": "r_seed0001"
+    },
+    "tenant": "",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-08T08:00:00.000Z",
+    "seq": 7,
+    "type": "task.assigned",
+    "event": {
+     "at": "2026-01-08T08:00:00.000Z",
+     "seq": 7,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0001.t2",
+      "assigneeId": "fatima"
+     },
+     "type": "task.assigned",
+     "actorId": "diego",
+     "requestId": "r_seed0001"
+    },
+    "tenant": "",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-08T08:00:00.000Z",
+    "seq": 8,
+    "type": "task.assigned",
+    "event": {
+     "at": "2026-01-08T08:00:00.000Z",
+     "seq": 8,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0001.t3",
+      "assigneeId": "kenji"
+     },
+     "type": "task.assigned",
+     "actorId": "diego",
+     "requestId": "r_seed0001"
+    },
+    "tenant": "",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-08T18:00:00.000Z",
+    "seq": 9,
+    "type": "task.rejected",
+    "event": {
+     "at": "2026-01-08T18:00:00.000Z",
+     "seq": 9,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0001.t3",
+      "comment": "Already ordered through IT last week."
+     },
+     "type": "task.rejected",
+     "actorId": "kenji",
+     "requestId": "r_seed0001"
+    },
+    "tenant": "",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-08T18:00:00.000Z",
+    "seq": 10,
+    "type": "task.superseded",
+    "event": {
+     "at": "2026-01-08T18:00:00.000Z",
+     "seq": 10,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0001.t2",
+      "byTaskId": "r_seed0001.t3"
+     },
+     "type": "task.superseded",
+     "actorId": "kenji",
+     "requestId": "r_seed0001"
+    },
+    "tenant": "",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-08T18:00:00.000Z",
+    "seq": 11,
+    "type": "step.completed",
+    "event": {
+     "at": "2026-01-08T18:00:00.000Z",
+     "seq": 11,
+     "data": {
+      "stepId": "finance",
+      "outcome": "rejected",
+      "stepIndex": 1
+     },
+     "type": "step.completed",
+     "actorId": "kenji",
+     "requestId": "r_seed0001"
+    },
+    "tenant": "",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-08T18:00:00.000Z",
+    "seq": 12,
+    "type": "request.rejected",
+    "event": {
+     "at": "2026-01-08T18:00:00.000Z",
+     "seq": 12,
+     "data": {
+      "reason": "step-rejected",
+      "stepId": "finance"
+     },
+     "type": "request.rejected",
+     "actorId": "kenji",
+     "requestId": "r_seed0001"
+    },
+    "tenant": "",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-10T00:00:00.000Z",
+    "seq": 1,
+    "type": "request.submitted",
+    "event": {
+     "at": "2026-01-10T00:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_taxi",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "alice",
+     "requestId": "r_seed0002"
+    },
+    "tenant": "",
+    "request_id": "r_seed0002"
+   },
+   {
+    "at": "2026-01-10T00:00:00.000Z",
+    "seq": 2,
+    "type": "step.activated",
+    "event": {
+     "at": "2026-01-10T00:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "marco"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "alice",
+     "requestId": "r_seed0002"
+    },
+    "tenant": "",
+    "request_id": "r_seed0002"
+   },
+   {
+    "at": "2026-01-10T00:00:00.000Z",
+    "seq": 3,
+    "type": "task.assigned",
+    "event": {
+     "at": "2026-01-10T00:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0002.t1",
+      "assigneeId": "marco"
+     },
+     "type": "task.assigned",
+     "actorId": "alice",
+     "requestId": "r_seed0002"
+    },
+    "tenant": "",
+    "request_id": "r_seed0002"
+   },
+   {
+    "at": "2026-01-10T20:00:00.000Z",
+    "seq": 4,
+    "type": "task.approved",
+    "event": {
+     "at": "2026-01-10T20:00:00.000Z",
+     "seq": 4,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0002.t1",
+      "comment": "Thanks for the receipt."
+     },
+     "type": "task.approved",
+     "actorId": "marco",
+     "requestId": "r_seed0002"
+    },
+    "tenant": "",
+    "request_id": "r_seed0002"
+   },
+   {
+    "at": "2026-01-10T20:00:00.000Z",
+    "seq": 5,
+    "type": "step.completed",
+    "event": {
+     "at": "2026-01-10T20:00:00.000Z",
+     "seq": 5,
+     "data": {
+      "stepId": "manager",
+      "outcome": "approved",
+      "stepIndex": 0
+     },
+     "type": "step.completed",
+     "actorId": "marco",
+     "requestId": "r_seed0002"
+    },
+    "tenant": "",
+    "request_id": "r_seed0002"
+   },
+   {
+    "at": "2026-01-10T20:00:00.000Z",
+    "seq": 6,
+    "type": "step.skipped",
+    "event": {
+     "at": "2026-01-10T20:00:00.000Z",
+     "seq": 6,
+     "data": {
+      "reason": {
+       "type": "condition-false",
+       "condition": {
+        "op": "gt",
+        "field": "amount",
+        "value": 500
+       }
+      },
+      "stepId": "finance",
+      "stepIndex": 1
+     },
+     "type": "step.skipped",
+     "actorId": "marco",
+     "requestId": "r_seed0002"
+    },
+    "tenant": "",
+    "request_id": "r_seed0002"
+   },
+   {
+    "at": "2026-01-10T20:00:00.000Z",
+    "seq": 7,
+    "type": "step.skipped",
+    "event": {
+     "at": "2026-01-10T20:00:00.000Z",
+     "seq": 7,
+     "data": {
+      "reason": {
+       "type": "condition-false",
+       "condition": {
+        "op": "gt",
+        "field": "amount",
+        "value": 5000
+       }
+      },
+      "stepId": "director",
+      "stepIndex": 2
+     },
+     "type": "step.skipped",
+     "actorId": "marco",
+     "requestId": "r_seed0002"
+    },
+    "tenant": "",
+    "request_id": "r_seed0002"
+   },
+   {
+    "at": "2026-01-10T20:00:00.000Z",
+    "seq": 8,
+    "type": "request.approved",
+    "event": {
+     "at": "2026-01-10T20:00:00.000Z",
+     "seq": 8,
+     "data": {
+      "reason": "steps-approved"
+     },
+     "type": "request.approved",
+     "actorId": "marco",
+     "requestId": "r_seed0002"
+    },
+    "tenant": "",
+    "request_id": "r_seed0002"
+   },
+   {
+    "at": "2026-01-11T00:00:00.000Z",
+    "seq": 1,
+    "type": "request.submitted",
+    "event": {
+     "at": "2026-01-11T00:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_course",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "alice",
+     "requestId": "r_seed0003"
+    },
+    "tenant": "",
+    "request_id": "r_seed0003"
+   },
+   {
+    "at": "2026-01-11T00:00:00.000Z",
+    "seq": 2,
+    "type": "step.activated",
+    "event": {
+     "at": "2026-01-11T00:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "marco"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "alice",
+     "requestId": "r_seed0003"
+    },
+    "tenant": "",
+    "request_id": "r_seed0003"
+   },
+   {
+    "at": "2026-01-11T00:00:00.000Z",
+    "seq": 3,
+    "type": "task.assigned",
+    "event": {
+     "at": "2026-01-11T00:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0003.t1",
+      "assigneeId": "marco"
+     },
+     "type": "task.assigned",
+     "actorId": "alice",
+     "requestId": "r_seed0003"
+    },
+    "tenant": "",
+    "request_id": "r_seed0003"
+   },
+   {
+    "at": "2026-01-11T22:00:00.000Z",
+    "seq": 4,
+    "type": "task.returned",
+    "event": {
+     "at": "2026-01-11T22:00:00.000Z",
+     "seq": 4,
+     "data": {
+      "to": "requester",
+      "stepId": "manager",
+      "taskId": "r_seed0003.t1",
+      "comment": "Please attach the invoice."
+     },
+     "type": "task.returned",
+     "actorId": "marco",
+     "requestId": "r_seed0003"
+    },
+    "tenant": "",
+    "request_id": "r_seed0003"
+   },
+   {
+    "at": "2026-01-11T22:00:00.000Z",
+    "seq": 5,
+    "type": "step.completed",
+    "event": {
+     "at": "2026-01-11T22:00:00.000Z",
+     "seq": 5,
+     "data": {
+      "stepId": "manager",
+      "outcome": "returned",
+      "stepIndex": 0
+     },
+     "type": "step.completed",
+     "actorId": "marco",
+     "requestId": "r_seed0003"
+    },
+    "tenant": "",
+    "request_id": "r_seed0003"
+   },
+   {
+    "at": "2026-01-11T22:00:00.000Z",
+    "seq": 6,
+    "type": "request.returned",
+    "event": {
+     "at": "2026-01-11T22:00:00.000Z",
+     "seq": 6,
+     "data": {
+      "stepId": "manager",
+      "comment": "Please attach the invoice."
+     },
+     "type": "request.returned",
+     "actorId": "marco",
+     "requestId": "r_seed0003"
+    },
+    "tenant": "",
+    "request_id": "r_seed0003"
+   },
+   {
+    "at": "2026-01-12T00:00:00.000Z",
+    "seq": 1,
+    "type": "request.submitted",
+    "event": {
+     "at": "2026-01-12T00:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_flight",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "alice",
+     "requestId": "r_seed0004"
+    },
+    "tenant": "",
+    "request_id": "r_seed0004"
+   },
+   {
+    "at": "2026-01-12T00:00:00.000Z",
+    "seq": 2,
+    "type": "step.activated",
+    "event": {
+     "at": "2026-01-12T00:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "marco"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "alice",
+     "requestId": "r_seed0004"
+    },
+    "tenant": "",
+    "request_id": "r_seed0004"
+   },
+   {
+    "at": "2026-01-12T00:00:00.000Z",
+    "seq": 3,
+    "type": "task.assigned",
+    "event": {
+     "at": "2026-01-12T00:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0004.t1",
+      "assigneeId": "marco"
+     },
+     "type": "task.assigned",
+     "actorId": "alice",
+     "requestId": "r_seed0004"
+    },
+    "tenant": "",
+    "request_id": "r_seed0004"
+   },
+   {
+    "at": "2026-01-12T04:00:00.000Z",
+    "seq": 4,
+    "type": "task.approved",
+    "event": {
+     "at": "2026-01-12T04:00:00.000Z",
+     "seq": 4,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0004.t1"
+     },
+     "type": "task.approved",
+     "actorId": "marco",
+     "requestId": "r_seed0004"
+    },
+    "tenant": "",
+    "request_id": "r_seed0004"
+   },
+   {
+    "at": "2026-01-12T04:00:00.000Z",
+    "seq": 5,
+    "type": "step.completed",
+    "event": {
+     "at": "2026-01-12T04:00:00.000Z",
+     "seq": 5,
+     "data": {
+      "stepId": "manager",
+      "outcome": "approved",
+      "stepIndex": 0
+     },
+     "type": "step.completed",
+     "actorId": "marco",
+     "requestId": "r_seed0004"
+    },
+    "tenant": "",
+    "request_id": "r_seed0004"
+   },
+   {
+    "at": "2026-01-12T04:00:00.000Z",
+    "seq": 6,
+    "type": "step.activated",
+    "event": {
+     "at": "2026-01-12T04:00:00.000Z",
+     "seq": 6,
+     "data": {
+      "stepId": "finance",
+      "approvers": [
+       "fatima",
+       "kenji"
+      ],
+      "stepIndex": 1
+     },
+     "type": "step.activated",
+     "actorId": "marco",
+     "requestId": "r_seed0004"
+    },
+    "tenant": "",
+    "request_id": "r_seed0004"
+   },
+   {
+    "at": "2026-01-12T04:00:00.000Z",
+    "seq": 7,
+    "type": "task.assigned",
+    "event": {
+     "at": "2026-01-12T04:00:00.000Z",
+     "seq": 7,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0004.t2",
+      "assigneeId": "fatima"
+     },
+     "type": "task.assigned",
+     "actorId": "marco",
+     "requestId": "r_seed0004"
+    },
+    "tenant": "",
+    "request_id": "r_seed0004"
+   },
+   {
+    "at": "2026-01-12T04:00:00.000Z",
+    "seq": 8,
+    "type": "task.assigned",
+    "event": {
+     "at": "2026-01-12T04:00:00.000Z",
+     "seq": 8,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0004.t3",
+      "assigneeId": "kenji"
+     },
+     "type": "task.assigned",
+     "actorId": "marco",
+     "requestId": "r_seed0004"
+    },
+    "tenant": "",
+    "request_id": "r_seed0004"
+   },
+   {
+    "at": "2026-01-13T00:00:00.000Z",
+    "seq": 1,
+    "type": "request.submitted",
+    "event": {
+     "at": "2026-01-13T00:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_desk",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "alice",
+     "requestId": "r_seed0005"
+    },
+    "tenant": "",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-13T00:00:00.000Z",
+    "seq": 2,
+    "type": "step.activated",
+    "event": {
+     "at": "2026-01-13T00:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "marco"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "alice",
+     "requestId": "r_seed0005"
+    },
+    "tenant": "",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-13T00:00:00.000Z",
+    "seq": 3,
+    "type": "task.assigned",
+    "event": {
+     "at": "2026-01-13T00:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0005.t1",
+      "assigneeId": "marco"
+     },
+     "type": "task.assigned",
+     "actorId": "alice",
+     "requestId": "r_seed0005"
+    },
+    "tenant": "",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-13T18:00:00.000Z",
+    "seq": 4,
+    "type": "task.approved",
+    "event": {
+     "at": "2026-01-13T18:00:00.000Z",
+     "seq": 4,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0005.t1",
+      "comment": "Recommended by the office ergonomics check."
+     },
+     "type": "task.approved",
+     "actorId": "marco",
+     "requestId": "r_seed0005"
+    },
+    "tenant": "",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-13T18:00:00.000Z",
+    "seq": 5,
+    "type": "step.completed",
+    "event": {
+     "at": "2026-01-13T18:00:00.000Z",
+     "seq": 5,
+     "data": {
+      "stepId": "manager",
+      "outcome": "approved",
+      "stepIndex": 0
+     },
+     "type": "step.completed",
+     "actorId": "marco",
+     "requestId": "r_seed0005"
+    },
+    "tenant": "",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-13T18:00:00.000Z",
+    "seq": 6,
+    "type": "step.activated",
+    "event": {
+     "at": "2026-01-13T18:00:00.000Z",
+     "seq": 6,
+     "data": {
+      "stepId": "finance",
+      "approvers": [
+       "fatima",
+       "kenji"
+      ],
+      "stepIndex": 1
+     },
+     "type": "step.activated",
+     "actorId": "marco",
+     "requestId": "r_seed0005"
+    },
+    "tenant": "",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-13T18:00:00.000Z",
+    "seq": 7,
+    "type": "task.assigned",
+    "event": {
+     "at": "2026-01-13T18:00:00.000Z",
+     "seq": 7,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0005.t2",
+      "assigneeId": "fatima"
+     },
+     "type": "task.assigned",
+     "actorId": "marco",
+     "requestId": "r_seed0005"
+    },
+    "tenant": "",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-13T18:00:00.000Z",
+    "seq": 8,
+    "type": "task.assigned",
+    "event": {
+     "at": "2026-01-13T18:00:00.000Z",
+     "seq": 8,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0005.t3",
+      "assigneeId": "kenji"
+     },
+     "type": "task.assigned",
+     "actorId": "marco",
+     "requestId": "r_seed0005"
+    },
+    "tenant": "",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-14T04:00:00.000Z",
+    "seq": 9,
+    "type": "task.approved",
+    "event": {
+     "at": "2026-01-14T04:00:00.000Z",
+     "seq": 9,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0005.t2"
+     },
+     "type": "task.approved",
+     "actorId": "fatima",
+     "requestId": "r_seed0005"
+    },
+    "tenant": "",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-14T04:00:00.000Z",
+    "seq": 10,
+    "type": "task.superseded",
+    "event": {
+     "at": "2026-01-14T04:00:00.000Z",
+     "seq": 10,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0005.t3",
+      "byTaskId": "r_seed0005.t2"
+     },
+     "type": "task.superseded",
+     "actorId": "fatima",
+     "requestId": "r_seed0005"
+    },
+    "tenant": "",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-14T04:00:00.000Z",
+    "seq": 11,
+    "type": "step.completed",
+    "event": {
+     "at": "2026-01-14T04:00:00.000Z",
+     "seq": 11,
+     "data": {
+      "stepId": "finance",
+      "outcome": "approved",
+      "stepIndex": 1
+     },
+     "type": "step.completed",
+     "actorId": "fatima",
+     "requestId": "r_seed0005"
+    },
+    "tenant": "",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-14T04:00:00.000Z",
+    "seq": 12,
+    "type": "step.activated",
+    "event": {
+     "at": "2026-01-14T04:00:00.000Z",
+     "seq": 12,
+     "data": {
+      "stepId": "director",
+      "approvers": [
+       "diego"
+      ],
+      "stepIndex": 2
+     },
+     "type": "step.activated",
+     "actorId": "fatima",
+     "requestId": "r_seed0005"
+    },
+    "tenant": "",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-14T04:00:00.000Z",
+    "seq": 13,
+    "type": "task.assigned",
+    "event": {
+     "at": "2026-01-14T04:00:00.000Z",
+     "seq": 13,
+     "data": {
+      "stepId": "director",
+      "taskId": "r_seed0005.t4",
+      "assigneeId": "diego"
+     },
+     "type": "task.assigned",
+     "actorId": "fatima",
+     "requestId": "r_seed0005"
+    },
+    "tenant": "",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-14T02:00:00.000Z",
+    "seq": 1,
+    "type": "request.submitted",
+    "event": {
+     "at": "2026-01-14T02:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_lunch",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "alice",
+     "requestId": "r_seed0006"
+    },
+    "tenant": "",
+    "request_id": "r_seed0006"
+   },
+   {
+    "at": "2026-01-14T02:00:00.000Z",
+    "seq": 2,
+    "type": "step.activated",
+    "event": {
+     "at": "2026-01-14T02:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "marco"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "alice",
+     "requestId": "r_seed0006"
+    },
+    "tenant": "",
+    "request_id": "r_seed0006"
+   },
+   {
+    "at": "2026-01-14T02:00:00.000Z",
+    "seq": 3,
+    "type": "task.assigned",
+    "event": {
+     "at": "2026-01-14T02:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0006.t1",
+      "assigneeId": "marco"
+     },
+     "type": "task.assigned",
+     "actorId": "alice",
+     "requestId": "r_seed0006"
+    },
+    "tenant": "",
+    "request_id": "r_seed0006"
+   },
+   {
+    "at": "2026-01-14T18:00:00.000Z",
+    "seq": 1,
+    "type": "request.submitted",
+    "event": {
+     "at": "2026-01-14T18:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_dinner",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "marco",
+     "requestId": "r_seed0007"
+    },
+    "tenant": "",
+    "request_id": "r_seed0007"
+   },
+   {
+    "at": "2026-01-14T18:00:00.000Z",
+    "seq": 2,
+    "type": "step.activated",
+    "event": {
+     "at": "2026-01-14T18:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "diego"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "marco",
+     "requestId": "r_seed0007"
+    },
+    "tenant": "",
+    "request_id": "r_seed0007"
+   },
+   {
+    "at": "2026-01-14T18:00:00.000Z",
+    "seq": 3,
+    "type": "task.assigned",
+    "event": {
+     "at": "2026-01-14T18:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0007.t1",
+      "assigneeId": "diego"
+     },
+     "type": "task.assigned",
+     "actorId": "marco",
+     "requestId": "r_seed0007"
+    },
+    "tenant": "",
+    "request_id": "r_seed0007"
+   },
+   {
+    "at": "2026-01-14T21:00:00.000Z",
+    "seq": 1,
+    "type": "request.submitted",
+    "event": {
+     "at": "2026-01-14T21:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_dock",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "alice",
+     "requestId": "r_seed0008"
+    },
+    "tenant": "",
+    "request_id": "r_seed0008"
+   },
+   {
+    "at": "2026-01-14T21:00:00.000Z",
+    "seq": 2,
+    "type": "step.activated",
+    "event": {
+     "at": "2026-01-14T21:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "marco"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "alice",
+     "requestId": "r_seed0008"
+    },
+    "tenant": "",
+    "request_id": "r_seed0008"
+   },
+   {
+    "at": "2026-01-14T21:00:00.000Z",
+    "seq": 3,
+    "type": "task.assigned",
+    "event": {
+     "at": "2026-01-14T21:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0008.t1",
+      "assigneeId": "marco"
+     },
+     "type": "task.assigned",
+     "actorId": "alice",
+     "requestId": "r_seed0008"
+    },
+    "tenant": "",
+    "request_id": "r_seed0008"
+   }
+  ],
+  "rungs_outbox": [
+   {
+    "seq": 1,
+    "event": {
+     "at": "2026-01-07T22:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_monitor",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "marco",
+     "requestId": "r_seed0001"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0001",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-07T22:00:00.000Z",
+    "next_attempt_at": "2026-01-07T22:00:00.000Z"
+   },
+   {
+    "seq": 2,
+    "event": {
+     "at": "2026-01-07T22:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "diego"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "marco",
+     "requestId": "r_seed0001"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0001",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-07T22:00:00.000Z",
+    "next_attempt_at": "2026-01-07T22:00:00.000Z"
+   },
+   {
+    "seq": 3,
+    "event": {
+     "at": "2026-01-07T22:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0001.t1",
+      "assigneeId": "diego"
+     },
+     "type": "task.assigned",
+     "actorId": "marco",
+     "requestId": "r_seed0001"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0001",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-07T22:00:00.000Z",
+    "next_attempt_at": "2026-01-07T22:00:00.000Z"
+   },
+   {
+    "seq": 4,
+    "event": {
+     "at": "2026-01-08T08:00:00.000Z",
+     "seq": 4,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0001.t1",
+      "decision": "approved"
+     },
+     "type": "task.decided",
+     "actorId": "diego",
+     "requestId": "r_seed0001"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0001",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-08T08:00:00.000Z",
+    "next_attempt_at": "2026-01-08T08:00:00.000Z"
+   },
+   {
+    "seq": 5,
+    "event": {
+     "at": "2026-01-08T08:00:00.000Z",
+     "seq": 5,
+     "data": {
+      "stepId": "manager",
+      "outcome": "approved",
+      "stepIndex": 0
+     },
+     "type": "step.completed",
+     "actorId": "diego",
+     "requestId": "r_seed0001"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0001",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-08T08:00:00.000Z",
+    "next_attempt_at": "2026-01-08T08:00:00.000Z"
+   },
+   {
+    "seq": 6,
+    "event": {
+     "at": "2026-01-08T08:00:00.000Z",
+     "seq": 6,
+     "data": {
+      "stepId": "finance",
+      "approvers": [
+       "fatima",
+       "kenji"
+      ],
+      "stepIndex": 1
+     },
+     "type": "step.activated",
+     "actorId": "diego",
+     "requestId": "r_seed0001"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0001",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-08T08:00:00.000Z",
+    "next_attempt_at": "2026-01-08T08:00:00.000Z"
+   },
+   {
+    "seq": 7,
+    "event": {
+     "at": "2026-01-08T08:00:00.000Z",
+     "seq": 7,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0001.t2",
+      "assigneeId": "fatima"
+     },
+     "type": "task.assigned",
+     "actorId": "diego",
+     "requestId": "r_seed0001"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0001",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-08T08:00:00.000Z",
+    "next_attempt_at": "2026-01-08T08:00:00.000Z"
+   },
+   {
+    "seq": 8,
+    "event": {
+     "at": "2026-01-08T08:00:00.000Z",
+     "seq": 8,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0001.t3",
+      "assigneeId": "kenji"
+     },
+     "type": "task.assigned",
+     "actorId": "diego",
+     "requestId": "r_seed0001"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0001",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-08T08:00:00.000Z",
+    "next_attempt_at": "2026-01-08T08:00:00.000Z"
+   },
+   {
+    "seq": 9,
+    "event": {
+     "at": "2026-01-08T18:00:00.000Z",
+     "seq": 9,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0001.t3",
+      "comment": "Already ordered through IT last week.",
+      "decision": "rejected"
+     },
+     "type": "task.decided",
+     "actorId": "kenji",
+     "requestId": "r_seed0001"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0001",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-08T18:00:00.000Z",
+    "next_attempt_at": "2026-01-08T18:00:00.000Z"
+   },
+   {
+    "seq": 10,
+    "event": {
+     "at": "2026-01-08T18:00:00.000Z",
+     "seq": 10,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0001.t2",
+      "byTaskId": "r_seed0001.t3"
+     },
+     "type": "task.superseded",
+     "actorId": "kenji",
+     "requestId": "r_seed0001"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0001",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-08T18:00:00.000Z",
+    "next_attempt_at": "2026-01-08T18:00:00.000Z"
+   },
+   {
+    "seq": 11,
+    "event": {
+     "at": "2026-01-08T18:00:00.000Z",
+     "seq": 11,
+     "data": {
+      "stepId": "finance",
+      "outcome": "rejected",
+      "stepIndex": 1
+     },
+     "type": "step.completed",
+     "actorId": "kenji",
+     "requestId": "r_seed0001"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0001",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-08T18:00:00.000Z",
+    "next_attempt_at": "2026-01-08T18:00:00.000Z"
+   },
+   {
+    "seq": 12,
+    "event": {
+     "at": "2026-01-08T18:00:00.000Z",
+     "seq": 12,
+     "data": {
+      "reason": "step-rejected",
+      "stepId": "finance"
+     },
+     "type": "request.rejected",
+     "actorId": "kenji",
+     "requestId": "r_seed0001"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0001",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-08T18:00:00.000Z",
+    "next_attempt_at": "2026-01-08T18:00:00.000Z"
+   },
+   {
+    "seq": 1,
+    "event": {
+     "at": "2026-01-10T00:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_taxi",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "alice",
+     "requestId": "r_seed0002"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0002",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-10T00:00:00.000Z",
+    "next_attempt_at": "2026-01-10T00:00:00.000Z"
+   },
+   {
+    "seq": 2,
+    "event": {
+     "at": "2026-01-10T00:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "marco"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "alice",
+     "requestId": "r_seed0002"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0002",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-10T00:00:00.000Z",
+    "next_attempt_at": "2026-01-10T00:00:00.000Z"
+   },
+   {
+    "seq": 3,
+    "event": {
+     "at": "2026-01-10T00:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0002.t1",
+      "assigneeId": "marco"
+     },
+     "type": "task.assigned",
+     "actorId": "alice",
+     "requestId": "r_seed0002"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0002",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-10T00:00:00.000Z",
+    "next_attempt_at": "2026-01-10T00:00:00.000Z"
+   },
+   {
+    "seq": 4,
+    "event": {
+     "at": "2026-01-10T20:00:00.000Z",
+     "seq": 4,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0002.t1",
+      "comment": "Thanks for the receipt.",
+      "decision": "approved"
+     },
+     "type": "task.decided",
+     "actorId": "marco",
+     "requestId": "r_seed0002"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0002",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-10T20:00:00.000Z",
+    "next_attempt_at": "2026-01-10T20:00:00.000Z"
+   },
+   {
+    "seq": 5,
+    "event": {
+     "at": "2026-01-10T20:00:00.000Z",
+     "seq": 5,
+     "data": {
+      "stepId": "manager",
+      "outcome": "approved",
+      "stepIndex": 0
+     },
+     "type": "step.completed",
+     "actorId": "marco",
+     "requestId": "r_seed0002"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0002",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-10T20:00:00.000Z",
+    "next_attempt_at": "2026-01-10T20:00:00.000Z"
+   },
+   {
+    "seq": 6,
+    "event": {
+     "at": "2026-01-10T20:00:00.000Z",
+     "seq": 6,
+     "data": {
+      "reason": {
+       "type": "condition-false",
+       "condition": {
+        "op": "gt",
+        "field": "amount",
+        "value": 500
+       }
+      },
+      "stepId": "finance",
+      "stepIndex": 1
+     },
+     "type": "step.skipped",
+     "actorId": "marco",
+     "requestId": "r_seed0002"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0002",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-10T20:00:00.000Z",
+    "next_attempt_at": "2026-01-10T20:00:00.000Z"
+   },
+   {
+    "seq": 7,
+    "event": {
+     "at": "2026-01-10T20:00:00.000Z",
+     "seq": 7,
+     "data": {
+      "reason": {
+       "type": "condition-false",
+       "condition": {
+        "op": "gt",
+        "field": "amount",
+        "value": 5000
+       }
+      },
+      "stepId": "director",
+      "stepIndex": 2
+     },
+     "type": "step.skipped",
+     "actorId": "marco",
+     "requestId": "r_seed0002"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0002",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-10T20:00:00.000Z",
+    "next_attempt_at": "2026-01-10T20:00:00.000Z"
+   },
+   {
+    "seq": 8,
+    "event": {
+     "at": "2026-01-10T20:00:00.000Z",
+     "seq": 8,
+     "data": {
+      "reason": "steps-approved"
+     },
+     "type": "request.approved",
+     "actorId": "marco",
+     "requestId": "r_seed0002"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0002",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-10T20:00:00.000Z",
+    "next_attempt_at": "2026-01-10T20:00:00.000Z"
+   },
+   {
+    "seq": 1,
+    "event": {
+     "at": "2026-01-11T00:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_course",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "alice",
+     "requestId": "r_seed0003"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0003",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-11T00:00:00.000Z",
+    "next_attempt_at": "2026-01-11T00:00:00.000Z"
+   },
+   {
+    "seq": 2,
+    "event": {
+     "at": "2026-01-11T00:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "marco"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "alice",
+     "requestId": "r_seed0003"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0003",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-11T00:00:00.000Z",
+    "next_attempt_at": "2026-01-11T00:00:00.000Z"
+   },
+   {
+    "seq": 3,
+    "event": {
+     "at": "2026-01-11T00:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0003.t1",
+      "assigneeId": "marco"
+     },
+     "type": "task.assigned",
+     "actorId": "alice",
+     "requestId": "r_seed0003"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0003",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-11T00:00:00.000Z",
+    "next_attempt_at": "2026-01-11T00:00:00.000Z"
+   },
+   {
+    "seq": 4,
+    "event": {
+     "at": "2026-01-11T22:00:00.000Z",
+     "seq": 4,
+     "data": {
+      "to": "requester",
+      "stepId": "manager",
+      "taskId": "r_seed0003.t1",
+      "comment": "Please attach the invoice."
+     },
+     "type": "task.returned",
+     "actorId": "marco",
+     "requestId": "r_seed0003"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0003",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-11T22:00:00.000Z",
+    "next_attempt_at": "2026-01-11T22:00:00.000Z"
+   },
+   {
+    "seq": 5,
+    "event": {
+     "at": "2026-01-11T22:00:00.000Z",
+     "seq": 5,
+     "data": {
+      "stepId": "manager",
+      "outcome": "returned",
+      "stepIndex": 0
+     },
+     "type": "step.completed",
+     "actorId": "marco",
+     "requestId": "r_seed0003"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0003",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-11T22:00:00.000Z",
+    "next_attempt_at": "2026-01-11T22:00:00.000Z"
+   },
+   {
+    "seq": 6,
+    "event": {
+     "at": "2026-01-11T22:00:00.000Z",
+     "seq": 6,
+     "data": {
+      "stepId": "manager",
+      "comment": "Please attach the invoice."
+     },
+     "type": "request.returned",
+     "actorId": "marco",
+     "requestId": "r_seed0003"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0003",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-11T22:00:00.000Z",
+    "next_attempt_at": "2026-01-11T22:00:00.000Z"
+   },
+   {
+    "seq": 1,
+    "event": {
+     "at": "2026-01-12T00:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_flight",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "alice",
+     "requestId": "r_seed0004"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0004",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-12T00:00:00.000Z",
+    "next_attempt_at": "2026-01-12T00:00:00.000Z"
+   },
+   {
+    "seq": 2,
+    "event": {
+     "at": "2026-01-12T00:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "marco"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "alice",
+     "requestId": "r_seed0004"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0004",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-12T00:00:00.000Z",
+    "next_attempt_at": "2026-01-12T00:00:00.000Z"
+   },
+   {
+    "seq": 3,
+    "event": {
+     "at": "2026-01-12T00:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0004.t1",
+      "assigneeId": "marco"
+     },
+     "type": "task.assigned",
+     "actorId": "alice",
+     "requestId": "r_seed0004"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0004",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-12T00:00:00.000Z",
+    "next_attempt_at": "2026-01-12T00:00:00.000Z"
+   },
+   {
+    "seq": 4,
+    "event": {
+     "at": "2026-01-12T04:00:00.000Z",
+     "seq": 4,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0004.t1",
+      "decision": "approved"
+     },
+     "type": "task.decided",
+     "actorId": "marco",
+     "requestId": "r_seed0004"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0004",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-12T04:00:00.000Z",
+    "next_attempt_at": "2026-01-12T04:00:00.000Z"
+   },
+   {
+    "seq": 5,
+    "event": {
+     "at": "2026-01-12T04:00:00.000Z",
+     "seq": 5,
+     "data": {
+      "stepId": "manager",
+      "outcome": "approved",
+      "stepIndex": 0
+     },
+     "type": "step.completed",
+     "actorId": "marco",
+     "requestId": "r_seed0004"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0004",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-12T04:00:00.000Z",
+    "next_attempt_at": "2026-01-12T04:00:00.000Z"
+   },
+   {
+    "seq": 6,
+    "event": {
+     "at": "2026-01-12T04:00:00.000Z",
+     "seq": 6,
+     "data": {
+      "stepId": "finance",
+      "approvers": [
+       "fatima",
+       "kenji"
+      ],
+      "stepIndex": 1
+     },
+     "type": "step.activated",
+     "actorId": "marco",
+     "requestId": "r_seed0004"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0004",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-12T04:00:00.000Z",
+    "next_attempt_at": "2026-01-12T04:00:00.000Z"
+   },
+   {
+    "seq": 7,
+    "event": {
+     "at": "2026-01-12T04:00:00.000Z",
+     "seq": 7,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0004.t2",
+      "assigneeId": "fatima"
+     },
+     "type": "task.assigned",
+     "actorId": "marco",
+     "requestId": "r_seed0004"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0004",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-12T04:00:00.000Z",
+    "next_attempt_at": "2026-01-12T04:00:00.000Z"
+   },
+   {
+    "seq": 8,
+    "event": {
+     "at": "2026-01-12T04:00:00.000Z",
+     "seq": 8,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0004.t3",
+      "assigneeId": "kenji"
+     },
+     "type": "task.assigned",
+     "actorId": "marco",
+     "requestId": "r_seed0004"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0004",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-12T04:00:00.000Z",
+    "next_attempt_at": "2026-01-12T04:00:00.000Z"
+   },
+   {
+    "seq": 1,
+    "event": {
+     "at": "2026-01-13T00:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_desk",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "alice",
+     "requestId": "r_seed0005"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0005",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-13T00:00:00.000Z",
+    "next_attempt_at": "2026-01-13T00:00:00.000Z"
+   },
+   {
+    "seq": 2,
+    "event": {
+     "at": "2026-01-13T00:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "marco"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "alice",
+     "requestId": "r_seed0005"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0005",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-13T00:00:00.000Z",
+    "next_attempt_at": "2026-01-13T00:00:00.000Z"
+   },
+   {
+    "seq": 3,
+    "event": {
+     "at": "2026-01-13T00:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0005.t1",
+      "assigneeId": "marco"
+     },
+     "type": "task.assigned",
+     "actorId": "alice",
+     "requestId": "r_seed0005"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0005",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-13T00:00:00.000Z",
+    "next_attempt_at": "2026-01-13T00:00:00.000Z"
+   },
+   {
+    "seq": 4,
+    "event": {
+     "at": "2026-01-13T18:00:00.000Z",
+     "seq": 4,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0005.t1",
+      "comment": "Recommended by the office ergonomics check.",
+      "decision": "approved"
+     },
+     "type": "task.decided",
+     "actorId": "marco",
+     "requestId": "r_seed0005"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0005",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-13T18:00:00.000Z",
+    "next_attempt_at": "2026-01-13T18:00:00.000Z"
+   },
+   {
+    "seq": 5,
+    "event": {
+     "at": "2026-01-13T18:00:00.000Z",
+     "seq": 5,
+     "data": {
+      "stepId": "manager",
+      "outcome": "approved",
+      "stepIndex": 0
+     },
+     "type": "step.completed",
+     "actorId": "marco",
+     "requestId": "r_seed0005"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0005",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-13T18:00:00.000Z",
+    "next_attempt_at": "2026-01-13T18:00:00.000Z"
+   },
+   {
+    "seq": 6,
+    "event": {
+     "at": "2026-01-13T18:00:00.000Z",
+     "seq": 6,
+     "data": {
+      "stepId": "finance",
+      "approvers": [
+       "fatima",
+       "kenji"
+      ],
+      "stepIndex": 1
+     },
+     "type": "step.activated",
+     "actorId": "marco",
+     "requestId": "r_seed0005"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0005",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-13T18:00:00.000Z",
+    "next_attempt_at": "2026-01-13T18:00:00.000Z"
+   },
+   {
+    "seq": 7,
+    "event": {
+     "at": "2026-01-13T18:00:00.000Z",
+     "seq": 7,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0005.t2",
+      "assigneeId": "fatima"
+     },
+     "type": "task.assigned",
+     "actorId": "marco",
+     "requestId": "r_seed0005"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0005",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-13T18:00:00.000Z",
+    "next_attempt_at": "2026-01-13T18:00:00.000Z"
+   },
+   {
+    "seq": 8,
+    "event": {
+     "at": "2026-01-13T18:00:00.000Z",
+     "seq": 8,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0005.t3",
+      "assigneeId": "kenji"
+     },
+     "type": "task.assigned",
+     "actorId": "marco",
+     "requestId": "r_seed0005"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0005",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-13T18:00:00.000Z",
+    "next_attempt_at": "2026-01-13T18:00:00.000Z"
+   },
+   {
+    "seq": 9,
+    "event": {
+     "at": "2026-01-14T04:00:00.000Z",
+     "seq": 9,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0005.t2",
+      "decision": "approved"
+     },
+     "type": "task.decided",
+     "actorId": "fatima",
+     "requestId": "r_seed0005"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0005",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-14T04:00:00.000Z",
+    "next_attempt_at": "2026-01-14T04:00:00.000Z"
+   },
+   {
+    "seq": 10,
+    "event": {
+     "at": "2026-01-14T04:00:00.000Z",
+     "seq": 10,
+     "data": {
+      "stepId": "finance",
+      "taskId": "r_seed0005.t3",
+      "byTaskId": "r_seed0005.t2"
+     },
+     "type": "task.superseded",
+     "actorId": "fatima",
+     "requestId": "r_seed0005"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0005",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-14T04:00:00.000Z",
+    "next_attempt_at": "2026-01-14T04:00:00.000Z"
+   },
+   {
+    "seq": 11,
+    "event": {
+     "at": "2026-01-14T04:00:00.000Z",
+     "seq": 11,
+     "data": {
+      "stepId": "finance",
+      "outcome": "approved",
+      "stepIndex": 1
+     },
+     "type": "step.completed",
+     "actorId": "fatima",
+     "requestId": "r_seed0005"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0005",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-14T04:00:00.000Z",
+    "next_attempt_at": "2026-01-14T04:00:00.000Z"
+   },
+   {
+    "seq": 12,
+    "event": {
+     "at": "2026-01-14T04:00:00.000Z",
+     "seq": 12,
+     "data": {
+      "stepId": "director",
+      "approvers": [
+       "diego"
+      ],
+      "stepIndex": 2
+     },
+     "type": "step.activated",
+     "actorId": "fatima",
+     "requestId": "r_seed0005"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0005",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-14T04:00:00.000Z",
+    "next_attempt_at": "2026-01-14T04:00:00.000Z"
+   },
+   {
+    "seq": 13,
+    "event": {
+     "at": "2026-01-14T04:00:00.000Z",
+     "seq": 13,
+     "data": {
+      "stepId": "director",
+      "taskId": "r_seed0005.t4",
+      "assigneeId": "diego"
+     },
+     "type": "task.assigned",
+     "actorId": "fatima",
+     "requestId": "r_seed0005"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0005",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-14T04:00:00.000Z",
+    "next_attempt_at": "2026-01-14T04:00:00.000Z"
+   },
+   {
+    "seq": 1,
+    "event": {
+     "at": "2026-01-14T02:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_lunch",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "alice",
+     "requestId": "r_seed0006"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0006",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-14T02:00:00.000Z",
+    "next_attempt_at": "2026-01-14T02:00:00.000Z"
+   },
+   {
+    "seq": 2,
+    "event": {
+     "at": "2026-01-14T02:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "marco"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "alice",
+     "requestId": "r_seed0006"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0006",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-14T02:00:00.000Z",
+    "next_attempt_at": "2026-01-14T02:00:00.000Z"
+   },
+   {
+    "seq": 3,
+    "event": {
+     "at": "2026-01-14T02:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0006.t1",
+      "assigneeId": "marco"
+     },
+     "type": "task.assigned",
+     "actorId": "alice",
+     "requestId": "r_seed0006"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0006",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-14T02:00:00.000Z",
+    "next_attempt_at": "2026-01-14T02:00:00.000Z"
+   },
+   {
+    "seq": 1,
+    "event": {
+     "at": "2026-01-14T18:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_dinner",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "marco",
+     "requestId": "r_seed0007"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0007",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-14T18:00:00.000Z",
+    "next_attempt_at": "2026-01-14T18:00:00.000Z"
+   },
+   {
+    "seq": 2,
+    "event": {
+     "at": "2026-01-14T18:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "diego"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "marco",
+     "requestId": "r_seed0007"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0007",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-14T18:00:00.000Z",
+    "next_attempt_at": "2026-01-14T18:00:00.000Z"
+   },
+   {
+    "seq": 3,
+    "event": {
+     "at": "2026-01-14T18:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0007.t1",
+      "assigneeId": "diego"
+     },
+     "type": "task.assigned",
+     "actorId": "marco",
+     "requestId": "r_seed0007"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0007",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-14T18:00:00.000Z",
+    "next_attempt_at": "2026-01-14T18:00:00.000Z"
+   },
+   {
+    "seq": 1,
+    "event": {
+     "at": "2026-01-14T21:00:00.000Z",
+     "seq": 1,
+     "data": {
+      "flowKey": "expense",
+      "subject": {
+       "id": "exp_dock",
+       "type": "expense"
+      },
+      "flowVersion": 1
+     },
+     "type": "request.submitted",
+     "actorId": "alice",
+     "requestId": "r_seed0008"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0008",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-14T21:00:00.000Z",
+    "next_attempt_at": "2026-01-14T21:00:00.000Z"
+   },
+   {
+    "seq": 2,
+    "event": {
+     "at": "2026-01-14T21:00:00.000Z",
+     "seq": 2,
+     "data": {
+      "stepId": "manager",
+      "approvers": [
+       "marco"
+      ],
+      "stepIndex": 0
+     },
+     "type": "step.activated",
+     "actorId": "alice",
+     "requestId": "r_seed0008"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0008",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-14T21:00:00.000Z",
+    "next_attempt_at": "2026-01-14T21:00:00.000Z"
+   },
+   {
+    "seq": 3,
+    "event": {
+     "at": "2026-01-14T21:00:00.000Z",
+     "seq": 3,
+     "data": {
+      "stepId": "manager",
+      "taskId": "r_seed0008.t1",
+      "assigneeId": "marco"
+     },
+     "type": "task.assigned",
+     "actorId": "alice",
+     "requestId": "r_seed0008"
+    },
+    "attempts": 0,
+    "last_error": null,
+    "request_id": "r_seed0008",
+    "claimed_until": null,
+    "dispatched_at": "2026-01-14T21:00:00.000Z",
+    "next_attempt_at": "2026-01-14T21:00:00.000Z"
+   }
+  ],
+  "rungs_idempotency": [
+   {
+    "at": "2026-01-11T00:00:00.000Z",
+    "key": "submit:exp_course",
+    "record": {
+     "at": "2026-01-11T00:00:00.000Z",
+     "result": {
+      "id": "r_seed0003",
+      "steps": [
+       {
+        "index": 0,
+        "tasks": [
+         {
+          "id": "r_seed0003.t1",
+          "status": "pending",
+          "assignedAt": "2026-01-11T00:00:00.000Z",
+          "assigneeId": "marco"
+         }
+        ],
+        "status": "active",
+        "stepId": "manager",
+        "deadline": {
+         "remindAt": "2026-01-12T00:00:00.000Z",
+         "reminders": 0,
+         "deadlineAt": "2026-01-13T00:00:00.000Z",
+         "escalationDepth": 0
+        },
+        "approvers": [
+         "marco"
+        ],
+        "activatedAt": "2026-01-11T00:00:00.000Z"
+       }
+      ],
+      "status": "pending",
+      "flowKey": "expense",
+      "payload": {
+       "amount": 300
+      },
+      "subject": {
+       "id": "exp_course",
+       "type": "expense"
+      },
+      "version": 1,
+      "nextDueAt": "2026-01-12T00:00:00.000Z",
+      "flowVersion": 1,
+      "requesterId": "alice",
+      "submittedAt": "2026-01-11T00:00:00.000Z",
+      "lastAuditSeq": 3,
+      "lastTaskNumber": 1,
+      "currentStepIndex": 0
+     },
+     "fingerprint": "{\"flow\":\"expense\",\"payload\":{\"amount\":300},\"requesterId\":\"alice\",\"subject\":{\"id\":\"exp_course\",\"type\":\"expense\"},\"type\":\"submit\"}"
+    },
+    "tenant": "",
+    "request_id": "r_seed0003"
+   },
+   {
+    "at": "2026-01-13T00:00:00.000Z",
+    "key": "submit:exp_desk",
+    "record": {
+     "at": "2026-01-13T00:00:00.000Z",
+     "result": {
+      "id": "r_seed0005",
+      "steps": [
+       {
+        "index": 0,
+        "tasks": [
+         {
+          "id": "r_seed0005.t1",
+          "status": "pending",
+          "assignedAt": "2026-01-13T00:00:00.000Z",
+          "assigneeId": "marco"
+         }
+        ],
+        "status": "active",
+        "stepId": "manager",
+        "deadline": {
+         "remindAt": "2026-01-14T00:00:00.000Z",
+         "reminders": 0,
+         "deadlineAt": "2026-01-15T00:00:00.000Z",
+         "escalationDepth": 0
+        },
+        "approvers": [
+         "marco"
+        ],
+        "activatedAt": "2026-01-13T00:00:00.000Z"
+       }
+      ],
+      "status": "pending",
+      "flowKey": "expense",
+      "payload": {
+       "amount": 6200
+      },
+      "subject": {
+       "id": "exp_desk",
+       "type": "expense"
+      },
+      "version": 1,
+      "nextDueAt": "2026-01-14T00:00:00.000Z",
+      "flowVersion": 1,
+      "requesterId": "alice",
+      "submittedAt": "2026-01-13T00:00:00.000Z",
+      "lastAuditSeq": 3,
+      "lastTaskNumber": 1,
+      "currentStepIndex": 0
+     },
+     "fingerprint": "{\"flow\":\"expense\",\"payload\":{\"amount\":6200},\"requesterId\":\"alice\",\"subject\":{\"id\":\"exp_desk\",\"type\":\"expense\"},\"type\":\"submit\"}"
+    },
+    "tenant": "",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-14T18:00:00.000Z",
+    "key": "submit:exp_dinner",
+    "record": {
+     "at": "2026-01-14T18:00:00.000Z",
+     "result": {
+      "id": "r_seed0007",
+      "steps": [
+       {
+        "index": 0,
+        "tasks": [
+         {
+          "id": "r_seed0007.t1",
+          "status": "pending",
+          "assignedAt": "2026-01-14T18:00:00.000Z",
+          "assigneeId": "diego"
+         }
+        ],
+        "status": "active",
+        "stepId": "manager",
+        "deadline": {
+         "remindAt": "2026-01-15T18:00:00.000Z",
+         "reminders": 0,
+         "deadlineAt": "2026-01-16T18:00:00.000Z",
+         "escalationDepth": 0
+        },
+        "approvers": [
+         "diego"
+        ],
+        "activatedAt": "2026-01-14T18:00:00.000Z"
+       }
+      ],
+      "status": "pending",
+      "flowKey": "expense",
+      "payload": {
+       "amount": 380
+      },
+      "subject": {
+       "id": "exp_dinner",
+       "type": "expense"
+      },
+      "version": 1,
+      "nextDueAt": "2026-01-15T18:00:00.000Z",
+      "flowVersion": 1,
+      "requesterId": "marco",
+      "submittedAt": "2026-01-14T18:00:00.000Z",
+      "lastAuditSeq": 3,
+      "lastTaskNumber": 1,
+      "currentStepIndex": 0
+     },
+     "fingerprint": "{\"flow\":\"expense\",\"payload\":{\"amount\":380},\"requesterId\":\"marco\",\"subject\":{\"id\":\"exp_dinner\",\"type\":\"expense\"},\"type\":\"submit\"}"
+    },
+    "tenant": "",
+    "request_id": "r_seed0007"
+   },
+   {
+    "at": "2026-01-14T21:00:00.000Z",
+    "key": "submit:exp_dock",
+    "record": {
+     "at": "2026-01-14T21:00:00.000Z",
+     "result": {
+      "id": "r_seed0008",
+      "steps": [
+       {
+        "index": 0,
+        "tasks": [
+         {
+          "id": "r_seed0008.t1",
+          "status": "pending",
+          "assignedAt": "2026-01-14T21:00:00.000Z",
+          "assigneeId": "marco"
+         }
+        ],
+        "status": "active",
+        "stepId": "manager",
+        "deadline": {
+         "remindAt": "2026-01-15T21:00:00.000Z",
+         "reminders": 0,
+         "deadlineAt": "2026-01-16T21:00:00.000Z",
+         "escalationDepth": 0
+        },
+        "approvers": [
+         "marco"
+        ],
+        "activatedAt": "2026-01-14T21:00:00.000Z"
+       }
+      ],
+      "status": "pending",
+      "flowKey": "expense",
+      "payload": {
+       "amount": 780
+      },
+      "subject": {
+       "id": "exp_dock",
+       "type": "expense"
+      },
+      "version": 1,
+      "nextDueAt": "2026-01-15T21:00:00.000Z",
+      "flowVersion": 1,
+      "requesterId": "alice",
+      "submittedAt": "2026-01-14T21:00:00.000Z",
+      "lastAuditSeq": 3,
+      "lastTaskNumber": 1,
+      "currentStepIndex": 0
+     },
+     "fingerprint": "{\"flow\":\"expense\",\"payload\":{\"amount\":780},\"requesterId\":\"alice\",\"subject\":{\"id\":\"exp_dock\",\"type\":\"expense\"},\"type\":\"submit\"}"
+    },
+    "tenant": "",
+    "request_id": "r_seed0008"
+   },
+   {
+    "at": "2026-01-12T00:00:00.000Z",
+    "key": "submit:exp_flight",
+    "record": {
+     "at": "2026-01-12T00:00:00.000Z",
+     "result": {
+      "id": "r_seed0004",
+      "steps": [
+       {
+        "index": 0,
+        "tasks": [
+         {
+          "id": "r_seed0004.t1",
+          "status": "pending",
+          "assignedAt": "2026-01-12T00:00:00.000Z",
+          "assigneeId": "marco"
+         }
+        ],
+        "status": "active",
+        "stepId": "manager",
+        "deadline": {
+         "remindAt": "2026-01-13T00:00:00.000Z",
+         "reminders": 0,
+         "deadlineAt": "2026-01-14T00:00:00.000Z",
+         "escalationDepth": 0
+        },
+        "approvers": [
+         "marco"
+        ],
+        "activatedAt": "2026-01-12T00:00:00.000Z"
+       }
+      ],
+      "status": "pending",
+      "flowKey": "expense",
+      "payload": {
+       "amount": 1450
+      },
+      "subject": {
+       "id": "exp_flight",
+       "type": "expense"
+      },
+      "version": 1,
+      "nextDueAt": "2026-01-13T00:00:00.000Z",
+      "flowVersion": 1,
+      "requesterId": "alice",
+      "submittedAt": "2026-01-12T00:00:00.000Z",
+      "lastAuditSeq": 3,
+      "lastTaskNumber": 1,
+      "currentStepIndex": 0
+     },
+     "fingerprint": "{\"flow\":\"expense\",\"payload\":{\"amount\":1450},\"requesterId\":\"alice\",\"subject\":{\"id\":\"exp_flight\",\"type\":\"expense\"},\"type\":\"submit\"}"
+    },
+    "tenant": "",
+    "request_id": "r_seed0004"
+   },
+   {
+    "at": "2026-01-14T02:00:00.000Z",
+    "key": "submit:exp_lunch",
+    "record": {
+     "at": "2026-01-14T02:00:00.000Z",
+     "result": {
+      "id": "r_seed0006",
+      "steps": [
+       {
+        "index": 0,
+        "tasks": [
+         {
+          "id": "r_seed0006.t1",
+          "status": "pending",
+          "assignedAt": "2026-01-14T02:00:00.000Z",
+          "assigneeId": "marco"
+         }
+        ],
+        "status": "active",
+        "stepId": "manager",
+        "deadline": {
+         "remindAt": "2026-01-15T02:00:00.000Z",
+         "reminders": 0,
+         "deadlineAt": "2026-01-16T02:00:00.000Z",
+         "escalationDepth": 0
+        },
+        "approvers": [
+         "marco"
+        ],
+        "activatedAt": "2026-01-14T02:00:00.000Z"
+       }
+      ],
+      "status": "pending",
+      "flowKey": "expense",
+      "payload": {
+       "amount": 120
+      },
+      "subject": {
+       "id": "exp_lunch",
+       "type": "expense"
+      },
+      "version": 1,
+      "nextDueAt": "2026-01-15T02:00:00.000Z",
+      "flowVersion": 1,
+      "requesterId": "alice",
+      "submittedAt": "2026-01-14T02:00:00.000Z",
+      "lastAuditSeq": 3,
+      "lastTaskNumber": 1,
+      "currentStepIndex": 0
+     },
+     "fingerprint": "{\"flow\":\"expense\",\"payload\":{\"amount\":120},\"requesterId\":\"alice\",\"subject\":{\"id\":\"exp_lunch\",\"type\":\"expense\"},\"type\":\"submit\"}"
+    },
+    "tenant": "",
+    "request_id": "r_seed0006"
+   },
+   {
+    "at": "2026-01-07T22:00:00.000Z",
+    "key": "submit:exp_monitor",
+    "record": {
+     "at": "2026-01-07T22:00:00.000Z",
+     "result": {
+      "id": "r_seed0001",
+      "steps": [
+       {
+        "index": 0,
+        "tasks": [
+         {
+          "id": "r_seed0001.t1",
+          "status": "pending",
+          "assignedAt": "2026-01-07T22:00:00.000Z",
+          "assigneeId": "diego"
+         }
+        ],
+        "status": "active",
+        "stepId": "manager",
+        "deadline": {
+         "remindAt": "2026-01-08T22:00:00.000Z",
+         "reminders": 0,
+         "deadlineAt": "2026-01-09T22:00:00.000Z",
+         "escalationDepth": 0
+        },
+        "approvers": [
+         "diego"
+        ],
+        "activatedAt": "2026-01-07T22:00:00.000Z"
+       }
+      ],
+      "status": "pending",
+      "flowKey": "expense",
+      "payload": {
+       "amount": 640
+      },
+      "subject": {
+       "id": "exp_monitor",
+       "type": "expense"
+      },
+      "version": 1,
+      "nextDueAt": "2026-01-08T22:00:00.000Z",
+      "flowVersion": 1,
+      "requesterId": "marco",
+      "submittedAt": "2026-01-07T22:00:00.000Z",
+      "lastAuditSeq": 3,
+      "lastTaskNumber": 1,
+      "currentStepIndex": 0
+     },
+     "fingerprint": "{\"flow\":\"expense\",\"payload\":{\"amount\":640},\"requesterId\":\"marco\",\"subject\":{\"id\":\"exp_monitor\",\"type\":\"expense\"},\"type\":\"submit\"}"
+    },
+    "tenant": "",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-10T00:00:00.000Z",
+    "key": "submit:exp_taxi",
+    "record": {
+     "at": "2026-01-10T00:00:00.000Z",
+     "result": {
+      "id": "r_seed0002",
+      "steps": [
+       {
+        "index": 0,
+        "tasks": [
+         {
+          "id": "r_seed0002.t1",
+          "status": "pending",
+          "assignedAt": "2026-01-10T00:00:00.000Z",
+          "assigneeId": "marco"
+         }
+        ],
+        "status": "active",
+        "stepId": "manager",
+        "deadline": {
+         "remindAt": "2026-01-11T00:00:00.000Z",
+         "reminders": 0,
+         "deadlineAt": "2026-01-12T00:00:00.000Z",
+         "escalationDepth": 0
+        },
+        "approvers": [
+         "marco"
+        ],
+        "activatedAt": "2026-01-10T00:00:00.000Z"
+       }
+      ],
+      "status": "pending",
+      "flowKey": "expense",
+      "payload": {
+       "amount": 45
+      },
+      "subject": {
+       "id": "exp_taxi",
+       "type": "expense"
+      },
+      "version": 1,
+      "nextDueAt": "2026-01-11T00:00:00.000Z",
+      "flowVersion": 1,
+      "requesterId": "alice",
+      "submittedAt": "2026-01-10T00:00:00.000Z",
+      "lastAuditSeq": 3,
+      "lastTaskNumber": 1,
+      "currentStepIndex": 0
+     },
+     "fingerprint": "{\"flow\":\"expense\",\"payload\":{\"amount\":45},\"requesterId\":\"alice\",\"subject\":{\"id\":\"exp_taxi\",\"type\":\"expense\"},\"type\":\"submit\"}"
+    },
+    "tenant": "",
+    "request_id": "r_seed0002"
+   }
+  ],
+  "expenses": [
+   {
+    "id": "exp_course",
+    "title": "Online TypeScript course",
+    "amount": 300,
+    "category": "Training",
+    "created_at": "2026-01-11T00:00:00.000Z",
+    "requester_id": "alice"
+   },
+   {
+    "id": "exp_desk",
+    "title": "Standing desk",
+    "amount": 6200,
+    "category": "Equipment",
+    "created_at": "2026-01-13T00:00:00.000Z",
+    "requester_id": "alice"
+   },
+   {
+    "id": "exp_dinner",
+    "title": "Client dinner",
+    "amount": 380,
+    "category": "Meals",
+    "created_at": "2026-01-14T18:00:00.000Z",
+    "requester_id": "marco"
+   },
+   {
+    "id": "exp_dock",
+    "title": "Laptop docking station",
+    "amount": 780,
+    "category": "Equipment",
+    "created_at": "2026-01-14T21:00:00.000Z",
+    "requester_id": "alice"
+   },
+   {
+    "id": "exp_flight",
+    "title": "Flight to the Lisbon conference",
+    "amount": 1450,
+    "category": "Travel",
+    "created_at": "2026-01-12T00:00:00.000Z",
+    "requester_id": "alice"
+   },
+   {
+    "id": "exp_lunch",
+    "title": "Team lunch after the release",
+    "amount": 120,
+    "category": "Meals",
+    "created_at": "2026-01-14T02:00:00.000Z",
+    "requester_id": "alice"
+   },
+   {
+    "id": "exp_monitor",
+    "title": "Second monitor",
+    "amount": 640,
+    "category": "Equipment",
+    "created_at": "2026-01-07T22:00:00.000Z",
+    "requester_id": "marco"
+   },
+   {
+    "id": "exp_taxi",
+    "title": "Taxi to the airport",
+    "amount": 45,
+    "category": "Travel",
+    "created_at": "2026-01-10T00:00:00.000Z",
+    "requester_id": "alice"
+   }
+  ],
+  "notifications": [
+   {
+    "at": "2026-01-07T22:00:00.000Z",
+    "seq": 3,
+    "message": "Marco Rossi needs your approval for \"Second monitor\".",
+    "user_id": "diego",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-08T08:00:00.000Z",
+    "seq": 7,
+    "message": "Marco Rossi needs your approval for \"Second monitor\".",
+    "user_id": "fatima",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-08T08:00:00.000Z",
+    "seq": 8,
+    "message": "Marco Rossi needs your approval for \"Second monitor\".",
+    "user_id": "kenji",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-08T18:00:00.000Z",
+    "seq": 12,
+    "message": "\"Second monitor\" was rejected.",
+    "user_id": "marco",
+    "request_id": "r_seed0001"
+   },
+   {
+    "at": "2026-01-10T00:00:00.000Z",
+    "seq": 3,
+    "message": "Alice Moreau needs your approval for \"Taxi to the airport\".",
+    "user_id": "marco",
+    "request_id": "r_seed0002"
+   },
+   {
+    "at": "2026-01-10T20:00:00.000Z",
+    "seq": 8,
+    "message": "\"Taxi to the airport\" was approved.",
+    "user_id": "alice",
+    "request_id": "r_seed0002"
+   },
+   {
+    "at": "2026-01-11T00:00:00.000Z",
+    "seq": 3,
+    "message": "Alice Moreau needs your approval for \"Online TypeScript course\".",
+    "user_id": "marco",
+    "request_id": "r_seed0003"
+   },
+   {
+    "at": "2026-01-11T22:00:00.000Z",
+    "seq": 6,
+    "message": "\"Online TypeScript course\" was returned to you for changes.",
+    "user_id": "alice",
+    "request_id": "r_seed0003"
+   },
+   {
+    "at": "2026-01-12T00:00:00.000Z",
+    "seq": 3,
+    "message": "Alice Moreau needs your approval for \"Flight to the Lisbon conference\".",
+    "user_id": "marco",
+    "request_id": "r_seed0004"
+   },
+   {
+    "at": "2026-01-12T04:00:00.000Z",
+    "seq": 7,
+    "message": "Alice Moreau needs your approval for \"Flight to the Lisbon conference\".",
+    "user_id": "fatima",
+    "request_id": "r_seed0004"
+   },
+   {
+    "at": "2026-01-12T04:00:00.000Z",
+    "seq": 8,
+    "message": "Alice Moreau needs your approval for \"Flight to the Lisbon conference\".",
+    "user_id": "kenji",
+    "request_id": "r_seed0004"
+   },
+   {
+    "at": "2026-01-13T00:00:00.000Z",
+    "seq": 3,
+    "message": "Alice Moreau needs your approval for \"Standing desk\".",
+    "user_id": "marco",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-13T18:00:00.000Z",
+    "seq": 7,
+    "message": "Alice Moreau needs your approval for \"Standing desk\".",
+    "user_id": "fatima",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-13T18:00:00.000Z",
+    "seq": 8,
+    "message": "Alice Moreau needs your approval for \"Standing desk\".",
+    "user_id": "kenji",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-14T04:00:00.000Z",
+    "seq": 13,
+    "message": "Alice Moreau needs your approval for \"Standing desk\".",
+    "user_id": "diego",
+    "request_id": "r_seed0005"
+   },
+   {
+    "at": "2026-01-14T02:00:00.000Z",
+    "seq": 3,
+    "message": "Alice Moreau needs your approval for \"Team lunch after the release\".",
+    "user_id": "marco",
+    "request_id": "r_seed0006"
+   },
+   {
+    "at": "2026-01-14T18:00:00.000Z",
+    "seq": 3,
+    "message": "Marco Rossi needs your approval for \"Client dinner\".",
+    "user_id": "diego",
+    "request_id": "r_seed0007"
+   },
+   {
+    "at": "2026-01-14T21:00:00.000Z",
+    "seq": 3,
+    "message": "Alice Moreau needs your approval for \"Laptop docking station\".",
+    "user_id": "marco",
+    "request_id": "r_seed0008"
+   }
+  ]
+ }
+}

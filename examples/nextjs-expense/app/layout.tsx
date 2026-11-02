@@ -4,10 +4,9 @@ import Link from "next/link";
 import { ClockBar } from "../components/ClockBar";
 import { type NavItem, NavLinks } from "../components/NavLinks";
 import { Avatar } from "../components/ui";
-import { getDemo } from "../rungs/demo";
 import { hasRole } from "../rungs/directory";
 import { signOutAction } from "./actions";
-import { currentUser, isApprover } from "./session";
+import { currentDemo, currentUser, isApprover } from "./session";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,10 +19,12 @@ export const viewport: Viewport = { themeColor: "#0e1422" };
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const user = await currentUser();
-  const demo = await getDemo();
+  // The sign-in page needs no database, so a first visit does not wake one up.
+  const cookieUser = await currentUser();
+  const demo = cookieUser === undefined ? null : await currentDemo();
+  const user = demo === null ? undefined : cookieUser;
   let items: NavItem[] = [];
-  if (user !== undefined) {
+  if (user !== undefined && demo !== null) {
     const inbox = isApprover(user) ? await demo.rungs.inbox({ userId: user.id, limit: 100 }) : null;
     items = [
       ...(inbox === null ? [] : [{ href: "/inbox", label: "Inbox", count: inbox.tasks.length }]),
@@ -68,7 +69,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             )}
           </div>
         </header>
-        {user !== undefined && <ClockBar now={demo.clock.now()} />}
+        {user !== undefined && demo !== null && <ClockBar now={demo.clock.now()} />}
         <main id="main">{children}</main>
       </body>
     </html>

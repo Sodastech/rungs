@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getDemo } from "../../rungs/demo";
 import { notificationsFor } from "../../rungs/notifications";
 import { relative } from "../format";
-import { requireUser } from "../session";
+import { requireDemo, requireUser } from "../session";
 
 export const metadata: Metadata = { title: "Notifications" };
 
 export default async function NotificationsPage() {
   const user = await requireUser();
-  const { db, clock } = await getDemo();
+  const { db, clock } = await requireDemo();
   const now = clock.now();
   // Written by the onEvent handler (rungs/notifications.ts). A real app would send email here.
   const items = await notificationsFor(db, user.id);
