@@ -36,7 +36,7 @@ the host application.
 - Headless hooks plus unstyled components with an optional default theme
 
 ### Included with Pro
-- Claude Code skill tuned for Pro APIs
+- Agent skill (for Claude Code, Cursor and similar agents) tuned for Pro APIs
 - Priority issue handling (best effort, async — no live support; this is a side project)
 
 ## Rules of thumb for deciding where a feature goes

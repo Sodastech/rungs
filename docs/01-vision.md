@@ -55,8 +55,8 @@ AI coding agents produce code that looks right and fails in production.
    The host supplies them through small interfaces.
 3. **Embeddable.** A library, not a server. No required infrastructure beyond a database.
 4. **Deterministic core.** Same input, same output. Easy to test, easy to reason about.
-5. **Agent-friendly.** Clear types, explicit errors and a Claude Code skill so AI agents extend
-   flows without breaking invariants.
+5. **Agent-friendly.** Clear types, explicit errors and an agent skill (for Claude Code, Cursor and
+   similar agents) so they extend flows without breaking invariants.
 
 ## Success measures
 

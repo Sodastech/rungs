@@ -35,7 +35,7 @@ rungs/
 │   └── docs-snippets/     # private: every code sample of the site and README, run by its tests
 ├── site/                  # private: the documentation site (Astro Starlight, GitHub Pages)
 └── skills/
-    └── rungs/SKILL.md     # Claude Code skill (Phase 3)
+    └── rungs/SKILL.md     # agent skill for Claude Code, Cursor and similar agents (Phase 3)
 ```
 
 Pro packages are developed in a separate private repository that depends on the public packages.
