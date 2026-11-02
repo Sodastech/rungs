@@ -10,7 +10,7 @@ import snapshot from "./seed-snapshot.json";
  * from another sandbox finds nothing, because the tables are not shared.
  */
 
-const CONTROL = "demo_control";
+export const CONTROL = "demo_control";
 const ID = /^[0-9a-f]{32}$/;
 const TOUCH_AFTER = "5 minutes";
 
@@ -31,6 +31,12 @@ const CONTROL_SQL = `
     last_seen timestamptz NOT NULL DEFAULT now()
   );
   CREATE INDEX IF NOT EXISTS sandboxes_last_seen ON ${CONTROL}.sandboxes (last_seen);
+  CREATE TABLE IF NOT EXISTS ${CONTROL}.rate_limits (
+    key text PRIMARY KEY,
+    window_seconds integer NOT NULL,
+    started_at timestamptz NOT NULL DEFAULT now(),
+    count integer NOT NULL DEFAULT 1
+  );
 `;
 
 /** The first sandbox after a fresh database creates the control tables, under a lock. */
@@ -45,7 +51,7 @@ const isMissingTable = (error: unknown) =>
   typeof error === "object" && error !== null && "code" in error && error.code === "42P01";
 
 /** Runs `run`; if the control tables do not exist yet, creates them and runs it once more. */
-async function withControl<T>(client: PgClient, run: () => Promise<T>): Promise<T> {
+export async function withControl<T>(client: PgClient, run: () => Promise<T>): Promise<T> {
   try {
     return await run();
   } catch (error) {
@@ -149,5 +155,9 @@ export async function cleanupSandboxes(
        DELETE FROM ${CONTROL}.sandboxes WHERE id = '${id}';`,
     );
   }
+  await client.query(
+    `DELETE FROM ${CONTROL}.rate_limits
+     WHERE started_at < now() - make_interval(secs => window_seconds) - interval '1 hour'`,
+  );
   return { deleted: rows.length };
 }

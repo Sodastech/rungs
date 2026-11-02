@@ -1,15 +1,10 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { type Demo, getDemo, resetDemo, sharedDatabase } from "../rungs/demo";
 import { hasRole, type Person, people, person } from "../rungs/directory";
-import {
-  createSandbox,
-  isSandboxId,
-  openSandbox,
-  resetSandbox,
-  sandboxExists,
-} from "../rungs/sandbox";
+import { admitSandbox, checkWrite } from "../rungs/limits";
+import { isSandboxId, openSandbox, resetSandbox, sandboxExists } from "../rungs/sandbox";
 
 // Demo sign-in: a cookie holding the chosen person's id. There is no password and no real
 // authentication. Server code always takes the actor from here, never from form fields.
@@ -73,13 +68,31 @@ export async function requireAdmin(): Promise<Person> {
   return user;
 }
 
+/** Vercel sets these itself, so a visitor cannot choose their own address. */
+async function visitorIp(): Promise<string> {
+  const all = await headers();
+  return all.get("x-real-ip") ?? all.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+}
+
 /** Online, choosing a person is what creates the sandbox, so crawlers never cause one. */
 async function ensureSandbox(): Promise<void> {
   if (!isPublicDemo()) return;
   const client = await sharedDatabase();
   const id = await sandboxCookie();
   if (isSandboxId(id) && (await sandboxExists(client, id))) return;
-  (await cookies()).set(SANDBOX_COOKIE, await createSandbox(client), cookieOptions());
+  (await cookies()).set(
+    SANDBOX_COOKIE,
+    await admitSandbox(client, await visitorIp()),
+    cookieOptions(),
+  );
+}
+
+/** Online, call before a write: throws `DemoLimitError` when this visitor is over a limit. */
+export async function checkWriteLimit(options: { clock?: boolean } = {}): Promise<void> {
+  if (!isPublicDemo()) return;
+  const sandboxId = await sandboxCookie();
+  if (!isSandboxId(sandboxId)) return;
+  await checkWrite(await sharedDatabase(), { ip: await visitorIp(), sandboxId, ...options });
 }
 
 export async function signIn(userId: string): Promise<void> {

@@ -70,6 +70,13 @@ export async function expensesByIds(
   return new Map(rows.map((r) => [r.id, toExpense(r)]));
 }
 
+export async function countExpenses(db: AppDb): Promise<number> {
+  const { rows } = await db.query<{ n: number }>(
+    `SELECT count(*)::int AS n FROM ${db.schema}.expenses`,
+  );
+  return rows[0]?.n ?? 0;
+}
+
 export async function expenseById(db: AppDb, id: string): Promise<Expense | null> {
   return (await expensesByIds(db, [id])).get(id) ?? null;
 }

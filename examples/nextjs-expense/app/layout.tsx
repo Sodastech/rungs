@@ -6,7 +6,7 @@ import { type NavItem, NavLinks } from "../components/NavLinks";
 import { Avatar } from "../components/ui";
 import { hasRole } from "../rungs/directory";
 import { signOutAction } from "./actions";
-import { currentDemo, currentUser, isApprover } from "./session";
+import { currentDemo, currentUser, isApprover, isPublicDemo } from "./session";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -42,6 +42,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <a className="skip-link" href="#main">
           Skip to content
         </a>
+        {isPublicDemo() && (
+          <p className="public-banner">
+            <strong>Public demo with sample data.</strong> Please do not enter real or personal
+            data. Your copy is deleted automatically 24 to 48 hours after your last visit.
+          </p>
+        )}
         <header className="topbar">
           <div className="topbar-inner">
             <Link href="/" className="brand">

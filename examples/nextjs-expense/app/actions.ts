@@ -8,10 +8,19 @@ import { redirect } from "next/navigation";
 import { advanceTime, resubmitExpense, submitExpense } from "../rungs/demo";
 import { person, setActive } from "../rungs/directory";
 import { describeError } from "../rungs/errors";
-import type { ExpenseDetails } from "../rungs/expenses";
-import { categories } from "../rungs/flow";
+import { countExpenses, type ExpenseDetails } from "../rungs/expenses";
 import {
+  arePeople,
+  checkAwayDates,
+  checkExpense,
+  commentTooLong,
+  isExpenseId,
+} from "../rungs/input";
+import { DemoLimitError, LIMITS } from "../rungs/limits";
+import {
+  checkWriteLimit,
   homeFor,
+  isPublicDemo,
   requireAdmin,
   requireDemo,
   requireUser,
@@ -28,11 +37,16 @@ const comment = (form: FormData) => {
   return value === "" ? {} : { comment: value };
 };
 
-/** Runs a command; a RungsError becomes a message for the form, anything else stays an error. */
+/**
+ * Runs a command; a RungsError becomes a message for the form, anything else stays an error.
+ * Online, being over a limit is also a message, and the command does not run.
+ */
 async function attempt(command: () => Promise<unknown>, success?: string): Promise<ActionState> {
   try {
+    await checkWriteLimit();
     await command();
   } catch (error) {
+    if (error instanceof DemoLimitError) return { error: error.message };
     revalidatePath("/", "layout"); // show the latest state next to the message
     return { error: describeError(error) };
   }
@@ -41,22 +55,22 @@ async function attempt(command: () => Promise<unknown>, success?: string): Promi
 }
 
 function readExpense(form: FormData): ExpenseDetails | string {
-  const title = text(form, "title");
-  const category = text(form, "category");
-  const amount = Number(text(form, "amount"));
-  if (title.length < 3 || title.length > 80)
-    return "Give the expense a title (3 to 80 characters).";
-  if (!(categories as readonly string[]).includes(category)) return "Choose a category.";
-  if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) {
-    return "Enter an amount between 0.01 and 1,000,000.";
-  }
-  return { title, category, amount: Math.round(amount * 100) / 100 };
+  return checkExpense({
+    title: text(form, "title"),
+    category: text(form, "category"),
+    amount: text(form, "amount"),
+  });
 }
 
 // ---------- Sign in ----------
 
 export async function signInAction(userId: string): Promise<void> {
-  await signIn(userId);
+  try {
+    await signIn(userId);
+  } catch (error) {
+    if (error instanceof DemoLimitError) redirect(`/login?notice=${error.reason}`);
+    throw error;
+  }
   const user = person(userId);
   redirect(user === undefined ? "/" : homeFor(user));
 }
@@ -72,14 +86,15 @@ export async function submitAction(_: ActionState, form: FormData): Promise<Acti
   const user = await requireUser();
   const details = readExpense(form);
   if (typeof details === "string") return { error: details };
+  const expenseId = text(form, "expenseId"); // rendered once per form: a double submit is harmless
+  if (!isExpenseId(expenseId)) return { error: "This form is out of date. Reload the page." };
   const demo = await requireDemo();
+  if (isPublicDemo() && (await countExpenses(demo.db)) >= LIMITS.expensesPerSandbox) {
+    return { error: "This demo holds enough expenses. Use Reset demo to start over." };
+  }
   let requestId: string | undefined;
   const result = await attempt(async () => {
-    const request = await submitExpense(demo, {
-      requesterId: user.id,
-      details,
-      expenseId: text(form, "expenseId"), // rendered once per form: a double submit is harmless
-    });
+    const request = await submitExpense(demo, { requesterId: user.id, details, expenseId });
     requestId = request.id;
   });
   if (requestId === undefined) return result;
@@ -93,6 +108,8 @@ export async function withdrawAction(
   form: FormData,
 ): Promise<ActionState> {
   const user = await requireUser();
+  const tooLong = commentTooLong(text(form, "comment"));
+  if (tooLong !== undefined) return { error: tooLong };
   const { rungs } = await requireDemo();
   return attempt(
     () =>
@@ -127,6 +144,8 @@ export async function decideAction(
   form: FormData,
 ): Promise<ActionState> {
   const user = await requireUser();
+  const tooLong = commentTooLong(text(form, "comment"));
+  if (tooLong !== undefined) return { error: tooLong };
   const { rungs } = await requireDemo();
   const input = { requestId, actorId: user.id, expectedVersion: version, ...comment(form) };
   switch (text(form, "decision")) {
@@ -155,6 +174,8 @@ export async function delegateAction(
   const user = await requireUser();
   const toUserId = text(form, "toUserId");
   if (person(toUserId) === undefined) return { error: "Choose who should decide instead." };
+  const tooLong = commentTooLong(text(form, "comment"));
+  if (tooLong !== undefined) return { error: tooLong };
   const { rungs } = await requireDemo();
   return attempt(
     () =>
@@ -178,9 +199,8 @@ export async function setAwayAction(_: ActionState, form: FormData): Promise<Act
   const from = text(form, "from");
   const until = text(form, "until");
   if (person(toUserId) === undefined) return { error: "Choose who covers for you." };
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(until) || until < from) {
-    return { error: "Choose a first and a last day; the last day cannot be before the first." };
-  }
+  const badDates = checkAwayDates(from, until);
+  if (badDates !== undefined) return { error: badDates };
   const endsAt = new Date(`${until}T00:00:00.000Z`);
   endsAt.setUTCDate(endsAt.getUTCDate() + 1); // the rule covers the whole last day
   const { rungs } = await requireDemo();
@@ -201,17 +221,16 @@ export async function endAwayAction(ruleId: string): Promise<void> {
   const { rungs } = await requireDemo();
   const rules = await rungs.delegations.list({ userId: user.id });
   if (!rules.some((r) => r.id === ruleId && r.fromUserId === user.id)) return;
-  await rungs.delegations.end({ id: ruleId });
-  revalidatePath("/", "layout");
+  await attempt(() => rungs.delegations.end({ id: ruleId }));
 }
 
 // ---------- Admin ----------
 
 export async function setActiveAction(userId: string, active: boolean): Promise<void> {
   await requireAdmin();
+  if (person(userId) === undefined) return;
   const demo = await requireDemo();
-  await setActive(demo.db, demo.inactive, userId, active);
-  revalidatePath("/", "layout");
+  await attempt(() => setActive(demo.db, demo.inactive, userId, active));
 }
 
 export async function reassignStepAction(
@@ -223,9 +242,11 @@ export async function reassignStepAction(
 ): Promise<ActionState> {
   const admin = await requireAdmin();
   const toUserIds = form.getAll("toUserIds").map(String);
-  if (toUserIds.length === 0) return { error: "Choose at least one person." };
+  if (!arePeople(toUserIds)) return { error: "Choose at least one person." };
   const reason = text(form, "comment");
   if (reason === "") return { error: "Say why, for the audit trail." };
+  const tooLong = commentTooLong(reason);
+  if (tooLong !== undefined) return { error: tooLong };
   const { rungs } = await requireDemo();
   return attempt(
     () =>
@@ -275,6 +296,8 @@ export async function overrideAction(
   const reason = text(form, "comment");
   if (decision !== "approve" && decision !== "reject") return { error: "Choose a decision." };
   if (reason === "") return { error: "An override needs a reason, for the audit trail." };
+  const tooLong = commentTooLong(reason);
+  if (tooLong !== undefined) return { error: tooLong };
   const { rungs } = await requireDemo();
   return attempt(
     () =>
@@ -297,6 +320,12 @@ export async function advanceAction(_: ActionState, form: FormData): Promise<Act
   await requireUser();
   const hours = Number(form.get("hours"));
   if (![1, 24, 72].includes(hours)) return { error: "Unknown step." };
+  try {
+    await checkWriteLimit({ clock: true });
+  } catch (error) {
+    if (error instanceof DemoLimitError) return { error: error.message };
+    throw error;
+  }
   const demo = await requireDemo();
   const summary = await advanceTime(demo, hours * HOUR);
   revalidatePath("/", "layout");
@@ -312,6 +341,12 @@ export async function advanceAction(_: ActionState, form: FormData): Promise<Act
 
 export async function resetAction(): Promise<void> {
   await requireUser();
+  try {
+    await checkWriteLimit();
+  } catch (error) {
+    if (error instanceof DemoLimitError) redirect("/");
+    throw error;
+  }
   await resetCurrentDemo();
   revalidatePath("/", "layout");
   redirect("/");

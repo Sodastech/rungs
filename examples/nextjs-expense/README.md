@@ -30,6 +30,10 @@ is created in one round trip from `rungs/seed-snapshot.json`, the rows that repl
 story produces. After changing the story or the flow, rewrite that file with
 `pnpm --filter @rungsjs/example-nextjs-expense test -u`.
 
+The online demo also limits what one visitor can do (`rungs/limits.ts`), shows a banner, sends a
+Content Security Policy (`proxy.ts`) and never shows error details. `DEMO_PAUSED=1` switches it off
+without a deploy.
+
 ## A short tour
 
 You can sign in as any of six fictional people, with no password. Use **Switch person** to see

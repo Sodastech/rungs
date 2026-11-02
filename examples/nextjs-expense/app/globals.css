@@ -818,3 +818,12 @@ p.row-title {
   margin: 16px 0 0;
   text-align: center;
 }
+
+.public-banner {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  font-size: 0.875rem;
+  text-align: center;
+}

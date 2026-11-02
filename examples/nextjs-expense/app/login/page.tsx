@@ -14,7 +14,16 @@ const roleNote: Record<string, string> = {
   ada: "Unblocks stuck approvals; can override.",
 };
 
-export default function LoginPage() {
+const notices: Record<string, string> = {
+  busy: "You are going faster than this public demo allows. Try again in a few minutes.",
+  full: "The public demo is full right now. Try again later.",
+};
+
+type Search = Promise<{ notice?: string }>;
+
+export default async function LoginPage({ searchParams }: { searchParams: Search }) {
+  const { notice } = await searchParams;
+  const message = notice === undefined ? undefined : notices[notice];
   return (
     <>
       <h1>Who are you today?</h1>
@@ -22,6 +31,11 @@ export default function LoginPage() {
         This demo has no passwords. Pick anyone to see Rungs from their side, and switch at any time
         to follow an expense through the approval chain.
       </p>
+      {message !== undefined && (
+        <p className="alert error" role="alert">
+          {message}
+        </p>
+      )}
       <ul className="people-grid list">
         {people.map((p) => (
           <li key={p.id}>
