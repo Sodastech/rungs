@@ -13,8 +13,9 @@ info@sodastech.com.
 - **Features:** open a feature request to discuss it before writing code. Check
   [docs/02-free-vs-pro.md](docs/02-free-vs-pro.md): org-aware resolution and UI are planned as Pro
   features and are not accepted into the MIT packages.
-- **Only contribute code you wrote yourself** and have the right to contribute under the MIT license.
-  Do not copy code, schemas or documents from proprietary systems.
+- **Clean room.** Only contribute code you wrote yourself and have the right to contribute under
+  the MIT license. Do not copy, port or reconstruct code, schemas or documents from proprietary or
+  third-party systems. General domain knowledge is fine; copied artifacts are not.
 
 ## Setup
 
@@ -49,7 +50,16 @@ pnpm build && pnpm typecheck && pnpm test
   approval step.
 - **Public API changes are deliberate.** Anything exported from a package entry point is public.
   Update [docs/04-api-design.md](docs/04-api-design.md), the pages of the documentation site that
-  describe it (`site/src/content/docs`), and add a changeset (`pnpm changeset`).
+  describe it (`site/src/content/docs`), and regenerate the API reports (`pnpm api:update`), all
+  in the same change.
+- **Changesets.** A pull request that changes a published package adds a changeset
+  (`pnpm changeset`); it becomes the release note. See [RELEASING.md](RELEASING.md).
+- **The docs describe intent.** If the code and the design docs disagree, say so in the issue or
+  pull request instead of changing one to match the other silently.
+- **Conventions.** Errors are typed classes extending `RungsError` with a stable `code`. Prefer
+  discriminated unions over boolean flags and plain data over classes. Persisted timestamps are
+  ISO 8601 UTC strings.
+- **No secrets in the repository.** Tokens stay in environment variables or CI secrets.
 - **Code samples are tested.** Samples on the documentation site and in the README live in
   `examples/docs-snippets`, whose tests run them; pages show a region of those files. The edge
   case catalog page is rendered from `docs/05-edge-cases.md`, and the API reference is generated

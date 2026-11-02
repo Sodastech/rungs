@@ -282,7 +282,7 @@ function checkInvariants(
 
 // CI on push and PR uses a fixed seed so results are reproducible. The scheduled workflow sets
 // FC_SEED and FC_RUNS to explore new cases. A failure from a random seed must first become a
-// deterministic regression test (CLAUDE.md), then be fixed.
+// deterministic regression test (CONTRIBUTING.md), then be fixed.
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env;
 const SEED = Number(env?.FC_SEED ?? 20260105);
 const RUNS = Number(env?.FC_RUNS ?? 400);

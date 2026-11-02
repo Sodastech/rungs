@@ -2,7 +2,7 @@ name: Property tests (random seeds)
 
 # The main CI runs the property tests with a fixed seed so every push and PR is deterministic.
 # This scheduled job explores new cases with a random seed and many more runs. When it fails,
-# turn the printed counterexample into a deterministic regression test before fixing (CLAUDE.md).
+# turn the printed counterexample into a deterministic regression test before fixing (CONTRIBUTING.md).
 
 on:
   schedule:

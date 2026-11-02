@@ -4,8 +4,9 @@
 
 ```
 rungs/
-├── CLAUDE.md
+├── CONTRIBUTING.md
 ├── README.md
+├── RELEASING.md
 ├── ROADMAP.md
 ├── docs/
 ├── packages/

@@ -1,5 +1,5 @@
 // Every edge case marked "Core" in docs/05-edge-cases.md must have a test whose name starts with
-// its ID (CLAUDE.md rule 3), and every ID a test names must exist in the catalog.
+// its ID (CONTRIBUTING.md, "Tests first"), and every ID a test names must exist in the catalog.
 // Usage: node scripts/check-ec-coverage.mjs
 
 import { readdirSync, readFileSync, statSync } from "node:fs";

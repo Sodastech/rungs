@@ -3,7 +3,7 @@ import * as engine from "../src/engine.js";
 import * as core from "../src/index.js";
 import * as store from "../src/store.js";
 
-// Everything exported from an entry point is public API (CLAUDE.md rule 4).
+// Everything exported from an entry point is public API (CONTRIBUTING.md).
 // Changing these lists requires updating docs/04-api-design.md and adding a changeset.
 it("exports exactly the documented runtime API", () => {
   expect(Object.keys(core).sort()).toEqual([
