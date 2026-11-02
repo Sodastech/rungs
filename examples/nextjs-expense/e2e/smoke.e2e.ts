@@ -28,7 +28,7 @@ test("an expense goes from Alice through Marco and finance to approved", async (
   await expect(page.getByText(`"${title}" was approved.`)).toBeVisible();
 });
 
-test("moving the clock forward shows a reminder", async ({ page }) => {
+test("the demo clock moves forward", async ({ page }) => {
   await signInAs(page, "Marco Rossi");
   await page.getByRole("button", { name: "+1 day" }).click();
   await expect(page.getByText(/^\+1 day\./)).toBeVisible();
