@@ -1,6 +1,6 @@
 {
   "name": "@rungsjs/core",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Pure, deterministic approval workflow engine. Zero runtime dependencies.",
   "keywords": [
     "approval",
