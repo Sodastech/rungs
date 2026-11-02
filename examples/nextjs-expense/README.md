@@ -32,7 +32,7 @@ story produces. After changing the story or the flow, rewrite that file with
 
 The online demo also limits what one visitor can do (`rungs/limits.ts`), shows a banner, sends a
 Content Security Policy (`proxy.ts`) and never shows error details. `DEMO_PAUSED=1` switches it off
-without a deploy.
+without a code change; on Vercel, a changed variable applies from the next deployment.
 
 ## A short tour
 

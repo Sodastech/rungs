@@ -5,8 +5,8 @@ const PAUSED_PAGE = `<!doctype html><html lang="en"><meta charset="utf-8"><title
 <a href="https://github.com/Sodastech/rungs/tree/main/examples/nextjs-expense">run it locally</a>.</p></html>`;
 
 /**
- * The online demo only: DEMO_PAUSED=1 switches it off without a deploy, and every page gets a
- * Content Security Policy with a fresh nonce, which Next.js adds to its own scripts.
+ * The online demo only: DEMO_PAUSED=1 switches it off without a code change, and every page gets
+ * a Content Security Policy with a fresh nonce, which Next.js adds to its own scripts.
  * `style-src` allows inline styles because `next/image` and the avatars set a `style` attribute.
  */
 export function proxy(request: NextRequest): NextResponse {
